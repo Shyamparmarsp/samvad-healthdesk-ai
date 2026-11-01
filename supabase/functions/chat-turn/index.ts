@@ -296,7 +296,8 @@ async function createEmergencyReport(
         intake_reference: generateIntakeReference(new Date()),
         emergency_rule_id: ruleId,
         possible_urgent: false,
-        needs_human_review: false,
+        // OD-09: never clear an existing review flag. Conservative until the owner rules.
+        needs_human_review: session.needs_human_review === true,
         report: document,
       },
       { onConflict: "session_id", ignoreDuplicates: true },

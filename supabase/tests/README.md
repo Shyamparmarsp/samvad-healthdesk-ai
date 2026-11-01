@@ -1,8 +1,17 @@
 # Local database test procedure
 
-**Status: not executed.** The Supabase CLI is not installed here and no database was
-started, linked or modified. Everything below is a reproducible procedure for a
-**disposable local stack only**.
+**Status: executed** on 2 November 2026 against a disposable local stack
+(`supabase start`, migrations 1–5 + `seed.sql` applied, no remote project touched).
+
+| Suite | File | Result |
+|---|---|---|
+| RLS and ownership | `rls.sql` | PASS — 5 assertion blocks, all NOTICEs |
+| Constraints, grants, IST bucketing | `constraints.sql` | PASS — 4 blocks |
+| Atomic reservation, limit 5 | pgbench, 20 clients | 5 allowed / 15 denied, `used = 5` |
+| Atomic reservation, limit 14 | pgbench, 20 clients | 14 allowed / 6 denied, `used = 14` |
+
+The CLI is not global; it runs through `npx supabase@latest`. Everything below is a
+reproducible procedure for a **disposable local stack only**.
 
 Never point these steps at the shared demo project.
 
@@ -32,8 +41,17 @@ placeholders). Keep the local service key in the shell only.
 ## 3. Run the RLS assertions
 
 ```bash
-psql "$LOCAL_DB_URL" -f supabase/tests/rls.sql
+# without a local psql client, run it inside the database container
+docker exec -i supabase_db_samvad-backend \
+  psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/rls.sql
+
+docker exec -i supabase_db_samvad-backend \
+  psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/constraints.sql
 ```
+
+`rls.sql` resolves the four identities by email, so create these on the local stack
+first (Auth admin API, service key): `patient-a@rls.test`, `patient-b@rls.test`,
+`doctor-gm@rls.test`, `doctor-em@rls.test`.
 
 Each `DO` block impersonates one identity with `set local role authenticated` plus a
 `request.jwt.claims` claim, then asserts exact row counts. A violation raises and aborts
@@ -49,21 +67,29 @@ isolation, absence of any browser write path, and denial of the usage tables and
 Two shells, same database, counters reset to a known state:
 
 ```bash
-psql "$LOCAL_DB_URL" -c "update public.daily_usage_limits set daily_limit = 1 where counter_name = 'sessions';"
-psql "$LOCAL_DB_URL" -c "delete from public.daily_usage_counters where counter_name = 'sessions';"
+docker exec -i supabase_db_samvad-backend psql -U postgres -d postgres -q -c \
+  "update public.daily_usage_limits set daily_limit=5 where counter_name='sessions';
+   delete from public.daily_usage_counters where counter_name='sessions';
+   create table public._test_reservations (allowed boolean);"
 
-# fire 20 concurrent reservations
-for i in $(seq 1 20); do
-  psql "$LOCAL_DB_URL" -Atc "select allowed from public.reserve_daily_usage('sessions');" &
-done
-wait
+docker exec -i supabase_db_samvad-backend sh -c \
+  "printf \"insert into public._test_reservations select allowed from public.reserve_daily_usage('sessions');\\n\" > /tmp/reserve.sql"
 
-psql "$LOCAL_DB_URL" -Atc "select used from public.daily_usage_counters where counter_name='sessions';"
+docker exec -i supabase_db_samvad-backend pgbench -n -c 20 -j 4 -t 1 -f /tmp/reserve.sql \
+  "postgresql://postgres:postgres@127.0.0.1:5432/postgres"
+
+docker exec -i supabase_db_samvad-backend psql -U postgres -d postgres -Atc \
+  "select count(*) filter (where allowed), count(*) filter (where not allowed) from public._test_reservations;
+   select used from public.daily_usage_counters where counter_name='sessions';"
 ```
+
+Measured: **5 / 15** and `used = 5`. Do not exceed ~60 clients; the container's
+`max_connections` is 100 and the other Supabase services hold ~33.
 
 Expected: exactly one `t`, nineteen `f`, and `used = 1`. Any other result is a FAIL.
 
-Repeat with `daily_limit = 100` and 200 concurrent calls: `used` must be exactly 100.
+Repeat with `daily_limit = 14` to confirm a non-round boundary: 14 / 6 and `used = 14`.
+Drop `public._test_reservations` and reset the limit afterwards.
 
 ## 5. IST rollover
 

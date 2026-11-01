@@ -12,8 +12,8 @@
 begin;
 
 -- ---------------------------------------------------------------------------
--- Identities. Replace these four UUIDs with rows that exist in auth.users.
--- ---------------------------------------------------------------------------
+-- Identities are resolved by email. Create these four users on the LOCAL stack first
+-- (Auth admin API), then run this file. No hardcoded UUIDs and no auth.users writes.
 create temporary table ids (
   patient_a uuid,
   patient_b uuid,
@@ -21,12 +21,19 @@ create temporary table ids (
   doctor_em uuid
 ) on commit drop;
 
-insert into ids values (
-  '11111111-1111-4111-8111-111111111111',
-  '22222222-2222-4222-8222-222222222222',
-  '33333333-3333-4333-8333-333333333333',
-  '44444444-4444-4444-8444-444444444444'
-);
+insert into ids
+select
+  (select id from auth.users where email = 'patient-a@rls.test'),
+  (select id from auth.users where email = 'patient-b@rls.test'),
+  (select id from auth.users where email = 'doctor-gm@rls.test'),
+  (select id from auth.users where email = 'doctor-em@rls.test');
+
+do $$
+begin
+  if exists (select 1 from ids where patient_a is null or patient_b is null or doctor_gm is null or doctor_em is null) then
+    raise exception 'Missing local test identities. Create patient-a, patient-b, doctor-gm and doctor-em first.';
+  end if;
+end $$;
 
 -- Fixtures are created as the migration owner (RLS bypassed), then read as a role.
 insert into public.sessions (id, user_id, language, status, answer_turn_count, current_question_id)
@@ -92,8 +99,13 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', patient_a, 'role', 'authenticated')::text, true);
   set local role authenticated;
 
-  select count(*) into visible from public.sessions;
-  if visible <> 0 then raise exception 'FAIL: patient read % sessions', visible; end if;
+  -- sessions carries no browser grant at all: access must fail loudly.
+  begin
+    select count(*) into visible from public.sessions;
+    if visible <> 0 then raise exception 'FAIL: patient read % sessions', visible; end if;
+  exception
+    when insufficient_privilege then null;
+  end;
 
   select count(*) into visible from public.reports;
   if visible <> 0 then raise exception 'FAIL: patient read % reports', visible; end if;
@@ -122,6 +134,10 @@ begin
   select count(*) into visible from public.reports where status = 'urgent_partial';
   if visible <> 1 then raise exception 'FAIL: General Medicine doctor sees % urgent reports (expected 1)', visible; end if;
 
+  -- Conversation access follows report access: the submitted report and the urgent one.
+  select count(*) into visible from public.messages;
+  if visible <> 2 then raise exception 'FAIL: doctor sees % messages (expected 2)', visible; end if;
+
   reset role;
   raise notice 'PASS: doctor sees assigned submitted + emergency cross-visibility, never drafts';
 end $$;
@@ -136,6 +152,9 @@ begin
 
   select count(*) into visible from public.reports where status = 'urgent_partial';
   if visible <> 1 then raise exception 'FAIL: Emergency doctor sees % urgent reports', visible; end if;
+
+  select count(*) into visible from public.messages;
+  if visible <> 1 then raise exception 'FAIL: Emergency doctor sees % messages (expected 1)', visible; end if;
 
   reset role;
   raise notice 'PASS: Emergency doctor sees the urgent report';
