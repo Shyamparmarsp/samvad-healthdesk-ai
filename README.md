@@ -129,6 +129,37 @@ VITE_SUPABASE_KEY=your-supabase-publishable-or-anon-key
 # MUST ONLY be set in Supabase Function Secrets — NEVER in the frontend!
 ```
 
+### Production Environment & Deployment
+1. **Frontend Hosting (Vercel):**
+   - Connect repository to Vercel.
+   - Configure Environment Variables: `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` (public anon/publishable key only).
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+2. **Backend & Database (Supabase Cloud):**
+   - Apply timestamped migrations in `supabase/migrations/` and seed data from `supabase/seed.sql`.
+   - Set Function Secrets using Supabase CLI:
+     ```bash
+     supabase secrets set GROQ_API_KEY=... GNANI_API_KEY=...
+     ```
+   - Deploy Edge Functions:
+     ```bash
+     supabase functions deploy chat-turn
+     supabase functions deploy speak
+     ```
+   - Provision Doctor Auth accounts in Supabase Dashboard and apply profile mappings via [`docs/final-owner-setup.md`](docs/final-owner-setup.md).
+
+---
+
+## Known Limitations & Clinical Governance
+
+> [!CAUTION]
+> **Prototype & Non-Clinical Disclaimers:**
+> - **Synthetic Personas Only:** Utilizes fictional doctor identities and synthetic patient inputs. Real patient PHI must never be entered.
+> - **Non-Diagnostic:** Strictly provides intake synthesis and departmental referral routing; never diagnoses illnesses, assesses clinical probability, or prescribes treatment.
+> - **Illustrative Emergency Rules:** Keyword emergency triggers are demonstration safety filters and not clinically certified medical triage algorithms.
+> - **No Emergency Dispatch:** Displaying plain-text 112 advice does not summon emergency services or dial 112 automatically.
+> - **Linguistic Certification Pending:** Hindi translations are approved for educational demo purposes and require clinical review by qualified medical linguists before healthcare use.
+
 ---
 
 ## Test Suites & Quality Verification

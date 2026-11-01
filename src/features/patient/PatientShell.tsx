@@ -39,6 +39,27 @@ type PatientScreen =
   | 'confirmed_report_only'
   | 'emergency';
 
+function sanitizeUserError(err: any): string {
+  if (!err) return 'An unexpected error occurred. Please try again.';
+  const msg = typeof err === 'string' ? err : err.message || '';
+  if (/demo_busy/i.test(msg)) {
+    return 'The hospital intake desk has reached its daily limit. Please consult hospital reception.';
+  }
+  if (/network|fetch|offline|failed to fetch|load failed/i.test(msg)) {
+    return 'Unable to reach the hospital server. Please check your internet connection.';
+  }
+  if (/auth_failed|jwt|token|unauthorized/i.test(msg)) {
+    return 'Session expired. Please restart your intake.';
+  }
+  if (/provider_unavailable/i.test(msg)) {
+    return 'Voice transcription is unavailable right now. Please type your answer instead.';
+  }
+  if (/sqlstate|pgrst|relation|schema|table|column|database/i.test(msg)) {
+    return 'A hospital service error occurred. Please ask front desk staff for assistance.';
+  }
+  return msg || 'An unexpected error occurred. Please try again.';
+}
+
 export const PatientShell: React.FC = () => {
   const { language } = useI18n();
 
@@ -104,7 +125,7 @@ export const PatientShell: React.FC = () => {
       setCurrentScreen('consent');
     } catch (err: any) {
       console.error('Failed to start session', err);
-      setErrorMessage(err?.message || 'Failed to start session. Please try again.');
+      setErrorMessage(sanitizeUserError(err));
     } finally {
       setIsProcessing(false);
     }
@@ -121,7 +142,7 @@ export const PatientShell: React.FC = () => {
       setCurrentScreen('conversation');
     } catch (err: any) {
       console.error('Failed to record consent', err);
-      setErrorMessage(err?.message || 'Failed to record consent. Please try again.');
+      setErrorMessage(sanitizeUserError(err));
     } finally {
       setIsProcessing(false);
     }
@@ -138,7 +159,7 @@ export const PatientShell: React.FC = () => {
       setCurrentScreen('consent_declined');
     } catch (err: any) {
       console.error('Failed to decline consent', err);
-      setErrorMessage(err?.message || 'Failed to record consent decline.');
+      setErrorMessage(sanitizeUserError(err));
     }
   };
 
@@ -163,7 +184,7 @@ export const PatientShell: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error submitting turn', err);
-      setErrorMessage(err?.message || 'Failed to process answer. Please retry.');
+      setErrorMessage(sanitizeUserError(err));
     } finally {
       setIsProcessing(false);
     }
@@ -199,7 +220,7 @@ export const PatientShell: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error submitting voice turn', err);
-      setErrorMessage(err?.message || 'Voice transcription failed. Please try typing instead.');
+      setErrorMessage(sanitizeUserError(err));
     } finally {
       setIsProcessing(false);
     }
@@ -228,7 +249,7 @@ export const PatientShell: React.FC = () => {
       setChatState(res);
     } catch (err: any) {
       console.error('Failed to update field', err);
-      setErrorMessage(err?.message || 'Failed to update field correction.');
+      setErrorMessage(sanitizeUserError(err));
     }
   };
 
@@ -248,7 +269,7 @@ export const PatientShell: React.FC = () => {
       setCurrentScreen('booking');
     } catch (err: any) {
       console.error('Failed to submit report', err);
-      setErrorMessage(err?.message || 'Failed to submit report to hospital.');
+      setErrorMessage(sanitizeUserError(err));
     } finally {
       setIsProcessing(false);
     }
