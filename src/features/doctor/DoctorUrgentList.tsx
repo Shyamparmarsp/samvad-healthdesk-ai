@@ -38,7 +38,16 @@ export const DoctorUrgentList: React.FC<DoctorUrgentListProps> = ({
               <div
                 key={r.id}
                 onClick={() => onSelectReport(r.id)}
-                className="p-5 rounded-card bg-white border border-red-100 hover:border-red-300 shadow-sm transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectReport(r.id);
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-label={`Open urgent triage report for ${r.report.patient.name.value || 'Anonymous Patient'}`}
+                className="p-5 rounded-card bg-white border border-red-100 hover:border-red-300 shadow-sm transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 focus:outline-none focus:ring-2 focus:ring-red-500"
               >
                 <div>
                   <div className="flex items-center gap-2 mb-1">

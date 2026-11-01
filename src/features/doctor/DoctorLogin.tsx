@@ -86,7 +86,8 @@ export const DoctorLogin: React.FC<DoctorLoginProps> = ({ onLoginSuccess }) => {
                     setEmail(FICTIONAL_DOCTORS.general_medicine.email);
                     setLoginError(null);
                   }}
-                  className={`py-2 px-2.5 rounded-lg text-xs font-semibold border text-left transition-all ${
+                  aria-label="Select Dr. Aditi Rao, General Medicine"
+                  className={`py-2 px-2.5 rounded-lg text-xs font-semibold border text-left transition-all focus:outline-none focus:ring-2 focus:ring-brand-navy ${
                     email === FICTIONAL_DOCTORS.general_medicine.email
                       ? 'bg-brand-navy border-brand-navy text-white shadow-sm'
                       : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
@@ -102,7 +103,8 @@ export const DoctorLogin: React.FC<DoctorLoginProps> = ({ onLoginSuccess }) => {
                     setEmail(FICTIONAL_DOCTORS.emergency.email);
                     setLoginError(null);
                   }}
-                  className={`py-2 px-2.5 rounded-lg text-xs font-semibold border text-left transition-all ${
+                  aria-label="Select Dr. Neha Verma, Emergency"
+                  className={`py-2 px-2.5 rounded-lg text-xs font-semibold border text-left transition-all focus:outline-none focus:ring-2 focus:ring-red-500 ${
                     email === FICTIONAL_DOCTORS.emergency.email
                       ? 'bg-red-700 border-red-700 text-white shadow-sm'
                       : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
@@ -150,7 +152,7 @@ export const DoctorLogin: React.FC<DoctorLoginProps> = ({ onLoginSuccess }) => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full h-btn-desktop rounded-pill bg-brand-navy text-white font-semibold text-sm shadow hover:bg-brand-navy-light disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+            className="w-full h-btn-desktop rounded-pill bg-brand-navy text-white font-semibold text-sm shadow hover:bg-brand-navy-light disabled:opacity-50 transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-brand-navy"
           >
             {isLoading ? 'Signing In...' : 'Sign In to Portal'}
           </button>

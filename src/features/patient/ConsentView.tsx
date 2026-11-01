@@ -48,7 +48,8 @@ export const ConsentView: React.FC<ConsentViewProps> = ({ onAgree, onDecline }) 
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
             <button
               onClick={simulatePlayAudio}
-              className="text-xs font-medium text-brand-navy flex items-center gap-1.5 hover:underline"
+              aria-label={isPlayingAudio ? 'Playing greeting' : t.chat.replayQuestion}
+              className="text-xs font-medium text-brand-navy flex items-center gap-1.5 hover:underline rounded-md px-1 py-0.5 focus:outline-none focus:ring-2 focus:ring-brand-navy"
             >
               <svg className={`w-4 h-4 ${isPlayingAudio ? 'text-indigo-600 animate-spin' : 'text-slate-500'}`} fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
@@ -69,7 +70,8 @@ export const ConsentView: React.FC<ConsentViewProps> = ({ onAgree, onDecline }) 
         {/* Yes Button */}
         <button
           onClick={onAgree}
-          className="w-full h-btn-mobile rounded-pill bg-brand-navy text-white font-semibold text-sm shadow-md hover:bg-brand-navy-light active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+          aria-label={t.consent.agree}
+          className="w-full h-btn-mobile rounded-pill bg-brand-navy text-white font-semibold text-sm shadow-md hover:bg-brand-navy-light active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-brand-navy"
         >
           <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -80,7 +82,8 @@ export const ConsentView: React.FC<ConsentViewProps> = ({ onAgree, onDecline }) 
         {/* No Button */}
         <button
           onClick={onDecline}
-          className="w-full h-btn-mobile rounded-pill bg-white/80 border border-slate-300 text-slate-600 font-medium text-sm hover:bg-white active:scale-[0.99] transition-all"
+          aria-label={t.consent.decline}
+          className="w-full h-btn-mobile rounded-pill bg-white/80 border border-slate-300 text-slate-600 font-medium text-sm hover:bg-white active:scale-[0.99] transition-all focus:outline-none focus:ring-2 focus:ring-slate-400"
         >
           {t.consent.decline}
         </button>

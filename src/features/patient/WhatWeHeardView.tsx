@@ -32,7 +32,8 @@ export const WhatWeHeardView: React.FC<WhatWeHeardViewProps> = ({
           </span>
           <button
             onClick={onCancel}
-            className="text-xs text-slate-500 hover:text-slate-800"
+            aria-label={t.common.cancel}
+            className="text-xs text-slate-500 hover:text-slate-800 rounded px-1.5 py-0.5 focus:outline-none focus:ring-2 focus:ring-slate-400"
           >
             {t.common.cancel}
           </button>
@@ -67,7 +68,8 @@ export const WhatWeHeardView: React.FC<WhatWeHeardViewProps> = ({
         <button
           onClick={() => handleSubmit({ preventDefault: () => {} } as any)}
           disabled={!transcript.trim()}
-          className="w-full h-btn-mobile rounded-pill bg-brand-navy text-white font-semibold text-sm shadow-md hover:bg-brand-navy-light disabled:opacity-50 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+          aria-label={t.chat.confirmTranscript}
+          className="w-full h-btn-mobile rounded-pill bg-brand-navy text-white font-semibold text-sm shadow-md hover:bg-brand-navy-light disabled:opacity-50 active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-brand-navy"
         >
           <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -77,7 +79,8 @@ export const WhatWeHeardView: React.FC<WhatWeHeardViewProps> = ({
 
         <button
           onClick={onCancel}
-          className="w-full h-btn-mobile rounded-pill bg-white border border-slate-300 text-slate-600 font-medium text-sm hover:bg-slate-50 active:scale-[0.99] transition-all"
+          aria-label={t.common.cancel}
+          className="w-full h-btn-mobile rounded-pill bg-white border border-slate-300 text-slate-600 font-medium text-sm hover:bg-slate-50 active:scale-[0.99] transition-all focus:outline-none focus:ring-2 focus:ring-slate-400"
         >
           {t.common.cancel}
         </button>

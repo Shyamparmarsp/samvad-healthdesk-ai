@@ -55,7 +55,8 @@ export const EmergencyView: React.FC<EmergencyViewProps> = ({ onEndDemo }) => {
       <div className="pt-4">
         <button
           onClick={onEndDemo}
-          className="w-full h-btn-mobile rounded-pill bg-slate-800 text-white font-semibold text-sm shadow hover:bg-slate-900 active:scale-[0.99] transition-all"
+          aria-label={t.emergency.returnHome}
+          className="w-full h-btn-mobile rounded-pill bg-slate-800 text-white font-semibold text-sm shadow hover:bg-slate-900 active:scale-[0.99] transition-all focus:outline-none focus:ring-2 focus:ring-slate-500"
         >
           {t.emergency.returnHome}
         </button>

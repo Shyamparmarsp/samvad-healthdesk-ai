@@ -9,6 +9,36 @@ interface DisplayOption {
   value: string;
 }
 
+const OPTION_TRANSLATIONS_HI: Record<string, string> = {
+  // Severity / Duration
+  'Mild': 'हल्का (Mild)',
+  'Moderate': 'मध्यम (Moderate)',
+  'Severe': 'गंभीर (Severe)',
+  'Suddenly': 'अचानक (Suddenly)',
+  'Gradually': 'धीरे-धीरे (Gradually)',
+  'Comes and goes': 'आता-जाता (Comes and goes)',
+  'Constant': 'लगातार (Constant)',
+  'Occasional': 'कभी-कभी (Occasional)',
+  // Common conditions / symptoms
+  'None known': 'कोई नहीं / पता नहीं',
+  'None': 'कोई नहीं',
+  'High blood pressure': 'हाई ब्लड प्रेशर',
+  'Diabetes': 'डायबिटीज',
+  'Yes, taking regular medicines': 'हाँ, नियमित दवा ले रहे हैं',
+  'Penicillin': 'पेनिसिलिन',
+  'Sulfa drugs': 'सल्फा दवाएं',
+  'No other symptoms': 'कोई अन्य लक्षण नहीं',
+  'Mild fever': 'हल्का बुखार',
+  'Headache': 'सिरदर्द',
+  // Cardiac / Surgical
+  'Pressure': 'दबाव (Pressure)',
+  'Heaviness': 'भारीपन (Heaviness)',
+  'Sharp pain': 'तीखा दर्द (Sharp pain)',
+  'Burning': 'जलन (Burning)',
+  'Dull pain': 'हल्का दर्द (Dull pain)',
+  'Cramping': 'मरोड़ जैसा (Cramping)',
+};
+
 function getOptionsForQuestion(
   question?: ConversationViewProps['currentQuestion'],
   language: 'en' | 'hi' = 'en'
@@ -59,12 +89,18 @@ function getOptionsForQuestion(
     ];
   }
 
-  // 4. General options array from backend or mock
+  // 4. General options array from backend or mock with Hindi localization
   if (question.options && question.options.length > 0) {
-    return question.options.map((opt) => ({
-      label: opt,
-      value: opt,
-    }));
+    return question.options.map((opt) => {
+      const localizedLabel =
+        language === 'hi' && OPTION_TRANSLATIONS_HI[opt]
+          ? OPTION_TRANSLATIONS_HI[opt]
+          : opt;
+      return {
+        label: localizedLabel,
+        value: opt,
+      };
+    });
   }
 
   return [];

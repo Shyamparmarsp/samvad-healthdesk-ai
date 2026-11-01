@@ -155,7 +155,11 @@ export const BookingView: React.FC<BookingViewProps> = ({
 
           {/* Slot Taken Error Banner (P8a) */}
           {slotTakenError && (
-            <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 flex items-start gap-2 shadow-sm animate-pulse">
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 flex items-start gap-2 shadow-sm animate-pulse"
+            >
               <svg className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
@@ -168,7 +172,11 @@ export const BookingView: React.FC<BookingViewProps> = ({
 
           {/* Generic Booking Failure Banner */}
           {bookingErrorMessage && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-300 text-xs text-red-900 flex items-start gap-2 shadow-sm">
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="p-3 rounded-xl bg-red-50 border border-red-300 text-xs text-red-900 flex items-start gap-2 shadow-sm"
+            >
               <svg className="w-4 h-4 text-red-700 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
@@ -184,14 +192,16 @@ export const BookingView: React.FC<BookingViewProps> = ({
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
               {t.booking.selectDate}
             </label>
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none" role="group" aria-label="Consultation dates">
               {dates.map((d) => {
                 const isSelected = d.dateStr === selectedDate;
                 return (
                   <button
                     key={d.dateStr}
                     onClick={() => setSelectedDate(d.dateStr)}
-                    className={`flex-shrink-0 px-3.5 py-2 rounded-xl text-center border transition-all ${
+                    aria-label={`Select date ${d.dayName} ${d.label}`}
+                    aria-pressed={isSelected}
+                    className={`flex-shrink-0 px-3.5 py-2 rounded-xl text-center border transition-all focus:outline-none focus:ring-2 focus:ring-brand-navy ${
                       isSelected
                         ? 'bg-brand-navy border-brand-navy text-white shadow-sm'
                         : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -221,7 +231,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
             </div>
 
             {isLoadingSlots ? (
-              <div className="py-8 text-center text-xs text-slate-500">
+              <div role="status" aria-live="polite" className="py-8 text-center text-xs text-slate-500">
                 {t.common.loading}
               </div>
             ) : slots.length === 0 ? (
@@ -238,7 +248,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2" role="group" aria-label="Available appointment times">
                 {slots.map((s) => {
                   const isSelected = s.id === selectedSlotId;
                   const isFree = s.is_available;
@@ -247,7 +257,9 @@ export const BookingView: React.FC<BookingViewProps> = ({
                       key={s.id}
                       disabled={!isFree}
                       onClick={() => setSelectedSlotId(s.id)}
-                      className={`py-2 px-1 text-center rounded-lg text-xs font-medium border transition-all ${
+                      aria-label={`${s.time_display}${isFree ? ', available' : ', unavailable'}`}
+                      aria-pressed={isSelected}
+                      className={`py-2 px-1 text-center rounded-lg text-xs font-medium border transition-all focus:outline-none focus:ring-2 focus:ring-brand-navy ${
                         isSelected
                           ? 'bg-brand-navy border-brand-navy text-white shadow-sm'
                           : isFree
@@ -271,7 +283,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
           <button
             onClick={handleBook}
             disabled={!selectedSlotId || isBooking || slots.length === 0}
-            className="w-full h-btn-mobile rounded-pill bg-brand-navy text-white font-semibold text-sm shadow-md hover:bg-brand-navy-light disabled:opacity-50 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+            className="w-full h-btn-mobile rounded-pill bg-brand-navy text-white font-semibold text-sm shadow-md hover:bg-brand-navy-light disabled:opacity-50 active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-brand-navy"
           >
             {isBooking ? t.common.loading : t.booking.bookSlot}
           </button>
@@ -280,7 +292,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
           <button
             onClick={onNotNow}
             disabled={isBooking}
-            className="w-full py-2.5 text-xs text-slate-500 hover:text-slate-800 font-medium transition-colors"
+            className="w-full py-2.5 text-xs text-slate-500 hover:text-slate-800 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400 rounded-lg"
           >
             {t.booking.notNow}
           </button>

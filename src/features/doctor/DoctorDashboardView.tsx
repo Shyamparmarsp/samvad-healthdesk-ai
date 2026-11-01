@@ -41,7 +41,16 @@ export const DoctorDashboardView: React.FC<DoctorDashboardViewProps> = ({
         {/* Urgent Card */}
         <div
           onClick={() => onNavigateTab('urgent')}
-          className="p-5 rounded-card bg-red-50/70 border border-red-200/80 shadow-sm hover:shadow-md transition-all cursor-pointer"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onNavigateTab('urgent');
+            }
+          }}
+          tabIndex={0}
+          role="button"
+          aria-label={`Urgent Triage: ${stats.urgent} emergency deterministic partials`}
+          className="p-5 rounded-card bg-red-50/70 border border-red-200/80 shadow-sm hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-red-800">
@@ -60,7 +69,16 @@ export const DoctorDashboardView: React.FC<DoctorDashboardViewProps> = ({
         {/* New Reports Card */}
         <div
           onClick={() => onNavigateTab('reports')}
-          className="p-5 rounded-card bg-blue-50/70 border border-blue-200/80 shadow-sm hover:shadow-md transition-all cursor-pointer"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onNavigateTab('reports');
+            }
+          }}
+          tabIndex={0}
+          role="button"
+          aria-label={`New Reports: ${stats.new_reports} submitted and unreviewed`}
+          className="p-5 rounded-card bg-blue-50/70 border border-blue-200/80 shadow-sm hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <span className="text-xs font-bold uppercase tracking-wider text-blue-800">
             New Reports
@@ -76,7 +94,16 @@ export const DoctorDashboardView: React.FC<DoctorDashboardViewProps> = ({
         {/* Booked Card */}
         <div
           onClick={() => onNavigateTab('appointments')}
-          className="p-5 rounded-card bg-emerald-50/70 border border-emerald-200/80 shadow-sm hover:shadow-md transition-all cursor-pointer"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onNavigateTab('appointments');
+            }
+          }}
+          tabIndex={0}
+          role="button"
+          aria-label={`Booked Consults: ${stats.booked} confirmed appointment slots`}
+          className="p-5 rounded-card bg-emerald-50/70 border border-emerald-200/80 shadow-sm hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-emerald-500"
         >
           <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">
             Booked Consults
@@ -92,7 +119,16 @@ export const DoctorDashboardView: React.FC<DoctorDashboardViewProps> = ({
         {/* Not Booked Card */}
         <div
           onClick={() => onNavigateTab('reports')}
-          className="p-5 rounded-card bg-amber-50/70 border border-amber-200/80 shadow-sm hover:shadow-md transition-all cursor-pointer"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onNavigateTab('reports');
+            }
+          }}
+          tabIndex={0}
+          role="button"
+          aria-label={`Not Booked: ${stats.not_booked} reports submitted without booking`}
+          className="p-5 rounded-card bg-amber-50/70 border border-amber-200/80 shadow-sm hover:shadow-md transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500"
         >
           <span className="text-xs font-bold uppercase tracking-wider text-amber-800">
             Not Booked
@@ -146,7 +182,16 @@ export const DoctorDashboardView: React.FC<DoctorDashboardViewProps> = ({
                     <tr
                       key={r.id}
                       onClick={() => onSelectReport(r.id)}
-                      className="hover:bg-slate-50/80 transition-colors cursor-pointer"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onSelectReport(r.id);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`Open report for ${r.report.patient.name.value || 'Anonymous Patient'}`}
+                      className="hover:bg-slate-50/80 transition-colors cursor-pointer focus:outline-none focus:bg-slate-100 focus:ring-2 focus:ring-inset focus:ring-brand-navy"
                     >
                       <td className="px-6 py-3.5">
                         {isUrgent ? (

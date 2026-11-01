@@ -105,7 +105,8 @@ export const ConfirmationView: React.FC<ConfirmationViewProps> = ({
       <div className="pt-4">
         <button
           onClick={onHome}
-          className="w-full h-btn-mobile rounded-pill bg-brand-navy text-white font-semibold text-sm shadow-md hover:bg-brand-navy-light active:scale-[0.99] transition-all"
+          aria-label={t.confirmation.returnHome}
+          className="w-full h-btn-mobile rounded-pill bg-brand-navy text-white font-semibold text-sm shadow-md hover:bg-brand-navy-light active:scale-[0.99] transition-all focus:outline-none focus:ring-2 focus:ring-brand-navy"
         >
           {t.confirmation.returnHome}
         </button>

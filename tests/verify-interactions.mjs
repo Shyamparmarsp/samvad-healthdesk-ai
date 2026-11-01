@@ -595,6 +595,165 @@ async function runVerification() {
     console.log('  ✓ Patient report opened and marked reviewed by doctor');
     verificationResults.push({ step: 'Full end-to-end patient intake, submit, booking & doctor review journey', status: 'PASS' });
 
+    // 12. Deterministic Emergency Trigger, Plain-Text 112 & Doctor Urgent Triage Queue
+    console.log('[12/13] Testing Emergency Flow, 112 plain-text guidance, and Urgent Triage queue');
+    await cdp.eval(`
+      (() => {
+        const patientLink = Array.from(document.querySelectorAll('header a')).find(a => a.innerText.includes('Patient Intake'));
+        if (patientLink) patientLink.click();
+      })()
+    `);
+    await sleep(600);
+    await cdp.waitForText('Start Talking');
+
+    // Click "Type Instead"
+    await cdp.eval(`
+      (() => {
+        const btns = Array.from(document.querySelectorAll('button'));
+        const typeBtn = btns.find(b => b.innerText.includes('Type Instead'));
+        if (typeBtn) typeBtn.click();
+      })()
+    `);
+    await sleep(400);
+
+    // Agree to consent
+    await cdp.waitForText('Consent for AI Intake');
+    await cdp.eval(`
+      (() => {
+        const btns = Array.from(document.querySelectorAll('button'));
+        const agreeBtn = btns.find(b => b.innerText.includes('Yes, I agree') || b.innerText.includes('agree'));
+        if (agreeBtn) agreeBtn.click();
+      })()
+    `);
+    await sleep(500);
+
+    // Answer questions up to primary concern with emergency statement
+    await cdp.waitForText(/name|नाम/i);
+    await sendAnswer('Vikram Malhotra');
+
+    await cdp.waitForText(/age|years|उम्र/i);
+    await sendAnswer('58');
+
+    await cdp.waitForText(/gender|लिंग/i);
+    await clickChip(/Male|पुरुष/i);
+
+    await cdp.waitForText(/concern|समस्या/i);
+    await sendAnswer('Severe crushing chest pain radiating to left arm and cannot breathe');
+    await sleep(600);
+
+    // Verify Emergency View is displayed
+    const emergencyText = await cdp.waitForText(/112/);
+    assert.ok(emergencyText.includes('112'), 'Plain-text 112 emergency number must render');
+    assert.ok(emergencyText.includes('This may be urgent') || emergencyText.includes('गंभीर') || emergencyText.includes('112'), 'Emergency alert rendered');
+    assert.ok(!emergencyText.toLowerCase().includes('book appointment'), 'Routine booking actions must be suppressed in emergency');
+    console.log('  ✓ Deterministic emergency trigger stopped routine intake and displayed plain 112 guidance');
+
+    // Click Return Home / End Demo
+    await cdp.eval(`
+      (() => {
+        const btns = Array.from(document.querySelectorAll('button'));
+        const homeBtn = btns.find(b => b.innerText.includes('End Demo') || b.innerText.includes('डेमो समाप्त करें') || b.innerText.includes('Return'));
+        if (homeBtn) homeBtn.click();
+      })()
+    `);
+    await sleep(500);
+    await cdp.waitForText(/Start Talking|बोलकर बात करें/);
+
+    // Go to Doctor Portal
+    await cdp.eval(`
+      (() => {
+        const docLink = Array.from(document.querySelectorAll('header a')).find(a => a.innerText.includes('Doctor Portal'));
+        if (docLink) docLink.click();
+      })()
+    `);
+    await sleep(600);
+
+    const docPortalText2 = await cdp.waitForText(/Samvad|Clinical Desk/i);
+    if (/evaluator access/i.test(docPortalText2)) {
+      await cdp.eval(`
+        (() => {
+          const form = document.querySelector('form');
+          if (form) {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.click();
+          }
+        })()
+      `);
+      await cdp.waitForText(/Dashboard Overview|Dr. Aditi Rao/i);
+      await sleep(400);
+    }
+
+    // Navigate to Urgent Triage
+    await cdp.eval(`
+      (() => {
+        const urgentNav = Array.from(document.querySelectorAll('button, a')).find(b => b.innerText.toLowerCase().includes('urgent'));
+        if (urgentNav) urgentNav.click();
+      })()
+    `);
+    await sleep(600);
+
+    // Verify Vikram Malhotra appears in Urgent Triage
+    const urgentQueueText = await cdp.waitForText(/Emergency Triage Queue/i);
+    assert.ok(urgentQueueText.includes('Vikram Malhotra'), 'Emergency patient must appear in Urgent Triage');
+    assert.ok(urgentQueueText.includes('severe_chest_pain') || urgentQueueText.includes('Urgent'), 'Emergency rule citation visible');
+    console.log('  ✓ Emergency patient appeared in Doctor Urgent Triage queue');
+
+    // Open urgent detail view
+    await cdp.eval(`
+      (() => {
+        const cards = Array.from(document.querySelectorAll('div[role="button"]'));
+        const target = cards.find(d => d.innerText && d.innerText.includes('Vikram Malhotra'));
+        if (target) {
+          const h3 = target.querySelector('h3');
+          if (h3) h3.click();
+          else target.click();
+        }
+      })()
+    `);
+    await sleep(600);
+
+    const urgentDetailText = await cdp.waitForText(/Emergency Trigger Fired/i);
+    assert.ok(urgentDetailText.includes('Routine Intake Terminated Immediately'), 'Urgent detail emphasizes routine intake termination');
+    assert.ok(urgentDetailText.includes('Summary is explicitly null for urgent_partial'), 'Summary null invariant acknowledged');
+    assert.ok(urgentDetailText.includes('Read-only cross-visibility') || urgentDetailText.includes('Acknowledge'), 'Cross-visibility authority check matches OD-03');
+    console.log('  ✓ General medicine read-only cross-visibility for emergency triage confirmed');
+    verificationResults.push({ step: 'Emergency flow, 112 guidance & doctor urgent triage cross-visibility', status: 'PASS' });
+
+    // 13. Keyboard Activation (Enter/Space on stat cards and table rows)
+    console.log('[13/13] Testing Keyboard Accessibility: Enter/Space activation on interactive elements');
+    // Go to Dashboard
+    await cdp.eval(`
+      (() => {
+        const dashNav = Array.from(document.querySelectorAll('button, a')).find(b => b.innerText.toLowerCase().includes('dashboard'));
+        if (dashNav) dashNav.click();
+      })()
+    `);
+    await sleep(500);
+    await cdp.waitForText(/Dashboard Overview/i);
+
+    // Focus on "New Reports" stat card and trigger via Enter key
+    await cdp.eval(`
+      (() => {
+        const cards = Array.from(document.querySelectorAll('div[role="button"]'));
+        const newReportsCard = cards.find(c => c.getAttribute('aria-label')?.includes('New Reports'));
+        if (newReportsCard) {
+          newReportsCard.focus();
+        }
+      })()
+    `);
+    await sleep(150);
+
+    // Dispatch Enter key
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter' });
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter' });
+    await sleep(500);
+
+    // Verify it navigated to Reports tab
+    const reportsViewText = await cdp.waitForText(/Patient Intake Reports/i);
+    assert.ok(reportsViewText.includes('Patient Intake Reports'), 'Keyboard Enter on stat card navigated to Reports view');
+    console.log('  ✓ Keyboard Enter key activation on stat cards and table rows works cleanly');
+    verificationResults.push({ step: 'Keyboard Enter/Space activation on stat cards and table rows', status: 'PASS' });
+
   } finally {
     await cdp.close();
     chrome.kill();

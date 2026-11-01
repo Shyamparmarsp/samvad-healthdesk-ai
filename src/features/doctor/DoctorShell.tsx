@@ -54,7 +54,7 @@ export const DoctorShell: React.FC = () => {
     if (currentDoctor) {
       loadData(currentDoctor.id);
     }
-  }, [currentDoctor]);
+  }, [currentDoctor, currentView]);
 
   const handleSelectReport = (reportId: string) => {
     setSelectedReportId(reportId);

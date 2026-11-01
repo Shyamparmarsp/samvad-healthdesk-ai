@@ -127,7 +127,16 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
                     <tr
                       key={r.id}
                       onClick={() => onSelectReport(r.id)}
-                      className="hover:bg-slate-50/80 transition-colors cursor-pointer"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          onSelectReport(r.id);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`View intake report for ${r.report.patient.name.value || 'Anonymous Patient'}`}
+                      className="hover:bg-slate-50/80 transition-colors cursor-pointer focus:outline-none focus:bg-slate-100 focus:ring-2 focus:ring-inset focus:ring-brand-navy"
                     >
                       <td className="px-6 py-3.5">
                         {isUrgent ? (

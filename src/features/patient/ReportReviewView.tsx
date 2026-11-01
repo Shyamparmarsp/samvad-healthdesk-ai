@@ -339,7 +339,8 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
           <div className="space-y-2">
             <button
               onClick={onSubmit}
-              className="w-full h-btn-mobile rounded-pill bg-brand-navy text-white font-semibold text-sm shadow-md hover:bg-brand-navy-light active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+              aria-label={t.review.submitToHospital}
+              className="w-full h-btn-mobile rounded-pill bg-brand-navy text-white font-semibold text-sm shadow-md hover:bg-brand-navy-light active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-brand-navy"
             >
               <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -349,7 +350,8 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
 
             <button
               onClick={onDontSubmit}
-              className="w-full py-2.5 text-xs text-slate-500 hover:text-red-600 font-medium transition-colors"
+              aria-label={t.review.dontSubmit}
+              className="w-full py-2.5 text-xs text-slate-500 hover:text-red-600 font-medium transition-colors rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400"
             >
               {t.review.dontSubmit}
             </button>
@@ -359,7 +361,8 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
           <div>
             <button
               onClick={onEndSessionCap}
-              className="w-full h-btn-mobile rounded-pill bg-slate-800 text-white font-semibold text-sm shadow hover:bg-slate-900 active:scale-[0.99] transition-all"
+              aria-label={t.review.endSession}
+              className="w-full h-btn-mobile rounded-pill bg-slate-800 text-white font-semibold text-sm shadow hover:bg-slate-900 active:scale-[0.99] transition-all focus:outline-none focus:ring-2 focus:ring-slate-500"
             >
               {t.review.endSession}
             </button>

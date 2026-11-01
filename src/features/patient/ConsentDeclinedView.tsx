@@ -35,7 +35,8 @@ export const ConsentDeclinedView: React.FC<ConsentDeclinedViewProps> = ({ onRest
       <div className="pt-4">
         <button
           onClick={onRestart}
-          className="w-full h-btn-mobile rounded-pill bg-brand-navy text-white font-semibold text-sm shadow-md hover:bg-brand-navy-light active:scale-[0.99] transition-all"
+          aria-label={t.consent.restart}
+          className="w-full h-btn-mobile rounded-pill bg-brand-navy text-white font-semibold text-sm shadow-md hover:bg-brand-navy-light active:scale-[0.99] transition-all focus:outline-none focus:ring-2 focus:ring-brand-navy"
         >
           {t.consent.restart}
         </button>

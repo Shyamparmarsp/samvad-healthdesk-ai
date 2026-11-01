@@ -132,7 +132,8 @@ export const DoctorAppointmentsView: React.FC<DoctorAppointmentsViewProps> = ({
                   {onSelectReport && (
                     <button
                       onClick={() => onSelectReport(apt.report_id)}
-                      className="text-xs font-semibold text-brand-navy hover:underline px-2 py-1"
+                      aria-label={`View intake report for ${apt.patient_name}`}
+                      className="text-xs font-semibold text-brand-navy hover:underline px-2 py-1 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-navy"
                     >
                       View Intake &rarr;
                     </button>
