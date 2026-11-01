@@ -144,6 +144,28 @@ async function answerUntilReview(session, answers) {
   await session.waitForText(/Review Your Intake Report|Review Your/, 30_000);
 }
 
+/**
+ * Refuses to report a mock-mode run as a Supabase run.
+ *
+ * The app chooses its mode from the VITE_ variables baked at build time. If those were
+ * absent, the UI silently runs against the in-memory mock and every assertion below
+ * would pass while proving nothing about the real backend. Any chat-turn traffic must
+ * therefore have reached the configured Supabase URL.
+ */
+function assertRealSupabaseTraffic(session, config) {
+  const hits = session.network.filter(
+    (entry) => entry.phase === 'request' && (entry.url || '').startsWith(config.url + '/functions/v1/'),
+  );
+  if (hits.length === 0) {
+    throw new Error(
+      'No Edge Function request reached ' +
+        config.url +
+        '. The frontend was built without VITE_SUPABASE_URL/VITE_SUPABASE_KEY, so this was a mock-mode run and cannot be reported as real Supabase evidence.',
+    );
+  }
+  return hits.length;
+}
+
 async function run() {
   const before = await anonymousIds(config);
   const headroom = await ensureSessionHeadroom(config, rest);
@@ -166,6 +188,7 @@ async function run() {
       const text = await session.waitForText(/Intake Ended/, 15_000);
       assert.match(text, /not saved any health information/i);
 
+      assertRealSupabaseTraffic(session, config);
       const reports = await rest('reports?select=id&order=created_at.desc&limit=5');
       const sessions = await rest('sessions?select=id,status,answer_turn_count&order=created_at.desc&limit=1');
       assert.equal(sessions[0].status, 'declined');

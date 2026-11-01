@@ -159,6 +159,28 @@ async function waitForTurnAdvance(session, previousText, timeoutMs = 15_000) {
   throw new Error('Conversation did not advance');
 }
 
+/**
+ * Refuses to report a mock-mode run as a Supabase run.
+ *
+ * The app chooses its mode from the VITE_ variables baked at build time. If those were
+ * absent, the UI silently runs against the in-memory mock and every assertion below
+ * would pass while proving nothing about the real backend. Any chat-turn traffic must
+ * therefore have reached the configured Supabase URL.
+ */
+function assertRealSupabaseTraffic(session, config) {
+  const hits = session.network.filter(
+    (entry) => entry.phase === 'request' && (entry.url || '').startsWith(config.url + '/functions/v1/'),
+  );
+  if (hits.length === 0) {
+    throw new Error(
+      'No Edge Function request reached ' +
+        config.url +
+        '. The frontend was built without VITE_SUPABASE_URL/VITE_SUPABASE_KEY, so this was a mock-mode run and cannot be reported as real Supabase evidence.',
+    );
+  }
+  return hits.length;
+}
+
 async function run() {
   const before = await anonymousIds(config);
   const headroom = await ensureSessionHeadroom(config, rest);
@@ -200,9 +222,10 @@ async function run() {
     await session.waitForText('What is your name?', 20_000);
 
     await step('3. consent accepted and the first scripted question is asked', async () => {
+      const hits = assertRealSupabaseTraffic(session, config);
       const text = await session.bodyText();
       assert.match(text, /What is your name\?/);
-      return 'name question live';
+      return `name question live, ${hits} real Edge Function request(s)`;
     });
 
     // ---------------------------------------------------------------- voice turn

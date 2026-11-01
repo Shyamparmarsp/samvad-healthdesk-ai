@@ -161,7 +161,26 @@ verification.
 
 ---
 
-## 5. Operational note
+## 5. Test-integrity guards added during this release
+
+Two false-positive risks were found and closed while re-running on the final HEAD:
+
+1. **Silent mock-mode run.** The app picks its mode from the `VITE_*` variables baked at
+   build time. A build made without them makes every browser assertion pass against the
+   in-memory mock while proving nothing about Supabase. Both browser scripts now refuse to
+   report: `assertRealSupabaseTraffic()` fails the run unless a `chat-turn` request
+   actually reached the configured Supabase URL. The journey prints the observed count
+   (`3 real Edge Function request(s)`).
+2. **Shared `dist` between suites with opposite modes.** `test:e2e` (mock) and
+   `test:api:browser` (Supabase) consume the same build output, so whichever ran last
+   silently decided the mode. `npm run test:e2e` now runs `build:mock` itself, which
+   clears `VITE_SUPABASE_*` for that build; the browser scripts build with the real
+   variables inside the run.
+
+Both hazards would have produced a green report that was not evidence. They are called
+out here rather than quietly fixed.
+
+## 6. Operational note
 
 `npm run test:e2e` binds port 4173 and CDP port 9222. A stale `vite preview` from an
 earlier aborted run makes it hang without output. Clear the ports first:
