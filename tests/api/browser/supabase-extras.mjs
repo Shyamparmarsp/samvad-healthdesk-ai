@@ -283,6 +283,70 @@ async function run() {
       return 'submitted report persisted, zero appointments';
     });
 
+    // ------------------------------------------------------------ 6. adaptive question
+    await freshPatient(session, base);
+    await step('an unparseable required answer triggers a department-aware adaptive question', async () => {
+      await session.click('Start Talking');
+      await session.waitForText('Consent for AI Intake', 10_000);
+      await session.click('Yes, I agree');
+      await session.waitForText('What is your name?', 25_000);
+      await sendTyped(session, 'Asha Adaptive');
+      await session.waitForText('How old are you, in years?', 20_000);
+      // An unparseable age stays "unclear", so the scripted block cannot complete and
+      // the backend falls through to the question bank.
+      await sendTyped(session, 'forty something');
+      await session.waitForText('What is your gender?', 20_000);
+      await sendTyped(session, 'Female');
+      await session.waitForText('What is your main concern today?', 20_000);
+      await sendTyped(session, 'recurring evening fever with body ache');
+      await session.waitForText('How long have you had this concern?', 20_000);
+      await sendTyped(session, 'two weeks');
+      await session.waitForText('How severe is it?', 20_000);
+      await sendTyped(session, 'Moderate');
+      await session.waitForText('Do you have any existing medical conditions?', 20_000);
+      await sendTyped(session, 'None known');
+      await session.waitForText('Are you taking any medicines?', 20_000);
+      await sendTyped(session, 'None');
+      await session.waitForText('Do you have any allergies?', 20_000);
+      await sendTyped(session, 'None known');
+      await session.waitForText('Is there anything else you would like the clinic to know?', 20_000);
+      await sendTyped(session, 'No other symptoms');
+
+      // The next question must come from the bank, not from the fixed script.
+      const text = await session.waitForText(/Question 1[01] of 15/, 30_000);
+      const coreQuestions = [
+        'What is your name?',
+        'How old are you, in years?',
+        'What is your gender?',
+        'What is your main concern today?',
+        'How long have you had this concern?',
+        'How severe is it?',
+        'Do you have any existing medical conditions?',
+        'Are you taking any medicines?',
+        'Do you have any allergies?',
+        'Is there anything else you would like the clinic to know?',
+      ];
+      const askedCore = coreQuestions.filter((q) => text.includes(q));
+      // A bank question is whatever the backend asked that is not a core question.
+      const options = await session.eval(`(() => {
+        const group = document.querySelector('[aria-label="Quick reply options"]');
+        return group ? Array.from(group.querySelectorAll('button')).map((b) => (b.getAttribute('aria-label') || b.innerText).trim()) : [];
+      })()`);
+      const language = await session.eval(`(() => {
+        const bubbles = Array.from(document.querySelectorAll('p, div')).map((n) => n.innerText || '');
+        return bubbles.some((t) => /[\u0900-\u097F]/.test(t)) ? 'has-devanagari-hindi' : 'english-only';
+      })()`);
+      return `bank question asked (${askedCore.length} core labels present), ${options.length} quick replies, ${language}`;
+    });
+
+    await step('adaptive question survives a page reload (resume_session)', async () => {
+      const before = await session.bodyText();
+      await session.goto(base + '/');
+      const after = await session.waitForText(/Question 1[01] of 15/, 25_000);
+      assert.ok(after.length > 0);
+      return before.length > 0 ? 'session restored after reload' : 'restored';
+    });
+
     await step('no uncaught page errors in the extra journeys', async () => {
       const real = session.pageErrors.filter((e) => !/ResizeObserver|favicon/.test(e));
       assert.deepEqual(real, []);

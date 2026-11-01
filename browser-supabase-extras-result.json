@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-01T22:09:48.991Z",
+  "generatedAt": "2026-11-01T22:11:07.669Z",
   "target": "http://127.0.0.1:54321",
   "mode": "supabase (real Auth, Edge Functions, Postgres, RPCs)",
   "providers": "stubbed (Groq, Prisma, Timbre)",
@@ -18,9 +18,9 @@
     },
     {
       "name": "Hinglish answer is stored verbatim in PostgreSQL",
-      "ok": false,
+      "ok": true,
       "layer": "browser+supabase",
-      "detail": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'Female'\n- 'bukhar aur body ache teen din se'\n"
+      "detail": "language=hi, verbatim answer persisted"
     },
     {
       "name": "clear emergency phrase shows 112 guidance with no slots",
@@ -41,11 +41,23 @@
       "detail": "submitted report persisted, zero appointments"
     },
     {
+      "name": "an unparseable required answer triggers a department-aware adaptive question",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "bank question asked (1 core labels present), 0 quick replies, has-devanagari-hindi"
+    },
+    {
+      "name": "adaptive question survives a page reload (resume_session)",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "session restored after reload"
+    },
+    {
       "name": "no uncaught page errors in the extra journeys",
       "ok": true,
       "layer": "browser+supabase",
       "detail": "clean console"
     }
   ],
-  "ok": false
+  "ok": true
 }
