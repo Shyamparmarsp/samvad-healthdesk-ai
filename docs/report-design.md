@@ -2,7 +2,7 @@
 
 **Document status:** owner-authorised reconstruction of a file that was missing from the repository and never committed. The requirement set below is derived only from `AGENTS.md`, `MILESTONES.md`, `docs/architecture-decisions.md`, `docs/demo-emergency-rules.md`, `docs/demo-seed-data.md` and `docs/failure-modes.md`. Choices that the source documents do not settle are marked and must be approved by the project owner.
 
-**Document version:** 1.1 · **Report `schema_version`:** 1
+**Document version:** 1.2 · **Report `schema_version`:** 1
 **Last updated:** 1 November 2026
 
 **Owner approvals recorded on 1 November 2026 (v1.1):** RD-01 (`provided` is the sixth information-status value), RD-02 (value/status invariant), RD-06 (the "Prefer not to say" → `declined` gender mapping, retained), RD-10 (`urgent_partial` carries no generated summary, retained), RD-17 (`reviewed_by` stores the authenticated doctor identity), RD-22 (relational/JSONB authority split). All other PROPOSED and OWNER APPROVAL REQUIRED items remain open and are listed in §21.
@@ -66,7 +66,7 @@ Naming of these values is **PROPOSED**; the separation from report status is **S
 | Status | Meaning | `value` | Source |
 |---|---|---|---|
 | `provided` | The patient gave a usable answer. | non-null | **SOURCE-DEFINED — approved 1 Nov 2026 (RD-01)** |
-| `declined` | The patient explicitly chose not to answer. | `null` | **SOURCE-DEFINED** for gender ("Prefer not to say" stores `declined`); **PROPOSED** extension to other optional fields |
+| `declined` | The patient explicitly chose not to answer. | `null` | **SOURCE-DEFINED** for gender ("Prefer not to say" is recorded as status `declined` with no value); **PROPOSED** extension to other optional fields |
 | `unknown` | The patient says they do not know or cannot recall. | `null` | **SOURCE-DEFINED** value; trigger wording **PROPOSED** |
 | `unclear` | An answer was given but could not be reliably interpreted. | `null` | **SOURCE-DEFINED** value; trigger **PROPOSED** |
 | `not_provided` | The field was applicable, no usable answer was captured, and the patient made no explicit choice. | `null` | **SOURCE-DEFINED** value; trigger **PROPOSED** (RD-03) |
@@ -169,7 +169,7 @@ All values above are synthetic. `summary.text` restates only `provided` fields a
 |---|---|---|---|---|---|---|---|
 | `patient.name` | string | Name as stated | yes | **yes** | yes | often `not_asked` | SOURCE-DEFINED |
 | `patient.age` | integer (whole years) | Age in completed years; no date of birth | yes | **yes** | yes | often `not_asked` | SOURCE-DEFINED (D3: whole years) |
-| `patient.gender` | enum `male｜female｜other｜declined` | Gender; "Prefer not to say" stores `declined` in **both** value and status | yes | **yes** | yes | often `not_asked` | SOURCE-DEFINED mapping (**approved 1 Nov 2026, RD-06**); the literals `male`, `female`, `other` remain PROPOSED |
+| `patient.gender` | enum `male｜female｜other` (values) | Gender. An explicit choice stores status `provided` with the chosen value. "Prefer not to say" stores status `declined` with `value: null`, because the RD-02 invariant forbids a value on any non-provided status; the `declined` member of `GenderValue` is never written as a value | yes | **yes** | yes | often `not_asked` | SOURCE-DEFINED mapping (**approved 1 Nov 2026, RD-06**); the literals `male`, `female`, `other` remain PROPOSED |
 | `patient.language` | enum `en｜hi` | Session language, context only | yes | no | PROPOSED yes (RD-23) | yes | PROPOSED |
 | `primary_concern` | string | The patient's own words | yes | **yes** | yes | often `not_asked` | SOURCE-DEFINED |
 | `clinical_details.duration` | string | How long, as stated | yes | **yes** | yes | may be `not_asked` | SOURCE-DEFINED |
@@ -449,4 +449,5 @@ Related decisions from the wider project: OD-01 (emergency matcher input), OD-02
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 1 November 2026 | Initial reconstruction. Gender "Prefer not to say" settled as `declined` and treated as a handled question. Summary nullability separated for normal versus `urgent_partial` reports. Report and session status enums separated. Traceability table and owner decision register established. |
+| 1.2 | 1 November 2026 | Consistency fix found during implementation: gender "Prefer not to say" is recorded as status `declined` with `value: null`, because RD-02 forbids a value on a non-provided status. The `declined` member of `GenderValue` is therefore never written as a value. Completion, submission and the missing-information list treat it as answered. |
 | 1.1 | 1 November 2026 | Owner approvals recorded: RD-01 (`provided`), RD-02 (value/status invariant), RD-17 (`reviewed_by` = `auth.uid()` referencing `auth.users.id`; doctor record and name derived via `doctor_profiles`), RD-22 (relational/JSONB split). RD-06 and RD-10 retained as corrected. Consistency review applied: gender `declined` now permitted on the correction path as well as at intake (§14), and RD-09 narrowed to exclude gender. §22 updated to reflect the new M1-S6 status. |
