@@ -45,6 +45,35 @@ ok("Hindi session receives stored Devanagari text", /[\u0900-\u097F]/.test(Strin
 const emerg = await session("en", "I cannot breathe at all");
 ok("emergency bypasses adaptive selection", emerg.last?.session_status === "emergency" && !String(emerg.last?.current_question?.id ?? "").match(/^(GM|ORTH|SURG|DERM|CARD)-/), String(emerg.last?.session_status));
 
+// --- all five departments ---
+for (const [concern, prefix, label] of [
+  ["fever and tiredness for a week", "GM-", "General Medicine"],
+  ["abdominal pain after meals", "GM-|SURG-", "Abdominal pain (Medicine or Surgery)"],
+  ["chest discomfort when walking", "CARD-", "Cardiology"],
+] as const) {
+  const s5 = await session("en", concern);
+  const id = String(s5.last?.current_question?.id ?? "");
+  ok(`${label}: concern routes to an appropriate bank`, prefix.split("|").some((p) => id.startsWith(p)), id);
+  const again = (await call("/functions/v1/chat-turn", { action: "resume_session", session_id: s5.sid }, s5.token)).body;
+  ok(`${label}: department survives resume`, again?.current_question?.id === s5.last?.current_question?.id, String(again?.current_question?.id));
+}
+
+// --- browser cannot supply a department ---
+const injected = await call("/functions/v1/chat-turn", { action: "start_session", language: "en", department: "cardiology" }, knee.token);
+ok("browser cannot inject a department", injected.status === 400, `status=${injected.status}`);
+
+// --- three adaptive answers maximum ---
+const capped = await session("en", "knee pain when walking");
+let current = capped.last?.current_question?.id as string | undefined;
+let attempts = 0;
+while (current && String(current).match(/^ORTH-/) && attempts < 6) {
+  const r = (await turn(capped.token, capped.sid, current, "No")).body;
+  current = r?.current_question?.id;
+  attempts += 1;
+}
+ok("at most three adaptive answers are accepted", attempts === 3, `adaptive_answered=${attempts}`);
+ok("a fourth adaptive question is never selected", !String(current ?? "").match(/^ORTH-/), String(current ?? "none"));
+
 const failed = results.filter(([, pass]) => !pass);
 console.log(`\n${results.length - failed.length}/${results.length} adaptive scenarios passed`);
 if (failed.length) Deno.exit(1);
