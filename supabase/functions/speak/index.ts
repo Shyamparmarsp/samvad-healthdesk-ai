@@ -102,7 +102,7 @@ export default {
       }
 
       const result = await synthesize(
-        { apiKey },
+        { apiKey, endpoint: Deno.env.get("TIMBRE_ENDPOINT") ?? undefined },
         {
           text: questionTextFor(body.question_id, row.language ?? "en"),
           language: row.language === "hi" ? "hi-IN" : "en-IN",

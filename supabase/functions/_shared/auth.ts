@@ -12,8 +12,9 @@ export interface OwnedRow {
   user_id?: string | null;
 }
 
-export class OwnershipError extends Error {
-  readonly code = "not_found" as const;
+import { AppError } from "./errors.ts";
+
+export class OwnershipError extends AppError {
   constructor() {
     super("not_found");
     this.name = "OwnershipError";

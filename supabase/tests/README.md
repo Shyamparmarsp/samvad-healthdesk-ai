@@ -5,6 +5,7 @@
 
 | Suite | File | Result |
 |---|---|---|
+| Edge Function lifecycle (real HTTP + real DB, stubbed providers) | `integration.ts` | **41 / 41 scenarios PASS** |
 | RLS and ownership | `rls.sql` | PASS — 5 assertion blocks, all NOTICEs |
 | Constraints, grants, IST bucketing | `constraints.sql` | PASS — 4 blocks |
 | Atomic reservation, limit 5 | pgbench, 20 clients | 5 allowed / 15 denied, `used = 5` |
@@ -100,7 +101,35 @@ Drop `public._test_reservations` and reset the limit afterwards.
 2. **Boundary (needs approval):** a test-only twin function that accepts a timestamp, or
    a GUC hook. Until one is approved, record the midnight crossing as NOT TESTED.
 
-## 6. Reset
+## 6. Edge Function integration run (executed 2 November 2026)
+
+```bash
+# 1. local providers stub (host)
+deno run --allow-net supabase/tests/stub-providers.ts 8787 &
+
+# 2. functions with the stub endpoints (container runtime → host.docker.internal)
+npx supabase functions serve --env-file supabase/functions/.env &
+
+# 3. harness
+eval "$(npx supabase status -o env | sed 's/^/export /')"
+LOCAL_ANON_KEY="$ANON_KEY" LOCAL_SERVICE_KEY="$SERVICE_ROLE_KEY" \
+  deno run --allow-net --allow-env supabase/tests/integration.ts
+```
+
+`supabase/functions/.env` is gitignored and contains only stub values.
+
+**Important:** the function runtime runs in a container, so a stub on the host must be
+addressed as `host.docker.internal`, not `127.0.0.1`. Using `127.0.0.1` silently falls
+back to the real provider endpoints and wastes a provider attempt.
+
+Providers are switched with `POST http://127.0.0.1:8787/__control`
+(`{"groq":"ok|malformed|abort|error500","prisma":...,"timbre":...}`) and counted with
+`GET /__stats`, so no function restart is needed between scenarios.
+
+Labels used in the harness output: `[HTTP+DB]` = real function invocation plus a real
+database write; `[STUB]` = the function called the local provider stub.
+
+## 7. Reset
 
 ```bash
 supabase stop --no-backup

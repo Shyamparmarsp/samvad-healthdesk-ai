@@ -67,7 +67,7 @@ Deno.test("policy: the published contract mentions every adopted contract item",
   }
 });
 
-Deno.test("policy: no server secret is referenced outside the provider adapters", () => {
+Deno.test("policy: functions read only allowlisted environment variables", () => {
   const files = [
     "supabase/functions/chat-turn/index.ts",
     "supabase/functions/speak/index.ts",
@@ -76,9 +76,16 @@ Deno.test("policy: no server secret is referenced outside the provider adapters"
     const source = read(file);
     const matches = source.match(/Deno\.env\.get\("([A-Z_]+)"\)/g) ?? [];
     for (const match of matches) {
+      const allowed = [
+        "GNANI_API_KEY",
+        "GROQ_API_KEY",
+        "GROQ_BASE_URL",
+        "PRISMA_BASE_URL",
+        "TIMBRE_ENDPOINT",
+      ];
       assert(
-        match.includes("GNANI_API_KEY") || match.includes("GROQ_API_KEY"),
-        `${file} reads an unexpected secret ${match}`,
+        allowed.some((name) => match.includes(name)),
+        `${file} reads an unexpected variable ${match}`,
       );
     }
   }

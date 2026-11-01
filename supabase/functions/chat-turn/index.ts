@@ -154,7 +154,10 @@ async function resolveDraftRouting(
   if (apiKey && concern.status === "provided" && typeof concern.value === "string") {
     const reservation = await reserveUsage(admin, "groq");
     if (reservation.allowed) {
-      candidate = await suggestDepartment({ apiKey }, concern.value);
+      candidate = await suggestDepartment(
+        { apiKey, baseUrl: Deno.env.get("GROQ_BASE_URL") ?? undefined },
+        concern.value,
+      );
       consoleLogger.info("provider_attempt", { provider: "groq", ok: candidate !== null });
     } else {
       consoleLogger.info("usage_capped", { counter: "groq" });
@@ -473,7 +476,7 @@ async function handleSubmitTurn(
 
     const bytes = Uint8Array.from(atob(request.audio_base64), (char) => char.charCodeAt(0));
     const result = await transcribe(
-      { apiKey },
+      { apiKey, baseUrl: Deno.env.get("PRISMA_BASE_URL") ?? undefined },
       {
         audio: bytes,
         mimeType: request.audio_format ?? "audio/wav",
@@ -577,7 +580,14 @@ async function handleSubmitTurn(
     await createEmergencyReport(admin, session, fields, match.ruleId, text);
     const updated = await loadSession(admin, session.id, userId);
     const response = baseResponse(updated, await loadMessages(admin, session.id));
+    const { data: urgentReport } = await admin
+      .from("reports")
+      .select("report")
+      .eq("session_id", session.id)
+      .maybeSingle();
+    if (urgentReport?.report) response.draft_report = urgentReport.report as ReportDocumentV1;
     response.emergency_triggered = true;
+    response.can_submit = false;
     return json(response);
   }
   if (match.kind === "ambiguous") {
@@ -648,7 +658,7 @@ async function handleSubmitTurn(
     return json(response);
   }
 
-  const nextId = nextQuestion(fields);
+  const nextId = nextQuestion(fields, { afterFixed: request.question_id });
   const { data: advanced } = await admin
     .from("sessions")
     .update({
@@ -798,7 +808,13 @@ export default {
     } catch (error) {
       const code = toErrorCode(error);
       consoleLogger.error("action_rejected", { action: request.action, code });
-      const status = code === "not_found" ? 404 : code === "invalid_state" ? 409 : 500;
+      const status = code === "not_found"
+        ? 404
+        : code === "invalid_state" || code === "invalid_question_state"
+        ? 409
+        : code === "invalid_request" || code === "field_not_editable" || code === "invalid_field_status"
+        ? 400
+        : 500;
       return json({ error: code }, status);
     }
   }),
