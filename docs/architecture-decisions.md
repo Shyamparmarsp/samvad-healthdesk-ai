@@ -1,0 +1,29 @@
+# Architecture Decisions — MVP
+
+- One repository: root Vite SPA plus `supabase/` for backend and migrations.
+- One website, one Vercel deployment: patient routes at `/`, doctor routes at `/doctor`. No admin panel; doctors, departments and slots come from `seed.sql`.
+- Exactly two Edge Functions initially: `chat-turn` and `speak`.
+- `chat-turn` action values: `start_session`, `resume_session`, `record_consent`, `submit_turn`, `correct_draft_report`, `submit_report`.
+- `speak` synthesizes only the server-known current adaptive question. Greeting and initial scripted question audio (greeting, name, age, gender, primary concern) is cached in `public/audio/`.
+- Scripted opening questions, in order: name, age, gender, primary concern. Adaptive questions come from an approved bank with stable IDs; the backend owns completion.
+- The patient uses Supabase anonymous Auth without a signup UI. Consent is an on-screen Yes/No choice.
+- `sessions`, `messages` and `reports` are server-owned; no browser direct-write policies. After verifying the user JWT and session ownership, `chat-turn` uses a server-only elevated client for these writes.
+- Doctor reads use the caller-scoped client and RLS. The General Medicine demo doctor and the Emergency doctor can also read Emergency-department reports (read-only).
+- Availability is a restricted PostgreSQL RPC. Booking is a narrowly scoped atomic PostgreSQL RPC with strict `auth.uid()` ownership checks; no appointment Edge Function.
+- Mark Reviewed is the only other doctor write, through a narrow `mark_report_reviewed` RPC that sets only a reviewed timestamp and reviewing doctor. Free-text doctor notes are deferred.
+- A `possible_urgent` flag from Groq without a deterministic rule marks the report "Needs review" and blocks routine booking for it until a doctor uses Mark Reviewed.
+- The patient interface has a Hindi/English toggle; the doctor interface is English only. Reports are always English.
+- Booking hold: a submitted report with `possible_urgent` or unresolved `needs_human_review` cannot book until an authorized mapped doctor uses Mark Reviewed. Review releases the workflow hold only for a normal submitted non-emergency report. A deterministic emergency / `urgent_partial` report never becomes eligible for routine booking, even after review. Mark Reviewed is a workflow acknowledgement, not medical clearance.
+- Conversation UI is a scrolling chat log with an editable "What we heard" transcript step before sending voice answers.
+- Emergency screen shows 112 as plain text; no tap-to-call.
+- Browser-to-Supabase calls are centralized in `src/lib/api.ts`.
+- Frontend env key is consistently named `VITE_SUPABASE_KEY`, containing only the dashboard's public key (publishable or legacy anon).
+- Hospital timezone is `Asia/Kolkata`.
+- Execution sequencing is owned by root `MILESTONES.md`; manual owner actions are in `HUMAN_ROADMAP.md`. Do not follow the historical two-day Day 1/Day 2 sequence.
+- The backend enforces a 15 accepted-answer-turn session cap. If the 15th answer leaves intake incomplete, it returns a private partial preview with End only; no submission, doctor visibility or booking. If normal completion is already satisfied, the regular review/submit flow may proceed.
+- Minimal global per-IST-day session/provider caps are mandatory. Use owner-adjustable server-only `daily_usage_limits` plus atomic server-only `daily_usage_counters`; proposed starting limits are 100 session creations, 300 Groq, 150 Prisma and 120 Timbre calls per Asia/Kolkata day. The owner may change limits in the Supabase SQL Editor without redeploying. If the session-creation cap is reached, return `demo_busy` and reject new sessions. If an individual provider cap is reached, disable only that provider for the remainder of the IST day and use its safe text/scripted fallback; do not lock the whole application or unrelated providers. No browser read/write access. These are application guardrails, not provider quotas. Atomic reservations use a narrow `SECURITY INVOKER` SQL RPC callable only by `service_role`; derive the IST date in SQL, allow only fixed counter names, use a fixed/empty `search_path` and schema-qualified references, revoke `PUBLIC`/`anon`/`authenticated`, and do not expose it to the browser or use `SECURITY DEFINER`. Grant `service_role` only `SELECT` on limits and `SELECT`/`INSERT`/`UPDATE` on counters; client roles have no table grants or policies.
+- Add focused concurrency tests for counter reservation, turn-cap boundary, IST-day rollover and atomic booking/duplicate rejection. General production-grade rate limiting, a broad test framework and observability remain deferred.
+- The local cached-opening-audio script has no database access. Owner checks current usage, manually reserves up to ten Timbre calls by reducing the app cap by the same number for that IST day only if current usage does not exceed the reduced limit, counts each attempt, keeps the app limit reduced for the rest of that IST day, and never auto-retries.
+- Provision General Medicine and Emergency doctor Auth users manually after M1-S7, map them to `doctor_profiles` in M1-S8, and use them for M3 security tests. Working passwords are private and must not appear in README, Figma, screenshots, source or Git.
+- UI design source: Figma, with PNG exports and tokens in `docs/design/`. Docs and `AGENTS.md` win over the design where they conflict.
+- Multiple coding agents work on separate branches/worktrees in separate directories; `src/types/` is the shared contract.

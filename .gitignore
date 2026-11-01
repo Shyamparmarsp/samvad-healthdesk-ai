@@ -1,0 +1,23 @@
+# macOS metadata
+.DS_Store
+**/.DS_Store
+
+# Environment files — never commit secrets
+.env
+.env.local
+.env.*.local
+supabase/.env.functions
+
+# Build output
+dist/
+.vite/
+
+# Dependencies
+node_modules/
+
+# Supabase local state
+supabase/.branches/
+supabase/.temp/
+
+# Editor
+.vscode/
