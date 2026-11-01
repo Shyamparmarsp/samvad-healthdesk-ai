@@ -47,14 +47,29 @@ async function step(name, fn) {
 }
 
 function buildFrontend() {
-  execFileSync('npm', ['run', 'build'], { stdio: ['ignore', 'ignore', 'pipe'], env: process.env });
+  execFileSync('npm', ['run', 'build'], {
+    stdio: ['ignore', 'ignore', 'pipe'],
+    env: {
+      ...process.env,
+      VITE_SUPABASE_URL: config.url,
+      VITE_SUPABASE_KEY: config.anonKey,
+    },
+  });
 }
 
 function startPreview() {
   return spawn(
     'npx',
     ['vite', 'preview', '--host', '127.0.0.1', '--port', String(config.previewPort), '--strictPort'],
-    { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env }, detached: true },
+    {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        VITE_SUPABASE_URL: config.url,
+        VITE_SUPABASE_KEY: config.anonKey,
+      },
+      detached: true,
+    },
   );
 }
 

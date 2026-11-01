@@ -51,11 +51,24 @@ export class AudioRecorder {
 
   async stop(): Promise<AudioRecordingResult> {
     return new Promise((resolve, reject) => {
-      if (!this.mediaRecorder) {
-        return reject(new Error('Recorder not started'));
+      if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') {
+        return reject(new Error('Recorder not active'));
       }
 
+      const timer = setTimeout(() => {
+        if (this.mediaStream) {
+          this.mediaStream.getTracks().forEach((track) => track.stop());
+          this.mediaStream = null;
+        }
+        resolve({
+          blob: new Blob(this.chunks, { type: 'audio/webm' }),
+          durationMs: Date.now() - this.startTime,
+          format: 'audio/webm',
+        });
+      }, 1500);
+
       this.mediaRecorder.onstop = () => {
+        clearTimeout(timer);
         const mimeType = this.mediaRecorder?.mimeType || 'audio/webm';
         const blob = new Blob(this.chunks, { type: mimeType });
         const durationMs = Date.now() - this.startTime;
@@ -72,7 +85,12 @@ export class AudioRecorder {
         });
       };
 
-      this.mediaRecorder.stop();
+      try {
+        this.mediaRecorder.stop();
+      } catch (err) {
+        clearTimeout(timer);
+        reject(err);
+      }
     });
   }
 

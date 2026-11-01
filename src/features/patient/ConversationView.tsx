@@ -162,24 +162,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     return () => clearInterval(timer);
   }, [isListening, countdown]);
 
-  const handleStartListening = async () => {
+  const handleStartListening = () => {
     setMicError(null);
-    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach((track) => track.stop());
-      } catch (err: any) {
-        if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
-          setMicError(
-            language === 'hi'
-              ? 'माइक्रोफ़ोन अनुमति अस्वीकृत हुई। आप नीचे लिखकर उत्तर दे सकते हैं।'
-              : 'Microphone permission was denied. Switched to text intake mode.',
-          );
-          setInputMode('text');
-          return;
-        }
-      }
-    }
     setIsListening(true);
     setCountdown(30);
   };

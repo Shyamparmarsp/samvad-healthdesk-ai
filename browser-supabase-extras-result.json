@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-01T22:11:07.669Z",
+  "generatedAt": "2026-11-01T22:25:42.727Z",
   "target": "http://127.0.0.1:54321",
   "mode": "supabase (real Auth, Edge Functions, Postgres, RPCs)",
   "providers": "stubbed (Groq, Prisma, Timbre)",

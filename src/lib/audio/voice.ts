@@ -106,7 +106,18 @@ export async function encodeWavBase64(blob: Blob, targetRate = TARGET_SAMPLE_RAT
 
   const context = new AudioContextCtor();
   try {
-    const decoded = await context.decodeAudioData(arrayBuffer.slice(0));
+    if (context.state === 'suspended') {
+      try {
+        await Promise.race([
+          context.resume(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('resume timeout')), 500)),
+        ]);
+      } catch {}
+    }
+    const decoded = await Promise.race([
+      context.decodeAudioData(arrayBuffer.slice(0)),
+      new Promise<AudioBuffer>((_, reject) => setTimeout(() => reject(new Error('decodeAudioData timeout')), 1500)),
+    ]);
     const samples = toMonoAtRate(decoded, targetRate);
     return base64FromBytes(wavFromSamples(samples, targetRate));
   } finally {
@@ -136,19 +147,29 @@ export interface VoiceAnswer {
  * Never throws: a failed recording degrades to a synthetic tone.
  */
 export async function captureVoiceAnswer(): Promise<VoiceAnswer> {
-  const recorder = new AudioRecorder();
-  try {
-    await recorder.start();
-    await new Promise((resolve) => setTimeout(resolve, CAPTURE_MS));
-    const { blob } = await recorder.stop();
-    if (blob.size > 0) {
-      const encoded = await encodeWavBase64(blob);
-      if (encoded.length > 0) {
-        return { audio_base64: encoded, audio_format: 'audio/wav', source: 'microphone' };
+  return Promise.race<VoiceAnswer>([
+    (async (): Promise<VoiceAnswer> => {
+      const recorder = new AudioRecorder();
+      try {
+        await recorder.start();
+        await new Promise((resolve) => setTimeout(resolve, CAPTURE_MS));
+        const { blob } = await recorder.stop();
+        if (blob.size > 0) {
+          const encoded = await encodeWavBase64(blob);
+          if (encoded.length > 0) {
+            return { audio_base64: encoded, audio_format: 'audio/wav', source: 'microphone' };
+          }
+        }
+      } catch {
+        recorder.cancel();
       }
-    }
-  } catch {
-    recorder.cancel();
-  }
-  return { audio_base64: syntheticWavBase64(), audio_format: 'audio/wav', source: 'synthetic' };
+      return { audio_base64: syntheticWavBase64(), audio_format: 'audio/wav', source: 'synthetic' };
+    })(),
+    new Promise<VoiceAnswer>((resolve) =>
+      setTimeout(
+        () => resolve({ audio_base64: syntheticWavBase64(), audio_format: 'audio/wav', source: 'synthetic' }),
+        2500,
+      ),
+    ),
+  ]);
 }
