@@ -131,6 +131,8 @@ Deno.test("schema: sessions enforces claim and pending coherence", () => {
   assert(sql.includes("audio_claim_state is null or audio_claim_state in ('claimed', 'dispatched')"), "claim state allowlist");
   assert(sql.includes("answer_turn_count between 0 and 15"), "15-turn bound");
   assert(sql.includes("needs_human_review boolean not null default false"), "session review flag");
+  assert(sql.includes("clarification_answer text null"), "clarification evidence column");
+  assert(sql.includes("sessions_clarification_pair"), "clarification evidence pair check");
 });
 
 Deno.test("schema: messages has the patient-turn unique index", () => {

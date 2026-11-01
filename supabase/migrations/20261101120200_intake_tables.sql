@@ -21,6 +21,8 @@ create table public.sessions (
   answer_turn_count smallint not null default 0 check (answer_turn_count between 0 and 15),
   current_question_id text null,
   pending_clarification_rule_id text null,
+  clarification_answer text null,
+  clarification_answered_at timestamptz null,
   needs_human_review boolean not null default false,
   ended_at timestamptz null,
   created_at timestamptz not null default now(),
@@ -66,6 +68,13 @@ create table public.sessions (
   constraint sessions_pending_text check (
     pending_transcript_text is null
     or char_length(pending_transcript_text) between 1 and 2000
+  ),
+
+  constraint sessions_clarification_pair check (
+    (clarification_answer is null) = (clarification_answered_at is null)
+  ),
+  constraint sessions_clarification_length check (
+    clarification_answer is null or char_length(clarification_answer) between 1 and 1000
   ),
 
   constraint sessions_claim_coherent check (

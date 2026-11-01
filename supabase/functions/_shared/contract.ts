@@ -209,10 +209,23 @@ export interface ChatTurnResponse {
   emergency_triggered?: boolean;
   demo_busy?: boolean;
   /**
-   * Additive field (backend proposal, pending frontend adoption): the transcript
-   * produced by an audio turn, awaiting the patient's confirmation. The turn is not
-   * accepted and turn_count is unchanged while this is present.
+   * Audio confirmation step. Present only when an audio turn has been transcribed and
+   * is awaiting the patient's confirmation. While present, `turn_count` is unchanged
+   * and the turn has not been accepted; the patient confirms by sending the same
+   * question with `text`.
+   *
+   * This is ONE name used by both sides (docs/report-design.md calls the state
+   * `transcript_preview`). There is deliberately no second field such as
+   * `pending_transcript`.
    */
-  pending_transcript?: string;
+  transcript_preview?: TranscriptPreview;
   error?: string;
+}
+
+export interface TranscriptPreview {
+  state: "transcript_preview";
+  /** The transcription, shown to the patient for confirmation or correction. */
+  text: string;
+  /** The question the transcription answers. */
+  question_id: QuestionId;
 }

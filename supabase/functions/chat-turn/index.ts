@@ -46,6 +46,10 @@ import {
   type FieldMap,
 } from "../_shared/report.ts";
 import { classifyAnswer, resolveClarification } from "../_shared/safety.ts";
+import { buildConsentRecord } from "../_shared/consent.ts";
+import { planResume } from "../_shared/reconciliation.ts";
+import { resolveEmergencyRouting, resolveRouting, type DepartmentRecord, type DoctorRecord } from "../_shared/routing.ts";
+import { suggestDepartment } from "../_shared/groq-routing.ts";
 import { transcribe } from "../_shared/prisma.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -63,6 +67,7 @@ interface SessionRow {
   pending_transcript_question_id: string | null;
   pending_transcript_expected_turn: number | null;
   pending_transcript_expires_at: string | null;
+  clarification_answer: string | null;
   needs_human_review: boolean;
 }
 
@@ -117,27 +122,57 @@ function rebuildFields(messages: MessageRow[]): FieldMap {
   return fields;
 }
 
-async function lookupRouting(admin: Admin, departmentKey: DepartmentKey): Promise<RoutingSnapshot> {
-  const { data: department } = await admin
-    .from("departments")
-    .select("key, name")
-    .eq("key", departmentKey)
-    .maybeSingle();
-  const { data: doctor } = await admin
-    .from("doctors")
-    .select("id, display_name")
-    .eq("department_key", departmentKey)
-    .limit(1)
-    .maybeSingle();
+interface ReferenceData {
+  departments: DepartmentRecord[];
+  doctors: DoctorRecord[];
+}
 
+async function loadReferenceData(admin: Admin): Promise<ReferenceData> {
+  const { data: departments } = await admin
+    .from("departments")
+    .select("key, name, booking_enabled, is_emergency")
+    .order("display_order", { ascending: true });
+  const { data: doctors } = await admin
+    .from("doctors")
+    .select("id, display_name, department_key");
   return {
-    department_key: departmentKey,
-    department_name: department?.name ?? "General Medicine",
-    doctor_id: doctor?.id ?? "",
-    doctor_name: doctor?.display_name ?? "Dr. Aditi Rao",
-    is_fallback: departmentKey === "general_medicine",
-    preliminary: true,
+    departments: (departments ?? []) as DepartmentRecord[],
+    doctors: (doctors ?? []) as DoctorRecord[],
   };
+}
+
+async function resolveDraftRouting(
+  admin: Admin,
+  session: SessionRow,
+  fields: FieldMap,
+): Promise<{ routing: RoutingSnapshot; source: "model" | "fallback" }> {
+  const reference = await loadReferenceData(admin);
+
+  let candidate: string | null = null;
+  const apiKey = Deno.env.get("GROQ_API_KEY") ?? "";
+  const concern = fields.primary_concern;
+  if (apiKey && concern.status === "provided" && typeof concern.value === "string") {
+    const reservation = await reserveUsage(admin, "groq");
+    if (reservation.allowed) {
+      candidate = await suggestDepartment({ apiKey }, concern.value);
+      consoleLogger.info("provider_attempt", { provider: "groq", ok: candidate !== null });
+    } else {
+      consoleLogger.info("usage_capped", { counter: "groq" });
+    }
+  }
+
+  const resolved = resolveRouting(candidate, reference.departments, reference.doctors);
+  consoleLogger.info("action_completed", {
+    action: "route_department",
+    source: resolved.source,
+    reason: resolved.reason,
+  });
+  return { routing: resolved.routing, source: resolved.source };
+}
+
+async function emergencyRouting(admin: Admin): Promise<RoutingSnapshot> {
+  const reference = await loadReferenceData(admin);
+  return resolveEmergencyRouting(reference.departments, reference.doctors);
 }
 
 function mapMessages(rows: MessageRow[]): ChatMessage[] {
@@ -200,7 +235,7 @@ async function ensureDraftReport(
 
   if (!isComplete(fields)) return null;
 
-  const routing = await lookupRouting(admin, "general_medicine");
+  const { routing } = await resolveDraftRouting(admin, session, fields);
   const document = buildReportDocument({
     language: session.language,
     fields,
@@ -235,11 +270,11 @@ async function createEmergencyReport(
   ruleId: string,
   statement: string,
 ): Promise<void> {
-  const routing = await lookupRouting(admin, "emergency");
+  const routing = await emergencyRouting(admin);
   const document = buildReportDocument({
     language: session.language,
     fields,
-    routing: { ...routing, is_fallback: false },
+    routing,
     status: "urgent_partial",
     emergency: {
       rule_id: ruleId,
@@ -303,8 +338,54 @@ async function handleStartSession(admin: Admin, userId: string, language: "en" |
 }
 
 async function handleResume(admin: Admin, userId: string, sessionId: string): Promise<Response> {
-  const session = await loadSession(admin, sessionId, userId);
-  const messages = await loadMessages(admin, sessionId);
+  let session = await loadSession(admin, sessionId, userId);
+  let messages = await loadMessages(admin, sessionId);
+
+  // Repair a message-first acceptance whose session advance was interrupted, and drop
+  // transient audio state. The repair uses scripted selection only, so no provider call
+  // can happen during a resume.
+  const fieldsForPlan = rebuildFields(messages);
+  const plan = planResume(session, messages, fieldsForPlan);
+
+  if (plan.needsAdvance) {
+    const { data: advanced } = await admin
+      .from("sessions")
+      .update({
+        answer_turn_count: plan.orphanTurn,
+        current_question_id: plan.nextQuestionId,
+      pending_transcript_text: null,
+      pending_transcript_language: null,
+      pending_transcript_question_id: null,
+      pending_transcript_expected_turn: null,
+      pending_transcript_created_at: null,
+      pending_transcript_expires_at: null,
+      })
+      .eq("id", session.id)
+      .eq("user_id", userId)
+      .eq("answer_turn_count", session.answer_turn_count)
+      .select("*")
+      .maybeSingle();
+    if (advanced) {
+      session = advanced as SessionRow;
+      messages = await loadMessages(admin, sessionId);
+      consoleLogger.info("action_completed", { action: "resume_reconciled" });
+    }
+  } else if (plan.clearPendingTranscript) {
+    await admin
+      .from("sessions")
+      .update({
+      pending_transcript_text: null,
+      pending_transcript_language: null,
+      pending_transcript_question_id: null,
+      pending_transcript_expected_turn: null,
+      pending_transcript_created_at: null,
+      pending_transcript_expires_at: null,
+      })
+      .eq("id", session.id)
+      .eq("user_id", userId);
+    session = await loadSession(admin, sessionId, userId);
+  }
+
   const response = baseResponse(session, messages);
 
   const { data: report } = await admin
@@ -330,14 +411,19 @@ async function handleConsent(
   if (session.status !== "created") throw new AppError("invalid_state");
 
   const decision = request.consent ? "yes" : "no";
+  const consentCopy = buildConsentRecord(request.language, request.consent_version);
+  if (!consentCopy) {
+    // The patient saw a different wording than the server can attest to.
+    throw new AppError("invalid_request");
+  }
+
   await admin.from("consent_records").insert({
     session_id: session.id,
     user_id: userId,
     decision,
-    // Stored verbatim from the approved consent copy; the client supplies only the version.
-    consent_text: `consent_v${request.consent_version}`,
-    consent_version: request.consent_version,
-    language: request.language,
+    consent_text: consentCopy.consent_text,
+    consent_version: consentCopy.consent_version,
+    language: consentCopy.language,
   });
 
   const nextStatus = request.consent ? "consented" : "declined";
@@ -420,7 +506,11 @@ async function handleSubmitTurn(
       .eq("user_id", userId);
 
     const response = baseResponse(session, await loadMessages(admin, session.id));
-    response.pending_transcript = result.transcript;
+    response.transcript_preview = {
+      state: "transcript_preview",
+      text: result.transcript,
+      question_id: request.question_id,
+    };
     return json(response);
   }
 
@@ -441,30 +531,39 @@ async function handleSubmitTurn(
   // Clarification answer for an ambiguous emergency statement.
   if (request.question_id === "emergency_clarification" && session.pending_clarification_rule_id) {
     const resolution = resolveClarification(text);
+    const lastPatientText = [...messages].reverse().find((message) => message.role === "patient")?.final_text ?? text;
     if (resolution === "yes") {
-      await createEmergencyReport(admin, session, fields, session.pending_clarification_rule_id, text);
+      await createEmergencyReport(admin, session, fields, session.pending_clarification_rule_id, lastPatientText);
       const updated = await loadSession(admin, session.id, userId);
       const response = baseResponse(updated, await loadMessages(admin, session.id));
       response.emergency_triggered = true;
       return json(response);
     }
     if (resolution === "unresolved") {
-      // The candidate is neither confirmed nor negated. Record the review flag, keep
-      // asking, and never describe the patient as safe.
+      // Neither confirmed nor negated. Keep the evidence, keep asking, and never
+      // describe the patient as safe. OD-02 (does a clarification consume a turn) is
+      // unresolved, so no turn is counted and the question stays current.
       await admin
         .from("sessions")
-        .update({ needs_human_review: true })
+        .update({
+          needs_human_review: true,
+          clarification_answer: text.slice(0, 1000),
+          clarification_answered_at: new Date().toISOString(),
+        })
         .eq("id", session.id)
         .eq("user_id", userId);
       const updated = await loadSession(admin, session.id, userId);
-      const response = baseResponse(updated, messages);
-      response.error = "invalid_state";
-      return json(response, 409);
+      return json(baseResponse(updated, messages));
     }
     // "No" negates only that candidate. Intake continues; the flag is not a clearance.
     await admin
       .from("sessions")
-      .update({ pending_clarification_rule_id: null, current_question_id: nextQuestion(fields) ?? null })
+      .update({
+        pending_clarification_rule_id: null,
+        clarification_answer: text.slice(0, 1000),
+        clarification_answered_at: new Date().toISOString(),
+        current_question_id: nextQuestion(fields) ?? null,
+      })
       .eq("id", session.id)
       .eq("user_id", userId);
     const updated = await loadSession(admin, session.id, userId);
@@ -481,16 +580,43 @@ async function handleSubmitTurn(
     return json(response);
   }
   if (match.kind === "ambiguous") {
+    // The patient's statement is stored first: it is evidence for the doctor and must
+    // never be discarded when intake pauses for the clarification.
+    const nextTurn = session.answer_turn_count + 1;
+    const { error: insertError } = await admin.from("messages").insert({
+      session_id: session.id,
+      role: "patient",
+      question_id: request.question_id,
+      turn_index: nextTurn,
+      original_text: null,
+      final_text: text,
+      input_mode: "text",
+    });
+
+    if (insertError) {
+      const current = await loadSession(admin, session.id, userId);
+      return json(baseResponse(current, await loadMessages(admin, session.id)));
+    }
+
     await admin
       .from("sessions")
       .update({
+        answer_turn_count: nextTurn,
         pending_clarification_rule_id: match.ruleIds[0],
         current_question_id: "emergency_clarification",
+      pending_transcript_text: null,
+      pending_transcript_language: null,
+      pending_transcript_question_id: null,
+      pending_transcript_expected_turn: null,
+      pending_transcript_created_at: null,
+      pending_transcript_expires_at: null,
       })
       .eq("id", session.id)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .eq("answer_turn_count", session.answer_turn_count);
+
     const updated = await loadSession(admin, session.id, userId);
-    return json(baseResponse(updated, messages));
+    return json(baseResponse(updated, await loadMessages(admin, session.id)));
   }
 
   // Normal answer.
