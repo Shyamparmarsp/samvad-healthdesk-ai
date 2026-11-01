@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-01T22:43:43.805Z",
+  "generatedAt": "2026-11-01T22:59:32.473Z",
   "target": "http://127.0.0.1:54321",
   "preview": "http://127.0.0.1:4180",
   "mode": "supabase (real Auth, Edge Functions, Postgres, RPCs)",
@@ -21,7 +21,7 @@
       "name": "3. consent accepted and the first scripted question is asked",
       "ok": true,
       "layer": "browser+supabase",
-      "detail": "name question live"
+      "detail": "name question live, 3 real Edge Function request(s)"
     },
     {
       "name": "4. audio capture returns a transcript preview (stub Prisma)",
@@ -69,7 +69,7 @@
       "name": "11. booking persists and confirmation shows server data",
       "ok": true,
       "layer": "browser+supabase",
-      "detail": "confirmed APT-20261102-B5BACC"
+      "detail": "confirmed APT-20261102-6C16EC"
     },
     {
       "name": "12. doctor signs in with email/password against real Auth",
@@ -93,13 +93,13 @@
       "name": "15. review is persisted for the assigned doctor",
       "ok": true,
       "layer": "browser+supabase",
-      "detail": "reviewed_at=2026-11-01T22:43:43.244298+00:00"
+      "detail": "reviewed_at=2026-11-01T22:59:31.932371+00:00"
     },
     {
       "name": "16. the appointment exists in PostgreSQL with the UI reference",
       "ok": true,
       "layer": "browser+supabase",
-      "detail": "APT-20261102-B5BACC @ 2026-11-02T03:30:00+00:00"
+      "detail": "APT-20261102-6C16EC @ 2026-11-02T03:30:00+00:00"
     },
     {
       "name": "17. no uncaught page errors during the journey",
