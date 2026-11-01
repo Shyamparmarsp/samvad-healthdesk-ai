@@ -34,13 +34,86 @@ import {
 } from '../types/doctor';
 
 import { CONSENT_VERSION } from '../types/consent';
-import { getSupabaseClient, isSupabaseConfigured } from './supabase';
+import {
+  getSupabaseClient,
+  isSupabaseConfigured,
+  SUPABASE_KEY,
+  SUPABASE_URL,
+} from './supabase';
 import {
   getMockAdaptiveQuestion,
   getMockCandidates,
 } from './mock-adaptive-bank';
 
 export type AppMode = 'mock' | 'supabase';
+
+/**
+ * A failed backend call.
+ *
+ * `error` on the wire is a stable code (`invalid_state`, `not_found`, `demo_busy`, …),
+ * never prose and never patient data (docs/integration-contract.md §5). The frontend
+ * owns the copy, so the code is preserved instead of being flattened into
+ * "Edge Function returned a non-2xx status code".
+ *
+ * `turn_cap_reached`, `provider_unavailable`, `transcript_empty`, `audio_in_progress`,
+ * `audio_superseded` and `demo_busy` are expected domain states that the backend
+ * returns with HTTP 200 and a normal envelope, so they are NOT thrown: callers read
+ * `response.error` from the returned `ChatTurnResponse`.
+ */
+export class ApiError extends Error {
+  readonly code?: string;
+  readonly status?: number;
+
+  constructor(message: string, code?: string, status?: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = code;
+    this.status = status;
+  }
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** True when the value can be a Postgres uuid (report ids, session ids). */
+function isUuid(value: string | undefined | null): value is string {
+  return typeof value === 'string' && UUID_RE.test(value);
+}
+
+/** Reads the stable error code out of a FunctionsHttpError without losing the body. */
+async function codeFromInvokeError(error: unknown): Promise<{ code?: string; status?: number }> {
+  const context = (error as { context?: unknown }).context;
+  if (context instanceof Response) {
+    const status = context.status;
+    try {
+      const body = (await context.clone().json()) as unknown;
+      if (body && typeof body === 'object') {
+        const code = (body as { error?: unknown }).error;
+        if (typeof code === 'string') return { code, status };
+      }
+    } catch {
+      // Body was already consumed or is not JSON; fall back to the SDK message.
+    }
+    return { status };
+  }
+  return {};
+}
+
+/**
+ * Single invocation path for both Edge Functions so error mapping cannot drift.
+ * A non-2xx response becomes an `ApiError` carrying the backend's code.
+ */
+async function invokeFunction<T>(name: 'chat-turn' | 'speak', body: unknown): Promise<T> {
+  const client = getSupabaseClient();
+  const { data, error } = await client.functions.invoke<T>(name, { body: body as Record<string, unknown> });
+  if (error) {
+    const { code, status } = await codeFromInvokeError(error);
+    throw new ApiError(code ?? (error instanceof Error ? error.message : 'Request failed'), code, status);
+  }
+  if (data === null || data === undefined) {
+    throw new ApiError('Empty response from backend');
+  }
+  return data;
+}
 
 let currentAppMode: AppMode = isSupabaseConfigured ? 'supabase' : 'mock';
 
@@ -117,6 +190,75 @@ export const FICTIONAL_DOCTORS: Record<DepartmentKey, DoctorProfile> = {
     routine_slots_enabled: true,
   },
 };
+
+/**
+ * Reference-data lookups.
+ *
+ * `doctors` and `departments` are readable by any signed-in caller for booking UI
+ * display; `doctor_profiles` is readable only for the caller's own row. Nothing here is
+ * authority — the server derives routing and ownership independently.
+ */
+interface DoctorReference {
+  id: string;
+  display_name: string;
+  department_key: DepartmentKey;
+}
+
+async function lookupDoctor(doctorId: string): Promise<DoctorReference | null> {
+  if (!doctorId) return null;
+  const client = getSupabaseClient();
+  // A test double may expose only `rpc`. Display enrichment must never be the reason a
+  // booking or a login fails, so an absent REST surface degrades to "no display name".
+  if (typeof client.from !== 'function') return null;
+  try {
+    const { data, error } = await client
+      .from('doctors')
+      .select('id, display_name, department_key')
+      .eq('id', doctorId)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data as DoctorReference;
+  } catch {
+    return null;
+  }
+}
+
+async function lookupDepartment(
+  departmentKey: string,
+): Promise<{ key: string; name: string; booking_enabled: boolean; is_emergency: boolean } | null> {
+  const client = getSupabaseClient();
+  if (typeof client.from !== 'function') return null;
+  try {
+    const { data, error } = await client
+      .from('departments')
+      .select('key, name, booking_enabled, is_emergency')
+      .eq('key', departmentKey)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data as { key: string; name: string; booking_enabled: boolean; is_emergency: boolean };
+  } catch {
+    return null;
+  }
+}
+
+function departmentNameFor(departmentKey?: DepartmentKey | null): string {
+  if (departmentKey && FICTIONAL_DOCTORS[departmentKey]) {
+    return FICTIONAL_DOCTORS[departmentKey].department_name;
+  }
+  return FICTIONAL_DOCTORS.general_medicine.department_name;
+}
+
+/** "Dr. Aditi Rao" → "AR" for the avatar badge. */
+function initialsOf(displayName: string): string {
+  const words = displayName
+    .replace(/^Dr\.?\s+/i, '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0) return 'DR';
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+}
 
 // -------------------------------------------------------------
 // Approved Questions Flow
@@ -663,13 +805,17 @@ export async function startAnonymousSession(language: 'en' | 'hi' = 'en'): Promi
     const client = getSupabaseClient();
     const { data: authData, error: authErr } = await client.auth.signInAnonymously();
     if (authErr || !authData.user) {
-      throw new Error(`Anonymous authentication failed: ${authErr?.message || 'Unknown error'}`);
+      throw new ApiError(
+        `Anonymous authentication failed: ${authErr?.message || 'Unknown error'}`,
+        'auth_failed',
+      );
     }
-    const { data, error } = await client.functions.invoke<ChatTurnResponse>('chat-turn', {
-      body: { action: 'start_session', language },
+    const data = await invokeFunction<ChatTurnResponse>('chat-turn', {
+      action: 'start_session',
+      language,
     });
-    if (error || !data) {
-      throw new Error(error?.message || 'Failed to start session on backend');
+    if (data.demo_busy) {
+      throw new ApiError('demo_busy', 'demo_busy');
     }
     return { sessionId: data.session_id, userId: authData.user.id };
   }
@@ -709,15 +855,9 @@ export async function startSession(language: 'en' | 'hi' = 'en'): Promise<ChatTu
     const { data: sessionData } = await client.auth.getSession();
     if (!sessionData?.session?.user) {
       const { error: authErr } = await client.auth.signInAnonymously();
-      if (authErr) throw new Error(`Anonymous authentication failed: ${authErr.message}`);
+      if (authErr) throw new ApiError(`Anonymous authentication failed: ${authErr.message}`, 'auth_failed');
     }
-    const { data, error } = await client.functions.invoke<ChatTurnResponse>('chat-turn', {
-      body: { action: 'start_session', language },
-    });
-    if (error || !data) {
-      throw new Error(error?.message || 'Failed to start session on backend');
-    }
-    return data;
+    return invokeFunction<ChatTurnResponse>('chat-turn', { action: 'start_session', language });
   }
 
   if (mockDailyCapExceeded) {
@@ -752,19 +892,18 @@ export async function startSession(language: 'en' | 'hi' = 'en'): Promise<ChatTu
 
 export async function resumeSession(sessionId: string): Promise<ChatTurnResponse> {
   if (currentAppMode === 'supabase') {
-    const client = getSupabaseClient();
-    const { data, error } = await client.functions.invoke<ChatTurnResponse>('chat-turn', {
-      body: { action: 'resume_session', session_id: sessionId },
+    return invokeFunction<ChatTurnResponse>('chat-turn', {
+      action: 'resume_session',
+      session_id: sessionId,
     });
-    if (error || !data) {
-      throw new Error(error?.message || 'Failed to resume session');
-    }
-    return data;
   }
 
   const session = mockSessions.get(sessionId);
   if (!session) {
-    return startSession('en');
+    // The backend returns 404 not_found for an unknown or foreign session. Never
+    // silently start a new session here: that would hide a lost identity behind a
+    // fresh empty intake and consume another session-cap slot.
+    throw new ApiError('not_found', 'not_found', 404);
   }
 
   let currentQ: ChatTurnResponse['current_question'] = undefined;
@@ -817,20 +956,13 @@ export async function recordConsent(
   consentVersion: string = CONSENT_VERSION,
 ): Promise<ChatTurnResponse> {
   if (currentAppMode === 'supabase') {
-    const client = getSupabaseClient();
-    const { data, error } = await client.functions.invoke<ChatTurnResponse>('chat-turn', {
-      body: {
-        action: 'record_consent',
-        session_id: sessionId,
-        consent,
-        consent_version: consentVersion,
-        language,
-      },
+    return invokeFunction<ChatTurnResponse>('chat-turn', {
+      action: 'record_consent',
+      session_id: sessionId,
+      consent,
+      consent_version: consentVersion,
+      language,
     });
-    if (error || !data) {
-      throw new Error(error?.message || 'Failed to record consent');
-    }
-    return data;
   }
 
   const session = mockSessions.get(sessionId);
@@ -893,21 +1025,14 @@ export async function recordConsent(
 
 export async function chatTurn(action: SubmitTurnAction): Promise<ChatTurnResponse> {
   if (currentAppMode === 'supabase') {
-    const client = getSupabaseClient();
-    const { data, error } = await client.functions.invoke<ChatTurnResponse>('chat-turn', {
-      body: {
-        action: 'submit_turn',
-        session_id: action.session_id,
-        question_id: action.question_id,
-        ...(action.text !== undefined ? { text: action.text } : {}),
-        ...(action.audio_base64 !== undefined ? { audio_base64: action.audio_base64 } : {}),
-        ...(action.audio_format !== undefined ? { audio_format: action.audio_format } : {}),
-      },
+    return invokeFunction<ChatTurnResponse>('chat-turn', {
+      action: 'submit_turn',
+      session_id: action.session_id,
+      question_id: action.question_id,
+      ...(action.text !== undefined ? { text: action.text } : {}),
+      ...(action.audio_base64 !== undefined ? { audio_base64: action.audio_base64 } : {}),
+      ...(action.audio_format !== undefined ? { audio_format: action.audio_format } : {}),
     });
-    if (error || !data) {
-      throw new Error(error?.message || 'Failed to process chat turn');
-    }
-    return data;
   }
 
   const session = mockSessions.get(action.session_id);
@@ -1327,19 +1452,16 @@ export async function chatTurn(action: SubmitTurnAction): Promise<ChatTurnRespon
 
 export async function correctDraftReport(action: CorrectDraftReportAction): Promise<ChatTurnResponse> {
   if (currentAppMode === 'supabase') {
-    const client = getSupabaseClient();
-    const { data, error } = await client.functions.invoke<ChatTurnResponse>('chat-turn', {
-      body: {
-        action: 'correct_draft_report',
-        session_id: action.session_id,
-        report_id: action.report_id,
-        updates: action.updates,
-      },
+    const reportId = isUuid(action.report_id) ? action.report_id : undefined;
+    return invokeFunction<ChatTurnResponse>('chat-turn', {
+      action: 'correct_draft_report',
+      session_id: action.session_id,
+      // Omitted when the caller only knows the session: neither start_session,
+      // resume_session nor submit_turn returns a report row id, and the backend
+      // resolves the single report owned by the session.
+      ...(reportId ? { report_id: reportId } : {}),
+      updates: action.updates,
     });
-    if (error || !data) {
-      throw new Error(error?.message || 'Failed to correct draft report');
-    }
-    return data;
   }
 
   const session = mockSessions.get(action.session_id);
@@ -1389,33 +1511,31 @@ export async function correctDraftReport(action: CorrectDraftReportAction): Prom
 
   session.draftReport = buildDraftReport(session);
 
+  // A correction can never make an incomplete intake submittable: the backend
+  // recomputes can_submit from the rebuilt field map (chat-turn handleCorrectDraft).
+  const stillComplete = isSessionComplete(session);
+
   return {
     session_id: session.sessionId,
     session_status: session.sessionStatus,
     messages: session.messages,
     turn_count: session.turnCount,
     max_turns: 15,
-    is_complete: true,
+    is_complete: stillComplete,
     is_cap_reached: session.turnCount >= 15,
-    can_submit: true,
+    can_submit: stillComplete,
     draft_report: session.draftReport,
   };
 }
 
 export async function submitReport(action: SubmitReportAction): Promise<ChatTurnResponse> {
   if (currentAppMode === 'supabase') {
-    const client = getSupabaseClient();
-    const { data, error } = await client.functions.invoke<ChatTurnResponse>('chat-turn', {
-      body: {
-        action: 'submit_report',
-        session_id: action.session_id,
-        report_id: action.report_id,
-      },
+    const reportId = isUuid(action.report_id) ? action.report_id : undefined;
+    return invokeFunction<ChatTurnResponse>('chat-turn', {
+      action: 'submit_report',
+      session_id: action.session_id,
+      ...(reportId ? { report_id: reportId } : {}),
     });
-    if (error || !data) {
-      throw new Error(error?.message || 'Failed to submit report');
-    }
-    return data;
   }
 
   const session = mockSessions.get(action.session_id);
@@ -1464,16 +1584,47 @@ export async function submitReport(action: SubmitReportAction): Promise<ChatTurn
   };
 }
 
+/**
+ * Adaptive-question speech.
+ *
+ * `speak` does not answer with JSON audio: on success it streams audio bytes with the
+ * provider content type (`audio/mpeg`, …), and on any cap/failure it answers
+ * `{ "text": "..." }`. `functions.invoke` only decodes `application/octet-stream` and
+ * `application/pdf` as Blob and falls back to `text()` for everything else, which
+ * corrupts audio/mpeg — so the binary path uses a direct authenticated fetch and turns
+ * the bytes into an object URL. Cached scripted prompts never reach this function.
+ */
 export async function speak(sessionId: string, questionId: string): Promise<{ audioUrl?: string; text?: string }> {
   if (currentAppMode === 'supabase') {
     const client = getSupabaseClient();
-    const { data, error } = await client.functions.invoke<{ audio_url?: string; text?: string }>('speak', {
-      body: { session_id: sessionId, question_id: questionId },
+    const { data: sessionData } = await client.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) return { audioUrl: undefined };
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/speak`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${token}`,
+        apikey: SUPABASE_KEY,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ session_id: sessionId, question_id: questionId }),
     });
-    if (error) {
-      return { audioUrl: undefined };
+
+    const contentType = (response.headers.get('content-type') || '').toLowerCase();
+    if (!response.ok || contentType.includes('application/json')) {
+      // `{ text }` fallback, or an error body. Never claim audio.
+      try {
+        const body = (await response.json()) as { text?: string };
+        return { audioUrl: undefined, text: typeof body?.text === 'string' ? body.text : undefined };
+      } catch {
+        return { audioUrl: undefined };
+      }
     }
-    return { audioUrl: data?.audio_url || undefined, text: data?.text };
+
+    const blob = await response.blob();
+    if (blob.size === 0) return { audioUrl: undefined };
+    return { audioUrl: URL.createObjectURL(blob) };
   }
 
   return { audioUrl: undefined };
@@ -1496,15 +1647,18 @@ export async function getAvailableSlots(
     });
     if (error) {
       if (error.code === '42501') {
-        throw new Error('Booking paused until a doctor reviews this report.');
+        throw new ApiError('Booking paused until a doctor reviews this report.', 'review_hold', 403);
       }
       if (error.code === '22023') {
-        throw new Error('Not eligible for routine booking.');
+        throw new ApiError('Not eligible for routine booking.', 'not_bookable', 422);
       }
       if (error.code === 'P0002') {
-        throw new Error('Report not found or not owned.');
+        throw new ApiError('Report not found or not owned.', 'not_found', 404);
       }
-      throw new Error(error.message || 'Failed to retrieve available slots');
+      if (error.code === '28000') {
+        throw new ApiError('Not authenticated.', 'unauthorized', 401);
+      }
+      throw new ApiError(error.message || 'Failed to retrieve available slots', error.code, 400);
     }
 
     let rawSlots = (data || []) as { slot_start: string; slot_end: string }[];
@@ -1583,7 +1737,7 @@ export async function bookAppointment(req: BookAppointmentRequest): Promise<Book
     const client = getSupabaseClient();
     const slotStart = req.slot_start || req.slot_id;
     if (!slotStart) {
-      throw new Error('Missing slot timestamp for booking');
+      throw new ApiError('Missing slot timestamp for booking', 'invalid_request', 400);
     }
     const { data, error } = await client.rpc('book_appointment', {
       p_report_id: req.report_id,
@@ -1591,18 +1745,21 @@ export async function bookAppointment(req: BookAppointmentRequest): Promise<Book
     });
     if (error) {
       if (error.code === '23505') {
-        throw new Error('That slot was just taken. Please select another slot.');
+        throw new ApiError('That slot was just taken. Please select another slot.', 'slot_taken', 409);
       }
       if (error.code === '42501') {
-        throw new Error('Booking paused until a doctor reviews this report.');
+        throw new ApiError('Booking paused until a doctor reviews this report.', 'review_hold', 403);
       }
       if (error.code === '22023') {
-        throw new Error('Emergency reports are permanently ineligible for routine booking.');
+        throw new ApiError('Emergency reports are permanently ineligible for routine booking.', 'not_bookable', 422);
       }
       if (error.code === 'P0002') {
-        throw new Error('Report not found or not owned.');
+        throw new ApiError('Report not found or not owned.', 'not_found', 404);
       }
-      throw new Error(error.message || 'Failed to book appointment');
+      if (error.code === '28000') {
+        throw new ApiError('Not authenticated.', 'unauthorized', 401);
+      }
+      throw new ApiError(error.message || 'Failed to book appointment', error.code, 400);
     }
 
     const rows = (data || []) as {
@@ -1615,22 +1772,27 @@ export async function bookAppointment(req: BookAppointmentRequest): Promise<Book
     }[];
 
     if (!rows.length) {
-      throw new Error('No appointment returned from server');
+      throw new ApiError('No appointment returned from server', 'internal');
     }
     const row = rows[0];
-    const doctor = Object.values(FICTIONAL_DOCTORS).find((d) => d.id === row.doctor_id) || FICTIONAL_DOCTORS.general_medicine;
+
+    // The server derives doctor and department from the report; never the client.
+    // Resolve the display names from the reference tables instead of the fictional
+    // seed constants, because doctors.id is a uuid and FICTIONAL_DOCTORS uses demo ids.
+    const doctorInfo = await lookupDoctor(row.doctor_id);
+    const department = doctorInfo ? await lookupDepartment(doctorInfo.department_key) : null;
 
     const appointment: Appointment = {
       id: row.appointment_id,
       report_id: req.report_id,
       doctor_id: row.doctor_id,
-      doctor_name: doctor.name,
-      department_name: doctor.department_name,
+      doctor_name: doctorInfo?.display_name || FICTIONAL_DOCTORS.general_medicine.name,
+      department_name: department?.name || departmentNameFor(doctorInfo?.department_key),
       slot_id: row.slot_start,
       slot_start: row.slot_start,
       slot_end: row.slot_end,
       reference_code: row.reference_code,
-      patient_name: req.patient_name || 'Patient',
+      patient_name: req.patient_name || '',
       created_at: new Date().toISOString(),
       status: 'confirmed',
     };
@@ -1692,15 +1854,15 @@ export async function markReportReviewed(reportId: string): Promise<MarkReportRe
     });
     if (error) {
       if (error.code === '42501') {
-        throw new Error('Not authorised to review this report.');
+        throw new ApiError('Not authorised to review this report.', 'forbidden', 403);
       }
       if (error.code === '22023') {
-        throw new Error('Draft reports cannot be reviewed.');
+        throw new ApiError('Draft reports cannot be reviewed.', 'invalid_state', 422);
       }
       if (error.code === 'P0002') {
-        throw new Error('Report not found.');
+        throw new ApiError('Report not found.', 'not_found', 404);
       }
-      throw new Error(error.message || 'Failed to mark report reviewed');
+      throw new ApiError(error.message || 'Failed to mark report reviewed', error.code, 400);
     }
 
     const rows = (data || []) as {
@@ -1711,7 +1873,7 @@ export async function markReportReviewed(reportId: string): Promise<MarkReportRe
     }[];
 
     if (!rows.length) {
-      throw new Error('No review data returned');
+      throw new ApiError('No review data returned', 'internal');
     }
     const row = rows[0];
 
@@ -1751,7 +1913,7 @@ export async function doctorLogin(email: string, password?: string): Promise<Doc
       password: password || '',
     });
     if (authErr || !authData.user) {
-      throw new Error(authErr?.message || 'Invalid credentials');
+      throw new ApiError(authErr?.message || 'Invalid credentials', 'invalid_credentials', 401);
     }
 
     const { data: profileData, error: profileErr } = await client
@@ -1760,34 +1922,32 @@ export async function doctorLogin(email: string, password?: string): Promise<Doc
       .eq('user_id', authData.user.id)
       .maybeSingle();
 
+    // A signed-in Auth user who is not mapped to a doctor must never be treated as one.
+    // Previously a seeded-email fallback handed out a doctor profile here, which meant
+    // any account that happened to use a demo address could read that doctor's reports.
     if (profileErr || !profileData) {
-      const fallbackDoc = Object.values(FICTIONAL_DOCTORS).find(
-        (d) => d.email.toLowerCase() === email.toLowerCase()
-      );
-      if (fallbackDoc) {
-        return { doctor: fallbackDoc, token: authData.session?.access_token || '' };
-      }
-      throw new Error('User is not a mapped doctor');
+      await client.auth.signOut();
+      throw new ApiError('not_a_doctor', 'not_a_doctor', 403);
     }
 
-    const { data: doctorRow } = await client
-      .from('doctors')
-      .select('*')
-      .eq('id', profileData.doctor_id)
-      .maybeSingle();
+    const doctorRow = await lookupDoctor(profileData.doctor_id);
+    if (!doctorRow) {
+      await client.auth.signOut();
+      throw new ApiError('not_a_doctor', 'not_a_doctor', 403);
+    }
 
-    const deptKey = (doctorRow?.department_key || 'general_medicine') as DepartmentKey;
-    const seedDoc = FICTIONAL_DOCTORS[deptKey];
+    const department = await lookupDepartment(doctorRow.department_key);
+    const seedDoc = FICTIONAL_DOCTORS[doctorRow.department_key];
 
     const doctor: DoctorProfile = {
-      id: profileData.doctor_id,
-      name: doctorRow?.display_name || seedDoc?.name || 'Doctor',
-      department_key: deptKey,
-      department_name: seedDoc?.department_name || deptKey,
+      id: doctorRow.id,
+      name: doctorRow.display_name,
+      department_key: doctorRow.department_key,
+      department_name: department?.name || departmentNameFor(doctorRow.department_key),
       title: seedDoc?.title || 'Consultant',
-      initials: seedDoc?.initials || 'DR',
-      email,
-      routine_slots_enabled: deptKey !== 'emergency',
+      initials: initialsOf(doctorRow.display_name),
+      email: authData.user.email || email,
+      routine_slots_enabled: department ? department.booking_enabled && !department.is_emergency : false,
     };
 
     return {
@@ -1796,7 +1956,10 @@ export async function doctorLogin(email: string, password?: string): Promise<Doc
     };
   }
 
-  const doctor = Object.values(FICTIONAL_DOCTORS).find((d) => d.email.toLowerCase() === email.toLowerCase()) || FICTIONAL_DOCTORS.general_medicine;
+  const doctor = Object.values(FICTIONAL_DOCTORS).find((d) => d.email.toLowerCase() === email.toLowerCase());
+  if (!doctor) {
+    throw new ApiError('Invalid credentials', 'invalid_credentials', 401);
+  }
   return {
     doctor,
     token: `mock-jwt-${doctor.id}`,
@@ -1819,7 +1982,7 @@ export async function getDoctorReports(doctorId?: string): Promise<ReportRow[]> 
       .order('created_at', { ascending: false });
 
     if (error) {
-      throw new Error(error.message || 'Failed to fetch doctor reports');
+      throw new ApiError(error.message || 'Failed to fetch doctor reports', error.code, 400);
     }
     return (data || []) as ReportRow[];
   }
@@ -1851,7 +2014,7 @@ export async function getDoctorReportDetail(reportId: string): Promise<ReportRow
       .maybeSingle();
 
     if (error) {
-      throw new Error(error.message || 'Failed to fetch report detail');
+      throw new ApiError(error.message || 'Failed to fetch report detail', error.code, 400);
     }
     return (data || null) as ReportRow | null;
   }
@@ -1868,9 +2031,70 @@ export async function getDoctorAppointments(doctorId?: string): Promise<Appointm
       .order('slot_start', { ascending: true });
 
     if (error) {
-      return [];
+      // Previously this returned [] on any error, which made the dashboard silently
+      // report every report as "Not booked" when the read was actually denied.
+      throw new ApiError(error.message || 'Failed to fetch appointments', error.code, 400);
     }
-    return (data || []) as Appointment[];
+
+    const rows = (data || []) as {
+      id: string;
+      report_id: string;
+      user_id: string;
+      doctor_id: string;
+      slot_start: string;
+      slot_end: string;
+      status: 'confirmed' | 'cancelled';
+      reference_code: string;
+      created_at: string;
+    }[];
+    if (rows.length === 0) return [];
+
+    const doctorIds = Array.from(new Set(rows.map((row) => row.doctor_id).filter(isUuid)));
+    const reportIds = Array.from(new Set(rows.map((row) => row.report_id).filter(isUuid)));
+
+    const [doctorResult, departmentResult, reportResult] = await Promise.all([
+      doctorIds.length
+        ? client.from('doctors').select('id, display_name, department_key').in('id', doctorIds)
+        : Promise.resolve({ data: [], error: null }),
+      client.from('departments').select('key, name'),
+      reportIds.length
+        ? client.from('reports').select('id, report').in('id', reportIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+
+    const doctorById = new Map(
+      ((doctorResult.data || []) as { id: string; display_name: string; department_key: DepartmentKey }[]).map(
+        (doctor) => [doctor.id, doctor],
+      ),
+    );
+    const departmentByKey = new Map(
+      ((departmentResult.data || []) as { key: string; name: string }[]).map((dept) => [dept.key, dept.name]),
+    );
+    const patientNameByReport = new Map(
+      ((reportResult.data || []) as { id: string; report: ReportDocumentV1 }[]).map((report) => {
+        const name = report.report?.patient?.name;
+        return [report.id, name?.status === 'provided' && typeof name.value === 'string' ? name.value : ''];
+      }),
+    );
+
+    return rows.map((row) => {
+      const doctor = doctorById.get(row.doctor_id);
+      const departmentKey = doctor?.department_key ?? null;
+      return {
+        id: row.id,
+        report_id: row.report_id,
+        doctor_id: row.doctor_id,
+        doctor_name: doctor?.display_name || '',
+        department_name: (departmentKey && departmentByKey.get(departmentKey)) || departmentNameFor(departmentKey),
+        slot_id: row.slot_start,
+        slot_start: row.slot_start,
+        slot_end: row.slot_end,
+        reference_code: row.reference_code,
+        patient_name: patientNameByReport.get(row.report_id) || '',
+        created_at: row.created_at,
+        status: row.status,
+      };
+    });
   }
 
   const currentDocId = doctorId || FICTIONAL_DOCTORS.general_medicine.id;
