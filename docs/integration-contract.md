@@ -295,3 +295,34 @@ Choice questions return localised `options`; a bank id is passed in the existing
 **Limits:** at most **3** adaptive questions per session (`MAX_ADAPTIVE_QUESTIONS`), on top of the scripted core; adaptive answers count toward the 15-answer cap only after patient confirmation; no provider calls after the cap; adaptive questions never run in emergency or `urgent_partial` flows.
 
 **Fixture:** `supabase/functions/_shared/intake/question-bank.test.ts` asserts counts, pairing, option localisation and retrieval behaviour.
+
+---
+
+## 15. Adaptive question activation (wired into `chat-turn`)
+
+The bank is now live in the conversation flow, after the scripted core.
+
+**Sequence:** emergency matcher and clarification → scripted fixed questions → scripted adaptive questions (duration, severity, conditions, medications, allergies, other symptoms) → **if the report is still incomplete** and the adaptive budget remains, one bank question → draft on completion.
+
+**Delivery:** the chosen bank id is stored in `sessions.current_question_id`, so it survives `resume_session` (verified: `GM-016` returned again after resume). `current_question` is unchanged in shape:
+
+```json
+{ "id": "GM-016", "text": "Do you have pain in your abdomen?", "text_hi": "पेट में दर्द है?", "options": ["हाँ", "नहीं"] }
+```
+
+Choice questions return localised `options`; `yes_no` returns `["Yes","No"]` or `["हाँ","नहीं"]`; `free_text` returns no options.
+
+**Durable limits (derived from `messages`, no new columns):**
+- asked bank ids = distinct `question_id` on patient rows that match the bank
+- adaptive answers = same set, so it counts confirmed answers only
+- a transcript preview is not a message, so it never counts
+- maximum **3** adaptive bank questions per session
+- adaptive answers are ordinary accepted turns and count toward the 15-answer cap
+
+**Answer parsing:** a bank id is mapped to the core question that owns the same report field, so decline/unknown/yes-no handling is identical to the scripted flow. The patient's words are stored verbatim in `final_text`.
+
+**Safety:** selection never runs for `emergency` or `submitted` sessions, never when the report is already complete, never after 3 adaptive answers, never when no candidate matches (no provider call in that case), and never after the 15-answer cap. Missing key, malformed JSON, timeout, invalid or out-of-set id → deterministic first candidate.
+
+**Type guidance:** keep `QuestionId` for the core ids and add a separate union or validated type for bank ids (`BankQuestionId = "GM-001" | … | "CARD-030"`). Do not widen the core union to `string`; validate at runtime with `getQuestion(id)`.
+
+**Known limitation (smallest future fix):** adaptive retrieval uses `general_medicine` until a department is known, because the report (and therefore the routed department) does not exist before completion. Persisting the Groq department suggestion on the session when it is first computed would let retrieval use the correct bank.

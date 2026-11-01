@@ -26,7 +26,7 @@ import { consoleLogger } from "../_shared/logging.ts";
 import { parseChatTurnRequest, type ChatTurnRequest } from "../_shared/validation.ts";
 import { isUuid, requireOwnedRow } from "../_shared/auth.ts";
 import { reserveUsage } from "../_shared/usage.ts";
-import { getQuestion, isQuestionId } from "../_shared/questions.ts";
+import { getQuestion, isQuestionId, questionForField } from "../_shared/questions.ts";
 import {
   MAX_ANSWER_TURNS,
   applyAnswer,
@@ -51,6 +51,13 @@ import { planResume } from "../_shared/reconciliation.ts";
 import { resolveEmergencyRouting, resolveRouting, type DepartmentRecord, type DoctorRecord } from "../_shared/routing.ts";
 import { suggestDepartment } from "../_shared/groq-routing.ts";
 import { transcribe } from "../_shared/prisma.ts";
+import {
+  getQuestion as getBankQuestion,
+  retrieveCandidates,
+  type BankDepartment,
+  type BankQuestion,
+} from "../_shared/intake/question-bank.ts";
+import { MAX_ADAPTIVE_QUESTIONS, selectAdaptiveQuestion } from "../_shared/intake/select.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Admin = any;
@@ -69,6 +76,7 @@ interface SessionRow {
   pending_transcript_expires_at: string | null;
   clarification_answer: string | null;
   needs_human_review: boolean;
+  report_department?: string;
 }
 
 interface MessageRow {
@@ -110,13 +118,33 @@ async function loadMessages(admin: Admin, sessionId: string): Promise<MessageRow
   return (data ?? []) as MessageRow[];
 }
 
+/**
+ * Maps a question id (core or bank) to the core question that owns the same report field.
+ * Bank questions reuse the core parser, so decline/unknown/yes-no handling is identical.
+ */
+function answerQuestionIdFor(questionId: string): QuestionId | null {
+  if (isQuestionId(questionId)) return questionId;
+  const bank = getBankQuestion(questionId);
+  if (!bank) return null;
+  const core = questionForField(bank.field as never);
+  return core ? core.id : null;
+}
+
+/** Bank ids already asked in this session, derived from stored messages. */
+function askedBankIds(messages: MessageRow[]): string[] {
+  return messages
+    .filter((message) => message.role === "patient" && message.question_id && getBankQuestion(message.question_id))
+    .map((message) => message.question_id as string);
+}
+
 /** Replays stored patient answers into a field map. Deterministic, no extra state. */
 function rebuildFields(messages: MessageRow[]): FieldMap {
   let fields = emptyFieldMap();
   for (const message of messages) {
     if (message.role !== "patient" || !message.question_id || !message.final_text) continue;
-    if (!isQuestionId(message.question_id)) continue;
-    const parsed = parseAnswer(message.question_id, message.final_text);
+    const coreId = answerQuestionIdFor(message.question_id);
+    if (!coreId) continue;
+    const parsed = parseAnswer(coreId, message.final_text);
     if (parsed) fields = applyAnswer(fields, parsed);
   }
   return fields;
@@ -192,7 +220,24 @@ function mapMessages(rows: MessageRow[]): ChatMessage[] {
 
 function currentQuestionFor(session: SessionRow): ChatTurnResponse["current_question"] | undefined {
   const id = session.current_question_id;
-  if (!id || !isQuestionId(id)) return undefined;
+  if (!id) return undefined;
+
+  const bank = getBankQuestion(id);
+  if (bank) {
+    const options = bank.answerType === "single_choice"
+      ? bank.options.map((option) => (session.language === "hi" ? option.hi : option.en))
+      : bank.answerType === "yes_no"
+      ? (session.language === "hi" ? ["हाँ", "नहीं"] : ["Yes", "No"])
+      : undefined;
+    return {
+      id: id as QuestionId,
+      text: bank.en,
+      text_hi: bank.hi,
+      options,
+    };
+  }
+
+  if (!isQuestionId(id)) return undefined;
   const question = getQuestion(id);
   return {
     id,
@@ -222,6 +267,54 @@ function baseResponse(session: SessionRow, messages: MessageRow[]): ChatTurnResp
     is_cap_reached: state.is_cap_reached,
     can_submit: state.can_submit,
   };
+}
+
+/**
+ * Chooses one bank question after the scripted flow is exhausted and the report is still
+ * incomplete. Never runs for emergency sessions, never after the adaptive budget, and
+ * never calls a provider when there are no eligible candidates.
+ */
+async function maybeAdaptiveQuestion(
+  admin: Admin,
+  session: SessionRow,
+  fields: FieldMap,
+  messages: MessageRow[],
+): Promise<string | null> {
+  if (session.status === "emergency" || session.status === "submitted") return null;
+  if (isComplete(fields)) return null;
+
+  const asked = askedBankIds(messages);
+  if (asked.length >= MAX_ADAPTIVE_QUESTIONS) return null;
+
+  const department = session.report_department ?? "general_medicine";
+  const concern = fields.primary_concern;
+  const tags = typeof concern.value === "string"
+    ? concern.value.toLowerCase().split(/[^a-zऀ-ॿ]+/).filter((word) => word.length > 3)
+    : [];
+  const missingFields = (Object.keys(fields) as Array<keyof FieldMap>).filter((key) => fields[key].status !== "provided");
+
+  const candidates: BankQuestion[] = retrieveCandidates({
+    department: department as BankDepartment,
+    tags,
+    missingFields: missingFields as string[],
+    askedIds: asked,
+    limit: 8,
+  });
+  if (candidates.length === 0) return null;
+
+  const apiKey = Deno.env.get("GROQ_API_KEY") ?? "";
+  const reservation = await reserveUsage(admin, "groq");
+  if (!reservation.allowed) {
+    consoleLogger.info("usage_capped", { counter: "groq" });
+    return candidates[0].id;
+  }
+  const picked = await selectAdaptiveQuestion(
+    { apiKey, baseUrl: Deno.env.get("GROQ_BASE_URL") ?? undefined },
+    candidates,
+    typeof concern.value === "string" ? concern.value : "",
+  );
+  consoleLogger.info("provider_attempt", { provider: "groq", ok: picked?.source === "model" });
+  return picked?.id ?? candidates[0].id;
 }
 
 async function ensureDraftReport(
@@ -631,7 +724,8 @@ async function handleSubmitTurn(
   }
 
   // Normal answer.
-  const parsed = parseAnswer(request.question_id, text);
+  const coreAnswerId = answerQuestionIdFor(request.question_id);
+  const parsed = coreAnswerId ? parseAnswer(coreAnswerId, text) : null;
   if (parsed) fields = applyAnswer(fields, parsed);
 
   const nextTurn = session.answer_turn_count + 1;
@@ -658,7 +752,13 @@ async function handleSubmitTurn(
     return json(response);
   }
 
-  const nextId = nextQuestion(fields, { afterFixed: request.question_id });
+  let nextId: string | null = nextQuestion(fields, { afterFixed: request.question_id as never });
+  if (!nextId) {
+    nextId = await maybeAdaptiveQuestion(admin, session, fields, [...messages, {
+      id: "", session_id: session.id, role: "patient", question_id: request.question_id,
+      final_text: text, turn_index: nextTurn, created_at: new Date().toISOString(),
+    }]);
+  }
   const { data: advanced } = await admin
     .from("sessions")
     .update({

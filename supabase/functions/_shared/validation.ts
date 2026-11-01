@@ -8,6 +8,7 @@
 
 import { CORRECTABLE_FIELDS, type CorrectableField, type QuestionId } from "./contract.ts";
 import { isQuestionId } from "./questions.ts";
+import { getQuestion as getBankQuestion } from "./intake/question-bank.ts";
 import type { ErrorCode } from "./errors.ts";
 
 export const ACTIONS = [
@@ -145,7 +146,9 @@ export function parseChatTurnRequest(raw: unknown): ParseResult<ChatTurnRequest>
         return { ok: false, code: "invalid_request" };
       }
       if (!isSessionId(raw.session_id)) return { ok: false, code: "invalid_request" };
-      if (!isQuestionId(raw.question_id)) return { ok: false, code: "invalid_request" };
+      if (!isQuestionId(raw.question_id) && !getBankQuestion(raw.question_id as string)) {
+        return { ok: false, code: "invalid_request" };
+      }
 
       const hasText = typeof raw.text === "string" && raw.text.trim().length > 0;
       const hasAudio = typeof raw.audio_base64 === "string" && raw.audio_base64.length > 0;
