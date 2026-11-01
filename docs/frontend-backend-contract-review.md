@@ -1,11 +1,11 @@
 # Frontend-Backend Contract Review — Samvad HealthDesk AI
 
-**Document Version:** 1.1
+**Document Version:** 1.2
 **Date:** 2 November 2026
 **Audited Files (Read-Only):**
 - `supabase/functions/_shared/contract.ts` (Backend Wire Contract Mirror)
 - `docs/report-design.md` (v1.2 Contract)
-- `docs/integration-contract.md` (Backend ↔ Frontend Integration Contract §§10–11)
+- `docs/integration-contract.md` (Backend ↔ Frontend Integration Contract §§10–16)
 - `docs/provider-notes.md` (M1-S5 Verified Facts)
 - `src/types/api.ts`, `src/types/report.ts`, `src/types/consent.ts` (Frontend Contract)
 
@@ -127,5 +127,14 @@ No synthetic placeholder (`consent_vN`) is displayed or persisted. The exact Eng
 
 ---
 
-## 5. Conclusion
-The frontend contract strictly mirrors `docs/integration-contract.md` §§10–11 and all backend migrations. All six actions, three RPCs, security holds, and error mappings are fully reconciled.
+## 5. Question Bank Ownership Boundary & Adaptive Selection
+
+- **Canonical Ownership:** The backend is the single canonical owner of the 150-question bilingual bank (`supabase/functions/_shared/intake/`).
+- **Wire Transparency:** In real Supabase mode, the frontend receives `id` (e.g., `GM-001`, `ORTH-002`), `text`, `text_hi`, `options`, and `answer_type` directly over the wire from `chat-turn`. Real-mode patients never load question content from a second frontend bank copy.
+- **Frontend Mock Fixture:** A lightweight representative fixture (`src/lib/mock-adaptive-bank.ts`, 15 questions, 3 per department) is retained strictly for offline mock-mode testing and UI state validation.
+- **UI Responsiveness:** `ConversationView` natively renders localized options as quick-reply chips, supports dynamic Hindi/English switching with Devanagari text, and preserves question state on resume.
+
+---
+
+## 6. Conclusion
+The frontend contract strictly mirrors `docs/integration-contract.md` §§10–16 and all backend migrations. All six actions, three RPCs, security holds, adaptive bank wire representations, and error mappings are fully reconciled.

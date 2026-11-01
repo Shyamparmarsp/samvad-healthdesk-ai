@@ -35,6 +35,10 @@ import {
 
 import { CONSENT_VERSION } from '../types/consent';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase';
+import {
+  getMockAdaptiveQuestion,
+  getMockCandidates,
+} from './mock-adaptive-bank';
 
 export type AppMode = 'mock' | 'supabase';
 
@@ -223,6 +227,10 @@ interface SessionState {
   consentVersion?: string;
   turnCount: number;
   currentQuestionIndex: number;
+  preliminaryDepartment?: DepartmentKey;
+  currentAdaptiveQuestionId?: string;
+  adaptiveAskedIds: string[];
+  adaptiveAnswersCount: number;
   messages: ChatMessage[];
   pendingAmbiguousEmergency: boolean;
   collectedData: {
@@ -576,7 +584,7 @@ function suggestDepartment(concern: string): DepartmentKey {
 
 function buildDraftReport(session: SessionState): ReportDocumentV1 {
   const data = session.collectedData;
-  const deptKey = suggestDepartment(data.primary_concern || '');
+  const deptKey = session.preliminaryDepartment || suggestDepartment(data.primary_concern || '');
   const doctor = FICTIONAL_DOCTORS[deptKey];
 
   const missing: string[] = [];
@@ -677,6 +685,10 @@ export async function startAnonymousSession(language: 'en' | 'hi' = 'en'): Promi
     consentGranted: false,
     turnCount: 0,
     currentQuestionIndex: 0,
+    preliminaryDepartment: undefined,
+    currentAdaptiveQuestionId: undefined,
+    adaptiveAskedIds: [],
+    adaptiveAnswersCount: 0,
     messages: [],
     pendingAmbiguousEmergency: false,
     collectedData: {},
@@ -755,26 +767,44 @@ export async function resumeSession(sessionId: string): Promise<ChatTurnResponse
     return startSession('en');
   }
 
-  const currentQ = session.currentQuestionIndex < QUESTION_SPECS.length ? QUESTION_SPECS[session.currentQuestionIndex] : undefined;
+  let currentQ: ChatTurnResponse['current_question'] = undefined;
+
+  if (session.currentAdaptiveQuestionId) {
+    const mockQ = getMockAdaptiveQuestion(session.currentAdaptiveQuestionId);
+    if (mockQ) {
+      currentQ = {
+        id: mockQ.id,
+        text: session.language === 'hi' ? mockQ.hi : mockQ.en,
+        text_hi: mockQ.hi,
+        options: session.language === 'hi' ? mockQ.optionsHi : mockQ.optionsEn,
+        is_ambiguous_emergency: false,
+        answer_type: mockQ.answerType,
+      };
+    }
+  } else if (session.currentQuestionIndex < QUESTION_SPECS.length) {
+    const spec = QUESTION_SPECS[session.currentQuestionIndex];
+    currentQ = {
+      id: spec.id,
+      text: session.language === 'hi' ? spec.textHi : spec.textEn,
+      text_hi: spec.textHi,
+      options: session.language === 'hi' ? spec.optionsHi : spec.optionsEn,
+      is_ambiguous_emergency: spec.id === 'emergency_clarification',
+    };
+  }
+
+  const isSatisfied = isSessionComplete(session);
+  const isCompleteState = isSatisfied && !session.currentAdaptiveQuestionId;
 
   return {
     session_id: sessionId,
     session_status: session.sessionStatus,
-    current_question: currentQ
-      ? {
-          id: currentQ.id,
-          text: session.language === 'hi' ? currentQ.textHi : currentQ.textEn,
-          text_hi: currentQ.textHi,
-          options: session.language === 'hi' ? currentQ.optionsHi : currentQ.optionsEn,
-          is_ambiguous_emergency: currentQ.id === 'emergency_clarification',
-        }
-      : undefined,
+    current_question: currentQ,
     messages: session.messages,
     turn_count: session.turnCount,
     max_turns: 15,
-    is_complete: session.currentQuestionIndex >= QUESTION_SPECS.length,
+    is_complete: isCompleteState,
     is_cap_reached: session.turnCount >= 15,
-    can_submit: session.currentQuestionIndex >= QUESTION_SPECS.length && session.turnCount <= 15,
+    can_submit: isCompleteState && session.turnCount <= 15,
     draft_report: session.draftReport,
     submitted_report: session.submittedReport,
   };
@@ -899,21 +929,42 @@ export async function chatTurn(action: SubmitTurnAction): Promise<ChatTurnRespon
     else if (qId === 'medications') simulatedVoiceAnswer = 'None';
     else if (qId === 'allergies') simulatedVoiceAnswer = 'None known';
     else if (qId === 'other_symptoms') simulatedVoiceAnswer = 'Mild swelling around the knee';
+    else {
+      const mockQ = getMockAdaptiveQuestion(qId as string);
+      if (mockQ) {
+        const opts = session.language === 'hi' ? mockQ.optionsHi : mockQ.optionsEn;
+        simulatedVoiceAnswer = opts && opts.length > 0 ? opts[0] : (session.language === 'hi' ? 'नहीं' : 'No');
+      }
+    }
 
-    const currentQ = QUESTION_SPECS[session.currentQuestionIndex];
+    let currentQ: ChatTurnResponse['current_question'] = undefined;
+    if (session.currentAdaptiveQuestionId) {
+      const mockQ = getMockAdaptiveQuestion(session.currentAdaptiveQuestionId);
+      if (mockQ) {
+        currentQ = {
+          id: mockQ.id,
+          text: session.language === 'hi' ? mockQ.hi : mockQ.en,
+          text_hi: mockQ.hi,
+          options: session.language === 'hi' ? mockQ.optionsHi : mockQ.optionsEn,
+          is_ambiguous_emergency: false,
+          answer_type: mockQ.answerType,
+        };
+      }
+    } else if (session.currentQuestionIndex < QUESTION_SPECS.length) {
+      const spec = QUESTION_SPECS[session.currentQuestionIndex];
+      currentQ = {
+        id: spec.id,
+        text: session.language === 'hi' ? spec.textHi : spec.textEn,
+        text_hi: spec.textHi,
+        options: session.language === 'hi' ? spec.optionsHi : spec.optionsEn,
+        is_ambiguous_emergency: spec.id === 'emergency_clarification',
+      };
+    }
 
     return {
       session_id: session.sessionId,
       session_status: session.sessionStatus,
-      current_question: currentQ
-        ? {
-            id: currentQ.id,
-            text: session.language === 'hi' ? currentQ.textHi : currentQ.textEn,
-            text_hi: currentQ.textHi,
-            options: session.language === 'hi' ? currentQ.optionsHi : currentQ.optionsEn,
-            is_ambiguous_emergency: currentQ.id === 'emergency_clarification',
-          }
-        : undefined,
+      current_question: currentQ,
       messages: session.messages,
       turn_count: session.turnCount, // unchanged while in transcript_preview state
       max_turns: 15,
@@ -1111,9 +1162,24 @@ export async function chatTurn(action: SubmitTurnAction): Promise<ChatTurnRespon
   else if (qId === 'age') {
     const parsed = parseInt(patientText.replace(/\D/g, ''), 10);
     session.collectedData.age = isNaN(parsed) ? 35 : parsed;
-  } else if (qId === 'gender') session.collectedData.gender = patientText;
-  else if (qId === 'primary_concern') session.collectedData.primary_concern = patientText;
-  else if (qId === 'duration') session.collectedData.duration = patientText;
+  } else if (qId === 'gender') {
+    const gLower = patientText.toLowerCase();
+    if (gLower.includes('female') || gLower.includes('महिला') || gLower === 'f') {
+      session.collectedData.gender = 'Female';
+    } else if (gLower.includes('male') || gLower.includes('पुरुष') || gLower === 'm') {
+      session.collectedData.gender = 'Male';
+    } else if (gLower.includes('other') || gLower.includes('अन्य')) {
+      session.collectedData.gender = 'Other';
+    } else if (gLower.includes('prefer not to say') || gLower.includes('बताना नहीं चाहते')) {
+      session.collectedData.gender = 'Prefer not to say';
+    } else {
+      // Invalid gender value leaves field undefined so report remains incomplete
+      session.collectedData.gender = undefined;
+    }
+  } else if (qId === 'primary_concern') {
+    session.collectedData.primary_concern = patientText;
+    session.preliminaryDepartment = suggestDepartment(patientText);
+  } else if (qId === 'duration') session.collectedData.duration = patientText;
   else if (qId === 'severity') session.collectedData.severity = patientText;
   else if (qId === 'conditions') {
     session.collectedData.conditions = patientText.toLowerCase().includes('none') ? [] : [patientText];
@@ -1123,6 +1189,24 @@ export async function chatTurn(action: SubmitTurnAction): Promise<ChatTurnRespon
     session.collectedData.allergies = patientText.toLowerCase().includes('none') ? [] : [patientText];
   } else if (qId === 'other_symptoms') {
     session.collectedData.other_symptoms = patientText.toLowerCase().includes('none') || patientText.toLowerCase().includes('no') ? [] : [patientText];
+  } else {
+    // Check if answering a mock adaptive question
+    const mockQ = getMockAdaptiveQuestion(qId as string);
+    if (mockQ) {
+      session.adaptiveAnswersCount += 1;
+      if (mockQ.field.includes('duration')) session.collectedData.duration = patientText;
+      else if (mockQ.field.includes('severity')) session.collectedData.severity = patientText;
+      else if (mockQ.field.includes('conditions')) {
+        session.collectedData.conditions = [...(session.collectedData.conditions || []), patientText];
+      } else if (mockQ.field.includes('medications')) {
+        session.collectedData.medications = [...(session.collectedData.medications || []), patientText];
+      } else if (mockQ.field.includes('allergies')) {
+        session.collectedData.allergies = [...(session.collectedData.allergies || []), patientText];
+      } else if (mockQ.field.includes('other_symptoms')) {
+        session.collectedData.other_symptoms = [...(session.collectedData.other_symptoms || []), patientText];
+      }
+      session.currentAdaptiveQuestionId = undefined;
+    }
   }
 
   // Advance question pointer if answering the currently asked question
@@ -1149,51 +1233,95 @@ export async function chatTurn(action: SubmitTurnAction): Promise<ChatTurnRespon
     };
   }
 
-  // If questions completed, generate draft report
-  if (session.currentQuestionIndex >= QUESTION_SPECS.length) {
-    session.draftReport = buildDraftReport(session);
+  // If scripted questions remain, ask next scripted question
+  if (session.currentQuestionIndex < QUESTION_SPECS.length) {
+    const nextQ = QUESTION_SPECS[session.currentQuestionIndex];
+    const nextMsg: ChatMessage = {
+      id: `msg-${Date.now()}-a`,
+      session_id: session.sessionId,
+      role: 'assistant',
+      content: session.language === 'hi' ? nextQ.textHi : nextQ.textEn,
+      question_id: nextQ.id,
+      created_at: new Date().toISOString(),
+      turn_index: session.turnCount,
+    };
+    session.messages.push(nextMsg);
+
     return {
       session_id: session.sessionId,
       session_status: session.sessionStatus,
+      current_question: {
+        id: nextQ.id,
+        text: session.language === 'hi' ? nextQ.textHi : nextQ.textEn,
+        text_hi: nextQ.textHi,
+        options: session.language === 'hi' ? nextQ.optionsHi : nextQ.optionsEn,
+        is_ambiguous_emergency: false,
+      },
       messages: session.messages,
       turn_count: session.turnCount,
       max_turns: 15,
-      is_complete: isSatisfied,
+      is_complete: false,
       is_cap_reached: false,
-      can_submit: isSatisfied,
-      draft_report: session.draftReport,
+      can_submit: false,
     };
   }
 
-  // Ask next question
-  const nextQ = QUESTION_SPECS[session.currentQuestionIndex];
-  const nextMsg: ChatMessage = {
-    id: `msg-${Date.now()}-a`,
-    session_id: session.sessionId,
-    role: 'assistant',
-    content: session.language === 'hi' ? nextQ.textHi : nextQ.textEn,
-    question_id: nextQ.id,
-    created_at: new Date().toISOString(),
-    turn_index: session.turnCount,
-  };
-  session.messages.push(nextMsg);
+  // Scripted questions finished. Check if adaptive question should run:
+  const deptKey = session.preliminaryDepartment || suggestDepartment(session.collectedData.primary_concern || '');
+  session.preliminaryDepartment = deptKey;
 
+  if (!isSatisfied && session.adaptiveAnswersCount < 3 && session.turnCount < 15) {
+    const candidates = getMockCandidates(deptKey, session.adaptiveAskedIds);
+    const nextMockQ = candidates[0];
+
+    if (nextMockQ) {
+      session.currentAdaptiveQuestionId = nextMockQ.id;
+      session.adaptiveAskedIds.push(nextMockQ.id);
+
+      const nextMsg: ChatMessage = {
+        id: `msg-${Date.now()}-a`,
+        session_id: session.sessionId,
+        role: 'assistant',
+        content: session.language === 'hi' ? nextMockQ.hi : nextMockQ.en,
+        question_id: nextMockQ.id,
+        created_at: new Date().toISOString(),
+        turn_index: session.turnCount,
+      };
+      session.messages.push(nextMsg);
+
+      return {
+        session_id: session.sessionId,
+        session_status: session.sessionStatus,
+        current_question: {
+          id: nextMockQ.id,
+          text: nextMockQ.en,
+          text_hi: nextMockQ.hi,
+          options: session.language === 'hi' ? nextMockQ.optionsHi : nextMockQ.optionsEn,
+          is_ambiguous_emergency: false,
+          answer_type: nextMockQ.answerType,
+        },
+        messages: session.messages,
+        turn_count: session.turnCount,
+        max_turns: 15,
+        is_complete: false,
+        is_cap_reached: false,
+        can_submit: false,
+      };
+    }
+  }
+
+  // Intake complete
+  session.draftReport = buildDraftReport(session);
   return {
     session_id: session.sessionId,
     session_status: session.sessionStatus,
-    current_question: {
-      id: nextQ.id,
-      text: session.language === 'hi' ? nextQ.textHi : nextQ.textEn,
-      text_hi: nextQ.textHi,
-      options: session.language === 'hi' ? nextQ.optionsHi : nextQ.optionsEn,
-      is_ambiguous_emergency: false,
-    },
     messages: session.messages,
     turn_count: session.turnCount,
     max_turns: 15,
-    is_complete: false,
+    is_complete: isSatisfied,
     is_cap_reached: false,
-    can_submit: false,
+    can_submit: isSatisfied,
+    draft_report: session.draftReport,
   };
 }
 

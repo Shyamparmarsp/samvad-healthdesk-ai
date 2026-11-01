@@ -46,6 +46,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [slotTakenError, setSlotTakenError] = useState(false);
+  const [bookingErrorMessage, setBookingErrorMessage] = useState<string | null>(null);
   const [isBooking, setIsBooking] = useState(false);
 
   // Check if booking is held pending human review (D4 copy)
@@ -60,6 +61,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
   const loadSlots = async (date: string) => {
     setIsLoadingSlots(true);
     setSlotTakenError(false);
+    setBookingErrorMessage(null);
     try {
       const data = await getAvailableSlots(report.id, date);
       setSlots(data);
@@ -77,6 +79,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
     if (!selectedSlotId || isBooking) return;
     setIsBooking(true);
     setSlotTakenError(false);
+    setBookingErrorMessage(null);
     try {
       await onBookAppointment(selectedSlotId);
     } catch (err: any) {
@@ -84,6 +87,8 @@ export const BookingView: React.FC<BookingViewProps> = ({
         setSlotTakenError(true);
         // Refresh slots
         await loadSlots(selectedDate);
+      } else {
+        setBookingErrorMessage(err?.message || 'Unable to complete appointment booking. Please try another slot or consult staff.');
       }
     } finally {
       setIsBooking(false);
@@ -157,6 +162,19 @@ export const BookingView: React.FC<BookingViewProps> = ({
               <div>
                 <p className="font-bold">{t.booking.slotTakenTitle}</p>
                 <p className="text-[11px] mt-0.5">{t.booking.slotTakenMessage}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Generic Booking Failure Banner */}
+          {bookingErrorMessage && (
+            <div className="p-3 rounded-xl bg-red-50 border border-red-300 text-xs text-red-900 flex items-start gap-2 shadow-sm">
+              <svg className="w-4 h-4 text-red-700 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <p className="font-bold">Booking Error</p>
+                <p className="text-[11px] mt-0.5">{bookingErrorMessage}</p>
               </div>
             </div>
           )}

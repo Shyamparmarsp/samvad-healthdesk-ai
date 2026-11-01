@@ -334,8 +334,8 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
 
       {/* Action Footer */}
       <div className="p-4 bg-white/80 border-t border-slate-200/60 backdrop-blur-md">
-        {canSubmit && !isCapReached ? (
-          /* Normal Submission Flow */
+        {canSubmit ? (
+          /* Normal Submission Flow (also allowed at 15th turn if normal completion criteria satisfied) */
           <div className="space-y-2">
             <button
               onClick={onSubmit}
@@ -355,7 +355,7 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
             </button>
           </div>
         ) : (
-          /* 15-Turn Cap Incomplete Action: Exactly ONE "End session" action button */
+          /* Incomplete Cap Action: Exactly ONE "End session" action button, no submit */
           <div>
             <button
               onClick={onEndSessionCap}

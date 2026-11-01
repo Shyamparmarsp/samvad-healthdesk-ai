@@ -2,13 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useI18n } from '../../i18n';
 import { ChatMessage, QuestionId } from '../../types/api';
 
+export type AnswerType = 'free_text' | 'yes_no' | 'single_choice';
+
 interface ConversationViewProps {
   messages: ChatMessage[];
   currentQuestion?: {
-    id: QuestionId;
+    id: QuestionId | string;
     text: string;
+    text_hi?: string;
     options?: string[];
     is_ambiguous_emergency?: boolean;
+    answer_type?: AnswerType;
   };
   turnCount: number;
   maxTurns: number;
@@ -30,7 +34,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   onReplayAudio,
   isProcessing,
 }) => {
-  const { t } = useI18n();
+  const { t, language, setLanguage } = useI18n();
   const [inputMode, setInputMode] = useState<'voice' | 'text'>('voice');
   const [typedText, setTypedText] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -74,6 +78,11 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     else if (currentQuestion?.id === 'medications') simulatedVoiceAnswer = 'None';
     else if (currentQuestion?.id === 'allergies') simulatedVoiceAnswer = 'None known';
     else if (currentQuestion?.id === 'other_symptoms') simulatedVoiceAnswer = 'Mild swelling around the knee';
+    else if (currentQuestion?.options && currentQuestion.options.length > 0) {
+      simulatedVoiceAnswer = currentQuestion.options[0];
+    } else {
+      simulatedVoiceAnswer = 'No other issues to mention';
+    }
 
     // Pass to "What we heard" step before sending
     onVoiceTranscribed(simulatedVoiceAnswer);
@@ -104,6 +113,15 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           </span>
         </div>
         <div className="flex items-center gap-2">
+          {/* Language Toggle Button for English / Hindi switching */}
+          <button
+            onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')}
+            title={language === 'en' ? 'Switch to Hindi' : 'Switch to English'}
+            className="text-[11px] font-semibold px-2.5 py-1 rounded-full border border-slate-300 bg-white/70 hover:bg-white text-slate-700 shadow-sm transition-all"
+          >
+            {language === 'en' ? 'हिन्दी' : 'English'}
+          </button>
+
           <button
             onClick={onReplayAudio}
             title={t.chat.replayQuestion}
@@ -128,6 +146,10 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.map((msg) => {
           const isAssistant = msg.role === 'assistant';
+          const displayedContent =
+            isAssistant && msg.question_id && msg.question_id === currentQuestion?.id && language === 'hi' && currentQuestion.text_hi
+              ? currentQuestion.text_hi
+              : msg.content;
           return (
             <div
               key={msg.id}
@@ -140,11 +162,21 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                     : 'bg-brand-navy text-white rounded-tr-sm'
                 }`}
               >
-                {msg.content}
+                {displayedContent}
               </div>
             </div>
           );
         })}
+
+        {/* If currentQuestion is active and not already represented as the last assistant message */}
+        {currentQuestion &&
+          (messages.length === 0 || messages[messages.length - 1].role === 'patient') && (
+            <div className="flex flex-col items-start">
+              <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm bg-white text-text-primary rounded-tl-sm border border-slate-100">
+                {language === 'hi' && currentQuestion.text_hi ? currentQuestion.text_hi : currentQuestion.text}
+              </div>
+            </div>
+          )}
 
         {/* Processing Indicator */}
         {isProcessing && (

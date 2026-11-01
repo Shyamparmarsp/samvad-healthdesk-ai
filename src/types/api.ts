@@ -6,7 +6,7 @@
 import { CorrectableField, ReportDocumentV1, ReportRow, SessionStatus } from './report';
 import { Appointment, DoctorProfile } from './doctor';
 
-export type QuestionId =
+export type CoreQuestionId =
   | 'greeting'
   | 'name'
   | 'age'
@@ -19,6 +19,18 @@ export type QuestionId =
   | 'allergies'
   | 'other_symptoms'
   | 'emergency_clarification';
+
+export type BankDepartmentPrefix = 'GM' | 'ORTH' | 'SURG' | 'DERM' | 'CARD';
+export type BankQuestionId = `${BankDepartmentPrefix}-${string}`;
+
+export type AnyQuestionId = CoreQuestionId | BankQuestionId;
+
+/**
+ * QuestionId covers both fixed core IDs and adaptive bank IDs (GM-001..CARD-030).
+ */
+export type QuestionId = AnyQuestionId;
+
+export type AnswerType = 'free_text' | 'yes_no' | 'single_choice';
 
 export interface ChatMessage {
   id: string;
@@ -36,6 +48,7 @@ export interface CurrentQuestion {
   text_hi?: string;
   options?: string[];
   is_ambiguous_emergency?: boolean;
+  answer_type?: AnswerType;
 }
 
 export interface TranscriptPreview {

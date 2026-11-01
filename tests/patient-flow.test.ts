@@ -4,6 +4,7 @@ import {
   startSession,
   recordConsent,
   chatTurn,
+  resumeSession,
   correctDraftReport,
   submitReport,
   bookAppointment,
@@ -347,5 +348,81 @@ describe('Patient Flow Journeys', () => {
     assert.equal(turnRes.is_complete, true);
     assert.ok(turnRes.draft_report);
     assert.equal(turnRes.draft_report.summary?.source, 'template', 'When Groq fails or is in mock mode, template summary is deterministically generated');
+  });
+
+  it('Journey 11: Incomplete intake triggers adaptive question selection, choice input, and resume preservation', async () => {
+    const start = await startSession('en');
+    const sid = start.session_id;
+    await recordConsent(sid, true, 'en', CONSENT_VERSION);
+
+    // Provide 10 core questions with unstated/invalid gender ('banana')
+    const coreAnswers = [
+      { q: 'name', a: 'Meera Patel' },
+      { q: 'age', a: '45' },
+      { q: 'gender', a: 'banana' },
+      { q: 'primary_concern', a: 'Severe right knee swelling and pain when walking' },
+      { q: 'duration', a: '2 weeks' },
+      { q: 'severity', a: 'Moderate' },
+      { q: 'conditions', a: 'None' },
+      { q: 'medications', a: 'None' },
+      { q: 'allergies', a: 'None' },
+      { q: 'other_symptoms', a: 'None' },
+    ];
+
+    let lastTurn: any = null;
+    for (const ans of coreAnswers) {
+      lastTurn = await chatTurn({
+        action: 'submit_turn',
+        session_id: sid,
+        question_id: ans.q as any,
+        text: ans.a,
+      });
+    }
+
+    // Turn 10 finished; report is incomplete -> triggers Orthopedics adaptive question
+    assert.equal(lastTurn.turn_count, 10);
+    assert.ok(lastTurn.current_question, 'Must offer adaptive question');
+    assert.equal(lastTurn.current_question.id, 'ORTH-001');
+
+    // Resume session check: adaptive question survives resumeSession
+    const resumed = await resumeSession(sid);
+    assert.equal(resumed.current_question?.id, 'ORTH-001');
+    assert.equal(resumed.turn_count, 10);
+
+    // Answer 1st adaptive question
+    const turn11 = await chatTurn({
+      action: 'submit_turn',
+      session_id: sid,
+      question_id: 'ORTH-001',
+      text: 'Right knee joint',
+    });
+    assert.equal(turn11.turn_count, 11);
+    assert.equal(turn11.current_question?.id, 'ORTH-002');
+    assert.ok(turn11.current_question?.options && turn11.current_question.options.length > 0);
+
+    // Answer 2nd adaptive question via choice option
+    const choiceAnswer = turn11.current_question.options[0]; // e.g. 'Suddenly'
+    const turn12 = await chatTurn({
+      action: 'submit_turn',
+      session_id: sid,
+      question_id: 'ORTH-002',
+      text: choiceAnswer,
+    });
+    assert.equal(turn12.turn_count, 12);
+    assert.equal(turn12.current_question?.id, 'ORTH-003');
+
+    // Answer 3rd adaptive question
+    const turn13 = await chatTurn({
+      action: 'submit_turn',
+      session_id: sid,
+      question_id: 'ORTH-003',
+      text: 'No',
+    });
+
+    // Max 3 adaptive questions answered -> completes intake and generates draft report
+    assert.equal(turn13.turn_count, 13);
+    assert.ok(turn13.draft_report);
+    assert.equal(turn13.draft_report.routing_snapshot.department_key, 'orthopedics');
+    assert.equal(turn13.draft_report.routing_snapshot.doctor_name, 'Dr. Kabir Mehta');
   });
 });
