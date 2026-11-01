@@ -13,6 +13,7 @@ import { ChatTurnResponse } from '../../types/api';
 import { CorrectableField, ReportDocumentV1, ReportRow } from '../../types/report';
 import { Appointment } from '../../types/doctor';
 import { CONSENT_VERSION } from '../../types/consent';
+import { captureVoiceAnswer } from '../../lib/audio/voice';
 
 import { WelcomeView } from './WelcomeView';
 import { ConsentView } from './ConsentView';
@@ -168,27 +169,33 @@ export const PatientShell: React.FC = () => {
     }
   };
 
-  // 4. Voice turn request -> returns transcript_preview state per wire contract
-  const handleVoiceRecorded = async (simulatedTranscript?: string) => {
+  // 4. Voice turn: capture a contract-valid WAV, let the backend transcribe it, then
+  // show the transcript for confirmation. Never fabricate a transcript locally: if the
+  // provider is unavailable the error banner offers text instead.
+  const handleVoiceRecorded = async (_simulatedTranscript?: string) => {
     if (!sessionId || !chatState?.current_question) return;
     setIsProcessing(true);
     setErrorMessage(null);
     try {
+      const voice = await captureVoiceAnswer();
       const res = await chatTurn({
         action: 'submit_turn',
         session_id: sessionId,
         question_id: chatState.current_question.id,
-        audio_base64: 'simulated_audio_base64',
-        audio_format: 'audio/webm',
+        audio_base64: voice.audio_base64,
+        audio_format: voice.audio_format,
       });
       setChatState(res);
 
       if (res.transcript_preview) {
         setPendingTranscript(res.transcript_preview.text);
         setCurrentScreen('what_we_heard');
-      } else if (simulatedTranscript) {
-        setPendingTranscript(simulatedTranscript);
-        setCurrentScreen('what_we_heard');
+      } else if (res.error) {
+        setErrorMessage(
+          res.error === 'provider_unavailable'
+            ? 'Voice transcription is unavailable right now. Please type your answer instead.'
+            : `Voice step failed (${res.error}). Please type your answer instead.`,
+        );
       }
     } catch (err: any) {
       console.error('Error submitting voice turn', err);

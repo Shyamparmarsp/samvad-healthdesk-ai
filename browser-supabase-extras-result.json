@@ -1,0 +1,51 @@
+{
+  "generatedAt": "2026-11-01T22:09:48.991Z",
+  "target": "http://127.0.0.1:54321",
+  "mode": "supabase (real Auth, Edge Functions, Postgres, RPCs)",
+  "providers": "stubbed (Groq, Prisma, Timbre)",
+  "results": [
+    {
+      "name": "consent denied stops intake and collects no health data",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "session declined, 0 recent reports (none from this run)"
+    },
+    {
+      "name": "Hindi consent and Hinglish answers render in Devanagari",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "Devanagari UI confirmed, Hinglish answer accepted"
+    },
+    {
+      "name": "Hinglish answer is stored verbatim in PostgreSQL",
+      "ok": false,
+      "layer": "browser+supabase",
+      "detail": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'Female'\n- 'bukhar aur body ache teen din se'\n"
+    },
+    {
+      "name": "clear emergency phrase shows 112 guidance with no slots",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "urgent_partial report persisted, 112 shown"
+    },
+    {
+      "name": "ambiguous emergency offers Yes/No clarification and Yes escalates",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "clarification accepted, urgent_partial persisted"
+    },
+    {
+      "name": "\"Not now\" keeps the report submitted with no appointment",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "submitted report persisted, zero appointments"
+    },
+    {
+      "name": "no uncaught page errors in the extra journeys",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "clean console"
+    }
+  ],
+  "ok": false
+}
