@@ -1,0 +1,167 @@
+{
+  "generatedAt": "2026-11-01T22:56:03.479Z",
+  "rehearsalDatabase": "samvad_rehearsal_20261101225600",
+  "kept": false,
+  "migrations": [
+    "ok  20261101120000_enums_and_helpers.sql",
+    "ok  20261101120100_reference_tables.sql",
+    "ok  20261101120200_intake_tables.sql",
+    "ok  20261101120300_appointments.sql",
+    "ok  20261101120400_usage_tables.sql",
+    "ok  20261102120000_mark_report_reviewed.sql",
+    "ok  20261102130000_availability_and_booking.sql",
+    "ok  20261102140000_ist_day_bucket.sql",
+    "ok  20261102150000_session_preliminary_department.sql",
+    "ok  20261102160000_doctor_appointment_reads.sql"
+  ],
+  "summary": {
+    "total": 28,
+    "pass": 28,
+    "fail": 0,
+    "blocked": 0
+  },
+  "rows": [
+    {
+      "step": "prerequisite",
+      "status": "PASS",
+      "detail": "local Postgres reachable"
+    },
+    {
+      "step": "1. create empty database",
+      "status": "PASS",
+      "detail": "samvad_rehearsal_20261101225600"
+    },
+    {
+      "step": "2. clone auth/extensions schema (no rows)",
+      "status": "PASS",
+      "detail": "auth.users and auth.uid() available for our foreign keys"
+    },
+    {
+      "step": "2b. rehearsal has no real identities",
+      "status": "PASS",
+      "detail": "auth.users rows = 0"
+    },
+    {
+      "step": "3. migrate 20261101120000_enums_and_helpers.sql",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "step": "3. migrate 20261101120100_reference_tables.sql",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "step": "3. migrate 20261101120200_intake_tables.sql",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "step": "3. migrate 20261101120300_appointments.sql",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "step": "3. migrate 20261101120400_usage_tables.sql",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "step": "3. migrate 20261102120000_mark_report_reviewed.sql",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "step": "3. migrate 20261102130000_availability_and_booking.sql",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "step": "3. migrate 20261102140000_ist_day_bucket.sql",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "step": "3. migrate 20261102150000_session_preliminary_department.sql",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "step": "3. migrate 20261102160000_doctor_appointment_reads.sql",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "step": "3b. migration record",
+      "status": "PASS",
+      "detail": "CLI-less clean room: 10/10 files applied individually (no ledger table by design)"
+    },
+    {
+      "step": "4. reference seed applied",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "step": "4b. seed is repeatable (no duplicate reference rows)",
+      "status": "PASS",
+      "detail": "before {\"departments\":\"6\",\"doctors\":\"6\",\"schedules\":\"25\",\"limits\":\"4\"} after {\"departments\":\"6\",\"doctors\":\"6\",\"schedules\":\"25\",\"limits\":\"4\"}"
+    },
+    {
+      "step": "5. departments = 6",
+      "status": "PASS",
+      "detail": "6"
+    },
+    {
+      "step": "5b. fictional doctors = 6",
+      "status": "PASS",
+      "detail": "6"
+    },
+    {
+      "step": "5c. schedules = 25 (5 bookable x 5 weekdays)",
+      "status": "PASS",
+      "detail": "25"
+    },
+    {
+      "step": "5d. emergency not bookable",
+      "status": "PASS",
+      "detail": "false|true"
+    },
+    {
+      "step": "6. five required functions",
+      "status": "PASS",
+      "detail": "book_appointment, get_available_slots, get_doctor_appointments, mark_report_reviewed, reserve_daily_usage"
+    },
+    {
+      "step": "6b. SECURITY mode matches the reviewed allowlist",
+      "status": "PASS",
+      "detail": "book_appointment:true, get_available_slots:true, get_doctor_appointments:true, mark_report_reviewed:true, reserve_daily_usage:false"
+    },
+    {
+      "step": "6c. RLS enabled on every table",
+      "status": "PASS",
+      "detail": "0 tables without RLS"
+    },
+    {
+      "step": "6d. no browser write grants",
+      "status": "PASS",
+      "detail": "0 write grants"
+    },
+    {
+      "step": "6e. updated_at triggers installed",
+      "status": "PASS",
+      "detail": "2 triggers"
+    },
+    {
+      "step": "6f. constraints created",
+      "status": "PASS",
+      "detail": "76 constraints"
+    },
+    {
+      "step": "7. cleanup",
+      "status": "PASS",
+      "detail": "dropped samvad_rehearsal_20261101225600"
+    }
+  ],
+  "ok": true,
+  "note": "Identity-dependent SQL suites run against the active stack, not this rehearsal."
+}

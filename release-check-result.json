@@ -1,19 +1,19 @@
 {
-  "generatedAt": "2026-11-01T22:51:48.817Z",
+  "generatedAt": "2026-11-01T22:56:04.140Z",
   "prerequisites": {
     "apiUp": true,
     "functionsUp": true,
     "stubUp": true,
     "dbUp": true,
-    "skipSmoke": false,
-    "frontend": true
+    "skipSmoke": true,
+    "frontend": false
   },
   "summary": {
     "total": 21,
-    "pass": 21,
+    "pass": 19,
     "fail": 0,
     "blocked": 0,
-    "notTested": 0
+    "notTested": 2
   },
   "steps": [
     {
@@ -22,7 +22,7 @@
       "status": "PASS",
       "required": true,
       "detail": "type check clean",
-      "ms": 483
+      "ms": 445
     },
     {
       "group": "static",
@@ -30,7 +30,7 @@
       "status": "PASS",
       "required": true,
       "detail": "181 passed, 0 failed",
-      "ms": 1190
+      "ms": 1203
     },
     {
       "group": "static",
@@ -38,7 +38,7 @@
       "status": "PASS",
       "required": true,
       "detail": "150 questions valid",
-      "ms": 18
+      "ms": 19
     },
     {
       "group": "static",
@@ -62,7 +62,7 @@
       "status": "PASS",
       "required": true,
       "detail": "no key-shaped strings in tracked files",
-      "ms": 32
+      "ms": 33
     },
     {
       "group": "providers",
@@ -86,7 +86,7 @@
       "status": "PASS",
       "required": true,
       "detail": "29/29 pass, 0 fail, 0 blocked",
-      "ms": 1341
+      "ms": 1310
     },
     {
       "group": "database",
@@ -94,7 +94,7 @@
       "status": "PASS",
       "required": true,
       "detail": "5 assertions passed",
-      "ms": 152
+      "ms": 122
     },
     {
       "group": "database",
@@ -102,7 +102,7 @@
       "status": "PASS",
       "required": true,
       "detail": "4 assertions passed",
-      "ms": 121
+      "ms": 133
     },
     {
       "group": "database",
@@ -110,7 +110,7 @@
       "status": "PASS",
       "required": true,
       "detail": "10 assertions passed",
-      "ms": 188
+      "ms": 186
     },
     {
       "group": "database",
@@ -118,7 +118,7 @@
       "status": "PASS",
       "required": true,
       "detail": "4 assertions passed",
-      "ms": 142
+      "ms": 141
     },
     {
       "group": "database",
@@ -134,7 +134,23 @@
       "status": "PASS",
       "required": true,
       "detail": "5 assertions passed",
-      "ms": 120
+      "ms": 118
+    },
+    {
+      "group": "operations",
+      "name": "clean-room migration rehearsal",
+      "status": "PASS",
+      "required": true,
+      "detail": "28/28 rehearsal checks; 10 migrations applied",
+      "ms": 2632
+    },
+    {
+      "group": "operations",
+      "name": "deployment configuration preflight",
+      "status": "PASS",
+      "required": true,
+      "detail": "17/22 pass, 0 fail, 5 owner-blocked",
+      "ms": 357
     },
     {
       "group": "operations",
@@ -142,7 +158,7 @@
       "status": "PASS",
       "required": true,
       "detail": "16/16 checks",
-      "ms": 251
+      "ms": 281
     },
     {
       "group": "operations",
@@ -150,39 +166,23 @@
       "status": "PASS",
       "required": true,
       "detail": "5 refusal cases passed",
-      "ms": 18
+      "ms": 20
     },
     {
       "group": "operations",
       "name": "demo smoke (integration + adaptive)",
-      "status": "PASS",
-      "required": true,
-      "detail": "integration 52/52, adaptive 29/29; identities created=20 deleted=20",
-      "ms": 4545
+      "status": "NOT TESTED",
+      "required": false,
+      "detail": "--skip-smoke requested; NOT TESTED in this run",
+      "ms": 0
     },
     {
       "group": "frontend",
-      "name": "typescript",
-      "status": "PASS",
-      "required": true,
-      "detail": "clean",
-      "ms": 1833
-    },
-    {
-      "group": "frontend",
-      "name": "unit + api suites",
-      "status": "PASS",
-      "required": true,
-      "detail": "pass=26+7+51 fail=0+0+0",
-      "ms": 19300
-    },
-    {
-      "group": "frontend",
-      "name": "production build",
-      "status": "PASS",
-      "required": true,
-      "detail": "build succeeded",
-      "ms": 3192
+      "name": "typescript + tests + build",
+      "status": "NOT TESTED",
+      "required": false,
+      "detail": "not requested; run with --frontend",
+      "ms": 0
     }
   ],
   "ok": true,

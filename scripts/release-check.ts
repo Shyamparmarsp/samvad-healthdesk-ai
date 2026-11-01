@@ -149,7 +149,11 @@ await step("static", "secret scan (tracked files)", true, async () => {
   const result = await run("git", [
     "grep", "-nE",
     "eyJhbGciOi|sb_secret_[A-Za-z0-9]|gsk_[A-Za-z0-9]{20}",
-    "--", ".", ":!package-lock.json", ":!supabase/functions/node_modules",
+    "--", ".",
+    ":!package-lock.json",
+    ":!supabase/functions/node_modules",
+    // This file contains the pattern literal itself; scanning it would always match.
+    ":!scripts/release-check.ts",
   ]);
   // git grep exits 1 when there are no matches, which is the success case here.
   const noHits = result.code === 1 || result.out.trim().length === 0;
@@ -226,6 +230,48 @@ if (!dbUp) {
 }
 
 // ---------------------------------------------------------------- 4. operations
+
+await step("operations", "clean-room migration rehearsal", true, async () => {
+  // New disposable database: migrations in order, seed twice, schema/grants/RLS checks.
+  // It drops its own database and never touches the active one.
+  const result = await run("deno", [
+    "run", "--allow-run", "--allow-read", "--allow-write", "--allow-env", "scripts/rehearse-db.ts",
+  ]);
+  const report = (() => {
+    try {
+      return JSON.parse(Deno.readTextFileSync("db-rehearsal-result.json"));
+    } catch {
+      return null;
+    }
+  })();
+  return {
+    ok: result.ok && Boolean(report?.ok),
+    detail: report ? `${report.summary.pass}/${report.summary.total} rehearsal checks; ${report.migrations.length} migrations applied` : lastLine(result.out),
+  };
+});
+
+await step("operations", "deployment configuration preflight", true, async () => {
+  // exit 2 means "owner-blocked" (missing provider credentials/linkage), which is not a
+  // code defect; only exit 1 (a real configuration error) fails this gate.
+  const result = await run("deno", [
+    "run", "--allow-read", "--allow-env", "--allow-net", "--allow-run", "--allow-write",
+    "scripts/verify-deploy-config.ts", "--json",
+  ]);
+  const report = (() => {
+    try {
+      return JSON.parse(Deno.readTextFileSync("deploy-config-result.json"));
+    } catch {
+      return null;
+    }
+  })();
+  const codeOk = result.code === 0 || result.code === 2;
+  return {
+    ok: codeOk && Boolean(report) && report.summary.fail === 0,
+    detail: report
+      ? `${report.summary.pass}/${report.summary.total} pass, ${report.summary.fail} fail, ${report.summary.blocked} owner-blocked`
+      : lastLine(result.out),
+  };
+});
 
 await step("operations", "demo preflight", true, async () => {
   const result = await run("deno", ["run", "--allow-net", "--allow-env", "--allow-read", "--allow-run", "scripts/demo-preflight.ts"]);

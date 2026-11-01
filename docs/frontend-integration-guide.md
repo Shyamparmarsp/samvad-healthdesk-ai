@@ -316,3 +316,29 @@ deno run --allow-net --allow-env --allow-read --allow-write --allow-run scripts/
 `supabase_migrations.schema_migrations` (read-only) and probes the real CORS preflight for
 both functions. `demo-smoke` isolates identities per run, deletes only the anonymous
 identities it created, writes `demo-smoke-result.json` and exits non-zero on any failure.
+
+---
+
+## 8. Audio constraints the frontend must respect
+
+Enforced by `_shared/validation.ts` before any provider call:
+
+| Constraint | Value | Failure |
+|---|---|---|
+| Accepted MIME | `audio/wav`, `audio/x-wav`, `audio/mpeg`, `audio/ogg`, `audio/flac`, `audio/aac`, `audio/mp4` | `400 invalid_request` |
+| Rejected MIME | `audio/webm` (what a browser MediaRecorder produces by default) | `400` before Prisma is called |
+| Max payload | 2,000,000 base64 characters (~1.5 MB decoded) | `400` |
+| Recording cap | 30 s in the UI | — |
+| Turn shape | exactly one of `text` / `audio_base64` per turn | `400` |
+| Empty transcript | provider returns nothing | `200` with `error: "transcript_empty"`, no turn consumed |
+| Ownership | session must belong to the JWT identity | `404 not_found` |
+| Turn cap | audio is refused once 15 answers are accepted | `turn_cap_ready`-class response, no provider call |
+
+Because `audio/webm` is rejected, the browser must re-encode. `src/lib/audio/voice.ts`
+records with `MediaRecorder`, decodes with the Web Audio API, downmixes to mono, resamples
+to 16 kHz and emits 16-bit PCM WAV. Raw audio is never stored: the transcription lands in
+`sessions.pending_transcript_*` with a 10-minute expiry and is cleared on resume or
+acceptance.
+
+`speak` returns raw audio bytes (not JSON) on success and `{ "text": "..." }` on any cap
+or provider failure — the UI must handle both.
