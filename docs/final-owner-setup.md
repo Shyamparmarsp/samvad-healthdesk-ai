@@ -2,6 +2,20 @@
 **Product**: Samvad HealthDesk AI — AI-Powered Hospital Intake & Smart Referral System  
 **Release Candidate Branch**: `release/samvad-rc1`
 
+> **Document map — which file to follow.**
+> - This file: the narrative walkthrough, in deployment order.
+> - `docs/release/DEPLOYMENT-CHECKLIST.md`: the same steps as a verification table, plus
+>   the **ordered migration list**, backup/rollback and post-deploy smoke commands.
+> - `docs/release/OWNER-ACTIONS.md`: the classified list of decisions and actions only
+>   you can take (READY / BLOCKED / NOT TESTED).
+> - `docs/release/RELEASE-CANDIDATE.md`: what was actually tested, by evidence layer.
+> - `docs/release/SECURITY-FINDINGS.md`: security results and the one open approval item.
+> - `docs/cors-verification.md`: measured CORS behaviour. Read it before relying on
+>   `ALLOWED_ORIGINS`.
+>
+> Where this file and the checklists disagree, the checklists win (they are generated
+> from the verified code). Nothing here has been executed remotely by the agent.
+
 ---
 
 ## 1. Frontend Environment Variables (Vercel / Production Build)
@@ -25,24 +39,31 @@ Configure the following secrets in the Supabase Dashboard under `Edge Functions`
 | Secret Key | Description | Example / Notes |
 | :--- | :--- | :--- |
 | `GROQ_API_KEY` | Groq API Key | Used server-side for adaptive extraction and question selection. |
-| `GNANI_API_KEY` | Gnani Prisma / Timbre Access Key | Used server-side for STT transcription and TTS audio synthesis. |
-| `GNANI_TOKEN` | Gnani Authentication Token | Used server-side for Gnani REST endpoints. |
-| `ALLOWED_ORIGINS` | CORS Origin Allowlist | Comma-separated list of permitted origins, e.g. `https://samvad-healthdesk.vercel.app,http://localhost:5173`. Edge Functions validate origin headers against this allowlist. |
+| `GNANI_API_KEY` | Gnani API key | The **only** Gnani credential the code reads. Used server-side for both Prisma (STT) and Timbre (TTS). There is no separate token variable — verified by grepping `Deno.env.get` across `supabase/functions/`. |
+| `ALLOWED_ORIGINS` | CORS origin allowlist | Comma-separated exact origins, no wildcard, e.g. `<your-frontend-domain>,http://localhost:5173`. Set it for correctness, but see the note in §3: **the platform overwrites the response origin with `*`, so this is not an authorization control**. |
 
 ---
 
 ## 3. Vercel Origin & CORS Configuration
 
 1. In the Vercel Dashboard, deploy the frontend connected to `release/samvad-rc1`.
-2. Copy your production deployment URL (e.g. `https://samvad-healthdesk.vercel.app`).
-3. Add this URL to `ALLOWED_ORIGINS` in your Supabase Function Secrets:
+2. Copy the production URL **from your own deployment** (this repo does not contain it).
+3. Add that exact origin, with no trailing slash and no wildcard:
    ```bash
-   supabase secrets set ALLOWED_ORIGINS="https://samvad-healthdesk.vercel.app"
+   supabase secrets set ALLOWED_ORIGINS="https://<your-frontend-domain>"
    ```
-4. Verify that preflight `OPTIONS` requests from your browser return:
-   - `Access-Control-Allow-Origin: https://samvad-healthdesk.vercel.app`
-   - `Access-Control-Allow-Methods: POST, OPTIONS`
-   - `Access-Control-Allow-Headers: authorization, x-client-info, apikey, content-type`
+
+**Measured behaviour — do not over-claim.** A `curl -X OPTIONS` probe against the local
+platform returns `Access-Control-Allow-Origin: *` from both the edge runtime and Kong,
+regardless of what `_shared/cors.ts` sets (`docs/cors-verification.md`). So:
+
+- `ALLOWED_ORIGINS` is still worth setting, and the function still refuses unknown
+  origins at the header level it controls.
+- It is **not** what protects the data. JWT verification (`verify_jwt` stays enabled),
+  `auth.uid()` ownership checks and RLS are the controls.
+- Never weaken JWT/RLS/ownership to satisfy a CORS policy.
+- Hosted-platform behaviour was **not** verified in this release. If you need a hard
+  origin guarantee, enforce it in front of Supabase (CDN/proxy) and test it.
 
 ---
 
@@ -103,15 +124,19 @@ INSERT INTO public.doctor_profiles (
 
 ## 5. Database Migrations, Seeds and Daily Usage Caps
 
-1. Apply migrations from `supabase/migrations/` using `supabase db push` or through the Supabase Dashboard SQL Editor.
+1. Apply migrations from `supabase/migrations/` with **`supabase db push` only**, so the
+   migration ledger records each version. Applying files by hand in the SQL Editor leaves
+   the ledger unrecorded and makes later `db push` runs unsafe. The exact order (10 files)
+   is in `docs/release/DEPLOYMENT-CHECKLIST.md` §2.
 2. Apply `supabase/seed.sql` to populate fictional doctor schedules, department rosters, and emergency rules.
 3. Verify project-wide daily usage caps in `daily_usage_limits`:
    ```sql
    -- View current application guardrails
    SELECT * FROM public.daily_usage_limits;
    
-   -- Recommended initial limits:
-   -- sessions: 500, groq: 1500, prisma: 500, timbre: 500
+   -- Approved application defaults (AGENTS.md D5): 100 / 300 / 150 / 120.
+   -- These are application guardrails, NOT provider quotas. Raising them is an owner
+   -- decision that consumes real provider credit: see docs/release/OWNER-ACTIONS.md A4.
    ```
 
 ---
@@ -121,9 +146,13 @@ INSERT INTO public.doctor_profiles (
 ### Deploy Backend Edge Functions
 From `samvad-backend/`:
 ```bash
-supabase functions deploy chat-turn --no-verify-jwt=false
-supabase functions deploy speak --no-verify-jwt=false
+supabase functions deploy chat-turn
+supabase functions deploy speak
 ```
+
+Do **not** pass `--no-verify-jwt`. JWT verification is enabled by default and must stay
+enabled; the flag disables it. Verify afterwards that an unauthenticated POST returns 401
+(see `docs/release/DEPLOYMENT-CHECKLIST.md` §6).
 
 ### Deploy Frontend
 From `samvad-integration/` on `release/samvad-rc1`:
