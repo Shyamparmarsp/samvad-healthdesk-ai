@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { doctorLogin, FICTIONAL_DOCTORS } from '../../lib/api';
+import { doctorLogin, FICTIONAL_DOCTORS, getAppMode } from '../../lib/api';
 import { DoctorProfile } from '../../types/doctor';
 
 interface DoctorLoginProps {
@@ -7,8 +7,9 @@ interface DoctorLoginProps {
 }
 
 export const DoctorLogin: React.FC<DoctorLoginProps> = ({ onLoginSuccess }) => {
-  const [email, setEmail] = useState('aditi.rao@hospital.demo');
-  const [password, setPassword] = useState('••••••••••••');
+  const isMockMode = getAppMode() === 'mock';
+  const [email, setEmail] = useState(isMockMode ? 'aditi.rao@hospital.demo' : '');
+  const [password, setPassword] = useState(isMockMode ? '••••••••••••' : '');
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -72,45 +73,47 @@ export const DoctorLogin: React.FC<DoctorLoginProps> = ({ onLoginSuccess }) => {
           onSubmit={handleLogin}
           className="p-6 rounded-card bg-white border border-slate-200 shadow-lg space-y-4"
         >
-          {/* Identity Quick Select for Judges / Evaluators */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-              Select Demo Identity
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail(FICTIONAL_DOCTORS.general_medicine.email);
-                  setLoginError(null);
-                }}
-                className={`py-2 px-2.5 rounded-lg text-xs font-semibold border text-left transition-all ${
-                  email === FICTIONAL_DOCTORS.general_medicine.email
-                    ? 'bg-brand-navy border-brand-navy text-white shadow-sm'
-                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <span className="block font-bold">Dr. Aditi Rao</span>
-                <span className="text-[10px] opacity-80 block">General Medicine</span>
-              </button>
+          {/* Identity Quick Select for Judges / Evaluators (Restricted to Mock Mode per AGENTS.md) */}
+          {isMockMode && (
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                Select Demo Identity (Mock Mode)
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail(FICTIONAL_DOCTORS.general_medicine.email);
+                    setLoginError(null);
+                  }}
+                  className={`py-2 px-2.5 rounded-lg text-xs font-semibold border text-left transition-all ${
+                    email === FICTIONAL_DOCTORS.general_medicine.email
+                      ? 'bg-brand-navy border-brand-navy text-white shadow-sm'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className="block font-bold">Dr. Aditi Rao</span>
+                  <span className="text-[10px] opacity-80 block">General Medicine</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail(FICTIONAL_DOCTORS.emergency.email);
-                  setLoginError(null);
-                }}
-                className={`py-2 px-2.5 rounded-lg text-xs font-semibold border text-left transition-all ${
-                  email === FICTIONAL_DOCTORS.emergency.email
-                    ? 'bg-red-700 border-red-700 text-white shadow-sm'
-                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <span className="block font-bold">Dr. Neha Verma</span>
-                <span className="text-[10px] opacity-80 block">Emergency</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail(FICTIONAL_DOCTORS.emergency.email);
+                    setLoginError(null);
+                  }}
+                  className={`py-2 px-2.5 rounded-lg text-xs font-semibold border text-left transition-all ${
+                    email === FICTIONAL_DOCTORS.emergency.email
+                      ? 'bg-red-700 border-red-700 text-white shadow-sm'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className="block font-bold">Dr. Neha Verma</span>
+                  <span className="text-[10px] opacity-80 block">Emergency</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">

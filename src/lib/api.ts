@@ -1379,7 +1379,11 @@ export async function getAvailableSlots(
       throw new Error(error.message || 'Failed to retrieve available slots');
     }
 
-    const rawSlots = (data || []) as { slot_start: string; slot_end: string }[];
+    let rawSlots = (data || []) as { slot_start: string; slot_end: string }[];
+    if (typeof dateStrOrDays === 'string') {
+      rawSlots = rawSlots.filter((row) => row.slot_start.startsWith(dateStrOrDays));
+    }
+
     return rawSlots.map((row) => {
       const d = new Date(row.slot_start);
       const dateStr = row.slot_start.slice(0, 10);

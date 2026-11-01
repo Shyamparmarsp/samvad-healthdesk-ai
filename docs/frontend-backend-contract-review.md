@@ -1,10 +1,11 @@
 # Frontend-Backend Contract Review — Samvad HealthDesk AI
 
-**Document Version:** 1.0  
-**Date:** 2 November 2026  
+**Document Version:** 1.1
+**Date:** 2 November 2026
 **Audited Files (Read-Only):**
 - `supabase/functions/_shared/contract.ts` (Backend Wire Contract Mirror)
 - `docs/report-design.md` (v1.2 Contract)
+- `docs/integration-contract.md` (Backend ↔ Frontend Integration Contract §§10–11)
 - `docs/provider-notes.md` (M1-S5 Verified Facts)
 - `src/types/api.ts`, `src/types/report.ts`, `src/types/consent.ts` (Frontend Contract)
 
@@ -12,7 +13,7 @@
 
 ## 1. Executive Summary
 
-This document confirms full alignment between the frontend (`samvad-frontend` on `feat/frontend`) and backend (`samvad-backend` on `feat/backend`) for Milestone 2. No unilaterally renamed fields exist. The wire contract is authoritative in `src/types/` and mirrored in `supabase/functions/_shared/contract.ts`.
+This document confirms full alignment between the frontend (`samvad-frontend` on `feat/frontend`) and backend (`samvad-backend` on `feat/backend`) for Milestone 4 (M4-S8). No unilaterally renamed fields exist. The wire contract is authoritative in `src/types/` and mirrored in `supabase/functions/_shared/contract.ts`.
 
 ---
 
@@ -32,7 +33,7 @@ Unknown action keys and unexpected parameters are rejected with `invalid_request
 ### 2.2 Response Envelope and Status Enums
 The response shape `ChatTurnResponse` contains:
 - `session_id: string`
-- `session_status: "created" | "consented" | "declined" | "in_progress" | "emergency" | "ended" | "submitted"`
+- `session_status: "created" | "consented" | "declined" | "in_progress" | "emergency" | "ended" | "submitted"` (terminal status is `"ended"`, matching `SessionStatus`)
 - `current_question?: CurrentQuestion` (`{ id: QuestionId, text: string, text_hi?: string, options?: string[], is_ambiguous_emergency?: boolean }`)
 - `messages: ChatMessage[]`
 - `turn_count: number`
@@ -47,7 +48,7 @@ The response shape `ChatTurnResponse` contains:
 - `transcript_preview?: TranscriptPreview`
 - `error?: string`
 
-### 2.3 Audio Transcript Preview (`transcript_preview`)
+### 2.3 Audio Transcript Preview (`transcript_preview`) and Audio Formats
 **Resolved Convention:** A single agreed field name `transcript_preview` and state name `"transcript_preview"` is used across both frontend and backend:
 ```typescript
 export interface TranscriptPreview {
@@ -58,10 +59,10 @@ export interface TranscriptPreview {
 ```
 - **Turn Accounting:** Present only when an audio turn is uploaded and transcribed awaiting patient review. While present, `turn_count` is **not** incremented, the answer has not been accepted into the medical record, and no completion checks fire.
 - **Confirmation:** The patient reviews and optionally edits the text, then submits the turn with `{ action: "submit_turn", question_id, text }`. This increments `turn_count` and processes the answer.
-- Internal database columns (`pending_transcript_*`) remain private to Supabase Edge Function orchestration and are never leaked to the client wire contract.
+- **Supported Audio Formats:** `audio/wav`, `audio/mpeg`, `audio/ogg`, `audio/flac`, `audio/aac`, `audio/mp4`. `audio/webm` is explicitly rejected before any provider call.
 
 ### 2.4 Versioned Consent Copy
-**Exact Version:** `CONSENT_VERSION = "2026-11-01.v1"`.  
+**Exact Version:** `CONSENT_VERSION = "2026-11-01.v1"`.
 No synthetic placeholder (`consent_vN`) is displayed or persisted. The exact English and Hindi immutable copy in `src/types/consent.ts` and `_shared/consent.ts` is:
 - **EN:** `"I understand that Samvad HealthDesk AI is an AI intake assistant and not a doctor, and that it cannot diagnose or treat me. I agree that the health information I give will be processed to prepare a preliminary report, and that this report will be shared with the hospital's doctor only if I submit it. I can stop at any time."`
 - **HI:** `"मैं समझता/समझती हूँ कि संवाद हेल्थडेस्क AI एक AI इनटेक सहायक है, डॉक्टर नहीं है, और यह मेरा निदान या इलाज नहीं कर सकता। मैं सहमत हूँ कि मेरी दी गई स्वास्थ्य जानकारी से एक प्रारंभिक रिपोर्ट तैयार की जाएगी, और यह रिपोर्ट केवल तब अस्पताल के डॉक्टर के साथ साझा की जाएगी जब मैं इसे सबमिट करूँगा/करूँगी। मैं किसी भी समय रुक सकता/सकती हूँ।"`
@@ -71,6 +72,7 @@ No synthetic placeholder (`consent_vN`) is displayed or persisted. The exact Eng
 - **Gender Value Invariant (Report v1.2):** `GenderValue` members for provided values are `"male" | "female" | "other"`. When the patient chooses "Prefer not to say", it is recorded as `status: "declined"` with `value: null`. `"declined"` is never stored as a value.
 - **Completion & Missing Info:** Both backend `isComplete()` and frontend completion logic treat gender `declined` as answered. It does not block completion or submission and is omitted from `missing_information`.
 - **Correction Allowlist:** Strictly limited to the 10 `CORRECTABLE_FIELDS`. `NON_DECLINABLE_FIELDS` (`patient.name`, `patient.age`, `primary_concern`, `clinical_details.duration`, `clinical_details.severity`) reject `{ status: "declined" }`.
+- **Protected Fields:** `id`, `session_id`, `user_id`, `schema_version`, `status`, `intake_reference`, `submitted_at`, `created_at`, `updated_at`, `routing_snapshot`, `possible_urgent`, `needs_human_review`, `emergency`, `reviewed_at`, `reviewed_by`, `missing_information`, `summary`, `doctor_id`, `department_key`.
 - **Summary Nullability (RD-10):** `summary` is `null` for `urgent_partial` reports to prevent AI hallucinations during clinical emergencies.
 
 ### 2.6 Spend Protection & 15-Turn Cap
@@ -78,21 +80,52 @@ No synthetic placeholder (`consent_vN`) is displayed or persisted. The exact Eng
 - If incomplete at turn 15, the patient is presented with an incomplete summary and exactly one action: `"End session"`. No submission, booking, or doctor assignment is possible.
 - Global cap triggers `demo_busy: true` (copy: *"This demo has reached today’s usage limit. Please try again later."*).
 
-### 2.7 Automated Consent Copy Equality Comparison Procedure
-To guarantee 100% byte-for-byte fidelity without manual synchronization:
-1. `tests/contract-regression.test.ts` executes in Node.js test runner during CI / local test runs.
-2. It accesses `../samvad-backend/supabase/functions/_shared/consent.ts` in strict read-only mode via `node:fs`.
-3. It parses the canonical `CONSENT_VERSION` and the concatenated string literal expressions for `CONSENT_TEXT.en` and `CONSENT_TEXT.hi` directly from the backend source code.
-4. It asserts strict character equality (`assert.equal`) against `src/types/consent.ts`.
-5. Any unilateral drift or modification in either repository immediately causes test failure.
+---
+
+## 3. Database RPC Alignment (M4)
+
+### 3.1 Mark Reviewed RPC (`public.mark_report_reviewed`)
+- **Signature:** `mark_report_reviewed(p_report_id uuid)`
+- **Return Type:** `table (report_id uuid, reviewed_at timestamptz, reviewed_by uuid, already_reviewed boolean)`
+- **Authorisation:** Validated inline from `auth.uid()`. `reviewed_by` is set to `auth.uid()`.
+- **OD-03 Interim Rule:**
+  - For `submitted` reports: Assigned doctor only.
+  - For `urgent_partial` reports: Emergency doctor only. General Medicine has read cross-visibility only and is denied review with `42501`.
+  - Draft reports: Rejected with `22023`.
+- **Idempotency:** When `reviewed_at` is already set, the existing timestamp is preserved and `already_reviewed: true` is returned.
+- **Client Mapping:** `DoctorReportDetail.tsx` and `DoctorUrgentDetail.tsx` handle errors without optimistic local state mutations.
+
+### 3.2 Availability RPC (`public.get_available_slots`)
+- **Signature:** `get_available_slots(p_report_id uuid, p_days integer default 14)`
+- **Return Type:** `table (slot_start timestamptz, slot_end timestamptz)`
+- **Trust Model:** Caller never supplies doctor or department; both are derived from `reports` owned by `auth.uid()`.
+- **Horizon & Schedule:** Computes Asia/Kolkata weekday slots (09:00–17:00, 30 min slots, lunch 13:00–14:00 excluded, past slots excluded) for `today … today + (p_days - 1)`.
+- **Hold Enforced:** Submitted reports with `possible_urgent` or `needs_human_review` raise SQLSTATE `42501` (`'report is held pending review'`) until marked reviewed.
+- **Emergency Invariant:** Emergency reports raise SQLSTATE `22023` and never produce routine slots.
+
+### 3.3 Atomic Booking RPC (`public.book_appointment`)
+- **Signature:** `book_appointment(p_report_id uuid, p_slot_start timestamptz)`
+- **Return Type:** `table (appointment_id uuid, reference_code text, slot_start timestamptz, slot_end timestamptz, doctor_id uuid, already_booked boolean)`
+- **Trust Model:** Caller passes `p_report_id` and the exact ISO-8601 offset timestamp (`+05:30`) returned by `get_available_slots`.
+- **Atomic Reservation:** Re-validates slot availability inside the transaction; concurrent losers receive SQLSTATE `23505` (`'slot is no longer available'`).
+- **Idempotency:** Repeated booking of the exact same report and slot returns the existing appointment with `already_booked: true`, treated by the UI as success.
+- **SQLSTATE Error Translations:**
+  - `23505` $\rightarrow$ *"That slot was just taken. Please select another slot."* (triggers slot reload).
+  - `42501` $\rightarrow$ *"Booking paused until a doctor reviews this report."*
+  - `22023` $\rightarrow$ *"Emergency reports are permanently ineligible for routine booking."*
+  - `P0002` $\rightarrow$ *"Report not found or not owned."*
 
 ---
 
-## 3. Unresolved / Open Items from Decision Register
-1. **RD-14 / Hindi Medical Translations:** Hindi strings for safety-critical states and the consent statement are marked `DRAFT — For Owner Review`.
-2. **Provider Audio Encoding (Browser):** Gnani Prisma v2.5 accepts WAV, MP3, OGG, FLAC, AAC, M4A, but rejects WebM. Production audio recording will transcode or encapsulate into WAV/MP4 before base64 encoding.
+## 4. Dual Application Mode Architecture
+
+- `src/lib/api.ts` provides explicit mode control: `getAppMode(): AppMode` and `setAppMode(mode: AppMode)`.
+- **Mock Mode:** Self-contained in-memory simulation for local testing, offline validation, and UI development.
+- **Supabase Mode:** Real calls to Supabase Auth, Edge Functions (`chat-turn`, `speak`), and PostgreSQL RPCs (`mark_report_reviewed`, `get_available_slots`, `book_appointment`).
+- **Fail-Loud Guarantee:** Errors in Supabase mode are re-thrown with descriptive domain messages and **never** silently fall back to mock data.
+- **Boundary Invariant:** `src/lib/api.ts` is the single module that communicates with `src/lib/supabase.ts`.
 
 ---
 
-## 4. Conclusion
-The frontend `src/types/`, `src/lib/api.ts`, and UI components conform 100% to the mirrored contract. No breaking discrepancies remain.
+## 5. Conclusion
+The frontend contract strictly mirrors `docs/integration-contract.md` §§10–11 and all backend migrations. All six actions, three RPCs, security holds, and error mappings are fully reconciled.

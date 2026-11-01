@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "tsx --test tests/contract-regression.test.ts tests/patient-flow.test.ts tests/doctor-flow.test.ts tests/supabase-mode.test.ts",
+    "test": "tsx --test tests/contract-regression.test.ts tests/patient-flow.test.ts tests/doctor-flow.test.ts tests/supabase-mode.test.ts tests/local-supabase-journey.test.ts",
+    "test:mock": "tsx --test tests/contract-regression.test.ts tests/patient-flow.test.ts tests/doctor-flow.test.ts",
+    "test:supabase": "tsx --test tests/supabase-mode.test.ts tests/local-supabase-journey.test.ts",
     "test:e2e": "node tests/verify-interactions.mjs"
   },
   "dependencies": {
