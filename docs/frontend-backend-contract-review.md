@@ -78,6 +78,14 @@ No synthetic placeholder (`consent_vN`) is displayed or persisted. The exact Eng
 - If incomplete at turn 15, the patient is presented with an incomplete summary and exactly one action: `"End session"`. No submission, booking, or doctor assignment is possible.
 - Global cap triggers `demo_busy: true` (copy: *"This demo has reached today’s usage limit. Please try again later."*).
 
+### 2.7 Automated Consent Copy Equality Comparison Procedure
+To guarantee 100% byte-for-byte fidelity without manual synchronization:
+1. `tests/contract-regression.test.ts` executes in Node.js test runner during CI / local test runs.
+2. It accesses `../samvad-backend/supabase/functions/_shared/consent.ts` in strict read-only mode via `node:fs`.
+3. It parses the canonical `CONSENT_VERSION` and the concatenated string literal expressions for `CONSENT_TEXT.en` and `CONSENT_TEXT.hi` directly from the backend source code.
+4. It asserts strict character equality (`assert.equal`) against `src/types/consent.ts`.
+5. Any unilateral drift or modification in either repository immediately causes test failure.
+
 ---
 
 ## 3. Unresolved / Open Items from Decision Register

@@ -286,4 +286,102 @@ describe('Doctor Dashboard Journeys', () => {
     assert.equal(pastApts.length, 1, 'Nov 4 appointment belongs to Past');
     assert.equal(pastApts[0].id, 'apt-past');
   });
+
+  it('Test 8: Not-booked reports remain visible in reports list and stats even without an appointment', async () => {
+    // Submit a report and deliberately skip booking (choose Not Now)
+    const s = await startSession('en');
+    await recordConsent(s.session_id, true, 'en', CONSENT_VERSION);
+    const answers = [
+      { q: 'name', a: 'Unbooked Patient' },
+      { q: 'age', a: '28' },
+      { q: 'gender', a: 'Female' },
+      { q: 'primary_concern', a: 'Dry cough without fever' },
+      { q: 'duration', a: '5 days' },
+      { q: 'severity', a: 'Mild' },
+      { q: 'conditions', a: 'None' },
+      { q: 'medications', a: 'None' },
+      { q: 'allergies', a: 'None' },
+      { q: 'other_symptoms', a: 'None' },
+    ];
+    for (const ans of answers) {
+      await chatTurn({
+        action: 'submit_turn',
+        session_id: s.session_id,
+        question_id: ans.q as any,
+        text: ans.a,
+      });
+    }
+
+    const sub = await submitReport({
+      action: 'submit_report',
+      session_id: s.session_id,
+      report_id: 'draft',
+    });
+    const unbookedRep = sub.submitted_report!;
+
+    // No appointment is booked
+    const docId = unbookedRep.doctor_id;
+    const reports = await getDoctorReports(docId);
+    const apts = await getDoctorAppointments(docId);
+    const bookedIds = new Set(apts.map((a) => a.report_id));
+
+    // Must be found in reports list
+    const found = reports.find((r) => r.id === unbookedRep.id);
+    assert.ok(found, 'Submitted unbooked report must remain visible to doctor');
+
+    // Must appear in the "Not booked" tab
+    const notBookedList = filterReportsByTab(reports, 'not_booked', bookedIds);
+    assert.ok(
+      notBookedList.some((r) => r.id === unbookedRep.id),
+      'Report must be present in not_booked tab'
+    );
+
+    // Dashboard stats for not_booked must be > 0
+    const stats = await getDoctorDashboardStats(docId);
+    assert.ok(stats.not_booked >= 1, 'Stats not_booked count must reflect unbooked report');
+  });
+
+  it('Test 9: Report detail and conversation log expansion preserves verbatim intake statement', async () => {
+    const s = await startSession('en');
+    await recordConsent(s.session_id, true, 'en', CONSENT_VERSION);
+    const originalStatement = 'Sharp lower back pain after lifting luggage';
+    const answers = [
+      { q: 'name', a: 'Rohan Mehta' },
+      { q: 'age', a: '38' },
+      { q: 'gender', a: 'Male' },
+      { q: 'primary_concern', a: originalStatement },
+      { q: 'duration', a: '3 days' },
+      { q: 'severity', a: 'Severe' },
+      { q: 'conditions', a: 'None' },
+      { q: 'medications', a: 'None' },
+      { q: 'allergies', a: 'None' },
+      { q: 'other_symptoms', a: 'None' },
+    ];
+    for (const ans of answers) {
+      await chatTurn({
+        action: 'submit_turn',
+        session_id: s.session_id,
+        question_id: ans.q as any,
+        text: ans.a,
+      });
+    }
+
+    const sub = await submitReport({
+      action: 'submit_report',
+      session_id: s.session_id,
+      report_id: 'draft',
+    });
+    const rep = sub.submitted_report!;
+
+    // Detail query
+    const reports = await getDoctorReports(rep.doctor_id);
+    const detail = reports.find((r) => r.id === rep.id);
+    assert.ok(detail, 'Report must be retrievable in detail');
+
+    // Verbatim primary concern preserved exactly for conversation expansion
+    assert.equal(detail.report.primary_concern.value, originalStatement);
+    assert.equal(detail.report.primary_concern.status, 'provided');
+    assert.equal(detail.report.clinical_details.duration.value, '3 days');
+    assert.equal(detail.report.clinical_details.severity.value, 'Severe');
+  });
 });

@@ -140,6 +140,8 @@ export const PROTECTED_FIELDS = [
   'id',
   'session_id',
   'user_id',
+  'doctor_id',
+  'department_key',
   'schema_version',
   'status',
   'intake_reference',
@@ -154,4 +156,12 @@ export const PROTECTED_FIELDS = [
   'reviewed_by',
   'missing_information',
   'summary',
+] as const;
+
+export const NON_DECLINABLE_FIELDS = [
+  'patient.name',
+  'patient.age',
+  'primary_concern',
+  'clinical_details.duration',
+  'clinical_details.severity',
 ] as const;

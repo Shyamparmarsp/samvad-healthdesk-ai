@@ -658,7 +658,27 @@ export async function startAnonymousSession(language: 'en' | 'hi' = 'en'): Promi
   return { sessionId, userId };
 }
 
+let mockDailyCapExceeded = false;
+export function setMockDailyCapExceeded(exceeded: boolean) {
+  mockDailyCapExceeded = exceeded;
+}
+
 export async function startSession(language: 'en' | 'hi' = 'en'): Promise<ChatTurnResponse> {
+  if (mockDailyCapExceeded) {
+    return {
+      session_id: '',
+      session_status: 'created',
+      messages: [],
+      turn_count: 0,
+      max_turns: 15,
+      is_complete: false,
+      is_cap_reached: false,
+      can_submit: false,
+      demo_busy: true,
+      error: 'demo_busy',
+    };
+  }
+
   const { sessionId } = await startAnonymousSession(language);
   const session = mockSessions.get(sessionId)!;
 

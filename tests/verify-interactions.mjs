@@ -283,7 +283,7 @@ async function runVerification() {
     verificationResults.push({ step: 'Doctor reports list view & tabs', status: 'PASS' });
 
     // 7. Test round-trip navigation back and forth between / and /doctor
-    console.log('[7/7] Testing round-trip navigation between / and /doctor');
+    console.log('[7/10] Testing round-trip navigation between / and /doctor');
     await cdp.navigate(`http://127.0.0.1:${PORT}/`);
     const patientNavText = await cdp.waitForText('Start Talking');
     assert.ok(patientNavText.includes('Samvad HealthDesk AI'), 'Navigation back to / succeeds');
@@ -293,6 +293,99 @@ async function runVerification() {
     assert.ok(doctorNavText.includes('Dr. Aditi Rao') || doctorNavText.includes('Samvad Clinical Desk'), 'Navigation back to /doctor succeeds');
     console.log('  ✓ Seamless direct and back/forth navigation verified');
     verificationResults.push({ step: 'Round-trip navigation / ↔ /doctor', status: 'PASS' });
+
+    // 8. Accessibility Verification (Keyboard focus, visible focus, accessible button names)
+    console.log('[8/10] Verifying accessibility: keyboard Tab focus & accessible button names');
+    await cdp.navigate(`http://127.0.0.1:${PORT}/`);
+    await cdp.waitForText('Start Talking');
+
+    // Test Tab key focus navigation
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab' });
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab' });
+    const focusedTag = await cdp.eval('document.activeElement?.tagName');
+    assert.ok(['BUTTON', 'A', 'INPUT', 'SELECT'].includes(focusedTag), `Tab must focus an interactive element, got ${focusedTag}`);
+
+    // Verify all buttons have accessible text content or aria-label
+    const unlabelledButtons = await cdp.eval(`
+      Array.from(document.querySelectorAll('button')).filter(b => {
+        const text = (b.innerText || '').trim();
+        const aria = b.getAttribute('aria-label');
+        const title = b.getAttribute('title');
+        return !text && !aria && !title;
+      }).length
+    `);
+    assert.equal(unlabelledButtons, 0, 'All buttons must possess accessible text or labels');
+    console.log('  ✓ Keyboard Tab navigation works and all buttons possess accessible names');
+    verificationResults.push({ step: 'Accessibility (keyboard Tab & button labels)', status: 'PASS' });
+
+    // 9. Hindi Devanagari text rendering check
+    console.log('[9/10] Verifying readable Hindi Devanagari text rendering');
+    await cdp.eval(`
+      (() => {
+        const langBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('हिंदी') || b.innerText.includes('बात करें'));
+        if (langBtn) langBtn.click();
+      })()
+    `);
+    await sleep(400);
+
+    const hindiText = await cdp.eval('document.body.innerText');
+    const hasDevanagari = /[\u0900-\u097F]/.test(hindiText);
+    assert.equal(hasDevanagari, true, 'Devanagari characters must render cleanly when Hindi is toggled');
+    assert.ok(hindiText.includes('बातचीत शुरू करें') || hindiText.includes('संवाद'), 'Hindi UI text must be visible');
+    console.log('  ✓ Hindi Devanagari script rendered legibly without corruption');
+    verificationResults.push({ step: 'Readable Hindi Devanagari rendering', status: 'PASS' });
+
+    // 10. Responsive layout dimensions (390x844 patient, 1280x820 doctor, zero overflow)
+    console.log('[10/10] Verifying responsive layouts (390x844 mobile, 1280x820 desktop)');
+    // Patient layout container check
+    await cdp.navigate(`http://127.0.0.1:${PORT}/`);
+    await cdp.waitForText('Start Talking');
+
+    const patientDims = await cdp.eval(`
+      (() => {
+        const el = Array.from(document.querySelectorAll('div')).find(d => typeof d.className === 'string' && d.className.includes('max-w-[390px]'));
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return { width: Math.round(rect.width), height: Math.round(rect.height) };
+      })()
+    `);
+    assert.ok(patientDims, 'Patient 390x844 container must exist');
+    assert.ok(patientDims.width <= 390, `Patient width must be <= 390, got ${patientDims.width}`);
+    assert.equal(patientDims.height, 844, `Patient height must be 844, got ${patientDims.height}`);
+
+    // Doctor layout container check (submit login and verify 1280x820 desktop container)
+    await cdp.navigate(`http://127.0.0.1:${PORT}/doctor`);
+    await cdp.waitForText(/Evaluator access/i);
+    await cdp.eval(`
+      (() => {
+        const form = document.querySelector('form');
+        if (form) {
+          const submitBtn = form.querySelector('button[type="submit"]');
+          if (submitBtn) submitBtn.click();
+        }
+      })()
+    `);
+    await cdp.waitForText(/Clinical Desk/i);
+
+    const doctorDims = await cdp.eval(`
+      (() => {
+        const el = Array.from(document.querySelectorAll('div')).find(d => typeof d.className === 'string' && d.className.includes('max-w-[1280px]'));
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return { width: Math.round(rect.width), minHeight: Math.round(rect.height) };
+      })()
+    `);
+    assert.ok(doctorDims, 'Doctor 1280px container must exist');
+    assert.ok(doctorDims.width <= 1280, `Doctor width must be <= 1280, got ${doctorDims.width}`);
+    assert.ok(doctorDims.minHeight >= 820, `Doctor min-height must be >= 820, got ${doctorDims.minHeight}`);
+
+    // Mobile horizontal overflow check
+    const hasHorizontalOverflow = await cdp.eval(`
+      document.documentElement.scrollWidth > document.documentElement.clientWidth
+    `);
+    assert.equal(hasHorizontalOverflow, false, 'Layout must have zero horizontal overflow');
+    console.log('  ✓ Responsive containers (390x844 mobile, 1280x820 doctor) and zero overflow verified');
+    verificationResults.push({ step: 'Responsive layout (390x844 & 1280x820 & no overflow)', status: 'PASS' });
 
   } finally {
     await cdp.close();

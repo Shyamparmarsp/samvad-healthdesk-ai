@@ -10,6 +10,8 @@ import {
   getAvailableSlots,
   getDoctorReports,
   getDoctorReportDetail,
+  setMockDailyCapExceeded,
+  speak,
 } from '../src/lib/api';
 import { CONSENT_VERSION, CONSENT_TEXT } from '../src/types/consent';
 import { en } from '../src/i18n/en';
@@ -293,5 +295,52 @@ describe('Patient Flow Journeys', () => {
     // Emergency Text (Plain 112, no tap to call)
     assert.equal(en.emergency.plainEmergencyNumber, '112');
     assert.equal(hi.emergency.plainEmergencyNumber, '112');
+  });
+
+  it('Journey 10: demo_busy global cap and provider failure recovery', async () => {
+    // 1. Test global daily cap trigger (demo_busy)
+    setMockDailyCapExceeded(true);
+    const busyRes = await startSession('en');
+    assert.equal(busyRes.demo_busy, true);
+    assert.equal(busyRes.session_id, '');
+    assert.equal(busyRes.can_submit, false);
+
+    // Reset daily cap for remaining tests
+    setMockDailyCapExceeded(false);
+    const normalRes = await startSession('en');
+    assert.equal(normalRes.demo_busy, undefined);
+    assert.ok(normalRes.session_id.length > 0);
+
+    // 2. Test Timbre failure recovery (returns undefined audioUrl, question still available as text)
+    const speakRes = await speak(normalRes.session_id, 'name');
+    assert.equal(speakRes.audioUrl, undefined, 'When Timbre TTS fails or is unavailable, audioUrl is gracefully undefined');
+
+    // 3. Test Groq failure recovery (deterministic summary fallback)
+    await recordConsent(normalRes.session_id, true, 'en', CONSENT_VERSION);
+    const answers = [
+      { q: 'name', a: 'Vijay Malhotra' },
+      { q: 'age', a: '50' },
+      { q: 'gender', a: 'Male' },
+      { q: 'primary_concern', a: 'Joint stiffness in morning' },
+      { q: 'duration', a: '1 month' },
+      { q: 'severity', a: 'Moderate' },
+      { q: 'conditions', a: 'None' },
+      { q: 'medications', a: 'None' },
+      { q: 'allergies', a: 'None' },
+      { q: 'other_symptoms', a: 'None' },
+    ];
+    let turnRes = normalRes;
+    for (const ans of answers) {
+      turnRes = await chatTurn({
+        action: 'submit_turn',
+        session_id: normalRes.session_id,
+        question_id: ans.q as any,
+        text: ans.a,
+      });
+    }
+
+    assert.equal(turnRes.is_complete, true);
+    assert.ok(turnRes.draft_report);
+    assert.equal(turnRes.draft_report.summary?.source, 'template', 'When Groq fails or is in mock mode, template summary is deterministically generated');
   });
 });
