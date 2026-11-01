@@ -1,0 +1,1378 @@
+/**
+ * API Client Layer — The ONLY module allowed to make Supabase / API requests.
+ * In M2, this provides a typed mock backend for full client simulation.
+ * Source: AGENTS.md, MILESTONES.md M1-S9, docs/report-design.md, backend contract.ts
+ */
+
+import {
+  ChatTurnResponse,
+  ChatMessage,
+  QuestionId,
+  SubmitTurnAction,
+  CorrectDraftReportAction,
+  SubmitReportAction,
+  BookAppointmentRequest,
+  BookAppointmentResponse,
+  MarkReportReviewedResponse,
+  DoctorLoginResponse,
+} from '../types/api';
+
+import {
+  ReportDocumentV1,
+  ReportRow,
+  SessionStatus,
+  DepartmentKey,
+  CORRECTABLE_FIELDS,
+  CorrectableField,
+} from '../types/report';
+
+import {
+  DoctorProfile,
+  AppointmentSlot,
+  Appointment,
+  DoctorDashboardStats,
+} from '../types/doctor';
+
+import { CONSENT_VERSION } from '../types/consent';
+
+// -------------------------------------------------------------
+// Fictional Doctors (docs/demo-seed-data.md)
+// -------------------------------------------------------------
+export const FICTIONAL_DOCTORS: Record<DepartmentKey, DoctorProfile> = {
+  general_medicine: {
+    id: 'doc-gen-med-01',
+    name: 'Dr. Aditi Rao',
+    department_key: 'general_medicine',
+    department_name: 'General Medicine',
+    title: 'Senior Consultant Physician',
+    initials: 'AR',
+    email: 'aditi.rao@hospital.demo',
+    routine_slots_enabled: true,
+  },
+  orthopedics: {
+    id: 'doc-ortho-02',
+    name: 'Dr. Kabir Mehta',
+    department_key: 'orthopedics',
+    department_name: 'Orthopedics',
+    title: 'Consultant Orthopedic Surgeon',
+    initials: 'KM',
+    email: 'kabir.mehta@hospital.demo',
+    routine_slots_enabled: true,
+  },
+  emergency: {
+    id: 'doc-emg-03',
+    name: 'Dr. Neha Verma',
+    department_key: 'emergency',
+    department_name: 'Emergency Medicine',
+    title: 'Emergency Medicine Lead',
+    initials: 'NV',
+    email: 'neha.verma@hospital.demo',
+    routine_slots_enabled: false, // Urgent only; no slots
+  },
+  general_surgery: {
+    id: 'doc-surg-04',
+    name: 'Dr. Ishaan Patel',
+    department_key: 'general_surgery',
+    department_name: 'General Surgery',
+    title: 'Consultant General Surgeon',
+    initials: 'IP',
+    email: 'ishaan.patel@hospital.demo',
+    routine_slots_enabled: true,
+  },
+  dermatology: {
+    id: 'doc-derm-05',
+    name: 'Dr. Sara Khan',
+    department_key: 'dermatology',
+    department_name: 'Dermatology',
+    title: 'Consultant Dermatologist',
+    initials: 'SK',
+    email: 'sara.khan@hospital.demo',
+    routine_slots_enabled: true,
+  },
+  cardiology: {
+    id: 'doc-cardio-06',
+    name: 'Dr. Arjun Nair',
+    department_key: 'cardiology',
+    department_name: 'Cardiology',
+    title: 'Consultant Cardiologist',
+    initials: 'AN',
+    email: 'arjun.nair@hospital.demo',
+    routine_slots_enabled: true,
+  },
+};
+
+// -------------------------------------------------------------
+// Approved Questions Flow
+// -------------------------------------------------------------
+interface QuestionSpec {
+  id: QuestionId;
+  textEn: string;
+  textHi: string;
+  optionsEn?: string[];
+  optionsHi?: string[];
+}
+
+const QUESTION_SPECS: QuestionSpec[] = [
+  {
+    id: 'name',
+    textEn: 'What is your full name?',
+    textHi: 'आपका पूरा नाम क्या है?',
+  },
+  {
+    id: 'age',
+    textEn: 'What is your age in completed years?',
+    textHi: 'आपकी उम्र कितने वर्ष है?',
+  },
+  {
+    id: 'gender',
+    textEn: 'What is your gender?',
+    textHi: 'आपका लिंग क्या है?',
+    optionsEn: ['Male', 'Female', 'Other', 'Prefer not to say'],
+    optionsHi: ['पुरुष (Male)', 'महिला (Female)', 'अन्य (Other)', 'बताना नहीं चाहते'],
+  },
+  {
+    id: 'primary_concern',
+    textEn: 'What is your primary symptom or health concern today?',
+    textHi: 'आज आपकी मुख्य समस्या या लक्षण क्या हैं?',
+  },
+  {
+    id: 'duration',
+    textEn: 'How long have you been experiencing this symptom?',
+    textHi: 'यह लक्षण आपको कितने समय से महसूस हो रहा है?',
+  },
+  {
+    id: 'severity',
+    textEn: 'How would you describe the severity of your symptom?',
+    textHi: 'आप अपने लक्षण की तीव्रता का वर्णन कैसे करेंगे?',
+    optionsEn: ['Mild', 'Moderate', 'Severe'],
+    optionsHi: ['हल्का (Mild)', 'मध्यम (Moderate)', 'गंभीर (Severe)'],
+  },
+  {
+    id: 'conditions',
+    textEn: 'Do you have any existing chronic medical conditions (e.g. diabetes, hypertension)?',
+    textHi: 'क्या आपको पहले से कोई बीमारी है (जैसे शुगर, बीपी)?',
+    optionsEn: ['None known', 'High blood pressure', 'Diabetes'],
+    optionsHi: ['कोई नहीं / पता नहीं', 'हाई ब्लड प्रेशर', 'डायबिटीज'],
+  },
+  {
+    id: 'medications',
+    textEn: 'Are you currently taking any prescription medicines or regular treatments?',
+    textHi: 'क्या आप वर्तमान में कोई नियमित दवाइयाँ ले रहे हैं?',
+    optionsEn: ['None', 'Yes, taking regular medicines'],
+    optionsHi: ['कोई नहीं', 'हाँ, नियमित दवा ले रहे हैं'],
+  },
+  {
+    id: 'allergies',
+    textEn: 'Do you have any known drug or substance allergies?',
+    textHi: 'क्या आपको किसी दवा या चीज़ से एलर्जी है?',
+    optionsEn: ['None known', 'Penicillin', 'Sulfa drugs'],
+    optionsHi: ['कोई नहीं / पता नहीं', 'पेनिसिलिन', 'सल्फा दवाएं'],
+  },
+  {
+    id: 'other_symptoms',
+    textEn: 'Are you having any other symptoms you would like to mention?',
+    textHi: 'क्या आप कोई अन्य लक्षण बताना चाहते हैं?',
+    optionsEn: ['No other symptoms', 'Mild fever', 'Headache'],
+    optionsHi: ['कोई अन्य लक्षण नहीं', 'हल्का बुखार', 'सिरदर्द'],
+  },
+];
+
+// Non-declinable fields per docs/report-design.md
+const NON_DECLINABLE_FIELDS: readonly CorrectableField[] = [
+  'patient.name',
+  'patient.age',
+  'primary_concern',
+  'clinical_details.duration',
+  'clinical_details.severity',
+];
+
+// Helper to generate reference codes
+function generateReferenceCode(prefix: string): string {
+  const now = new Date();
+  const yyyymmdd = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const chars = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+  let rand = '';
+  for (let i = 0; i < 6; i++) {
+    rand += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return `${prefix}-${yyyymmdd}-${rand}`;
+}
+
+// -------------------------------------------------------------
+// In-Memory Mock Database
+// -------------------------------------------------------------
+interface SessionState {
+  sessionId: string;
+  userId: string;
+  language: 'en' | 'hi';
+  sessionStatus: SessionStatus;
+  consentGranted: boolean;
+  consentVersion?: string;
+  turnCount: number;
+  currentQuestionIndex: number;
+  messages: ChatMessage[];
+  pendingAmbiguousEmergency: boolean;
+  collectedData: {
+    name?: string;
+    age?: number;
+    gender?: string;
+    primary_concern?: string;
+    duration?: string;
+    severity?: string;
+    conditions?: string[];
+    medications?: string[];
+    allergies?: string[];
+    other_symptoms?: string[];
+  };
+  draftReport?: ReportDocumentV1;
+  submittedReport?: ReportRow;
+}
+
+const mockSessions = new Map<string, SessionState>();
+const mockReports = new Map<string, ReportRow>();
+const mockAppointments = new Map<string, Appointment>();
+
+// Pre-seed some synthetic doctor reports so dashboard has rich initial state
+function initSeedReports() {
+  const now = new Date();
+  const pastIso = new Date(now.getTime() - 3600000 * 4).toISOString();
+  const pastIso2 = new Date(now.getTime() - 3600000 * 24).toISOString();
+
+  // 1. Submitted Booked Report (Orthopedics)
+  const rep1Id = 'rep-ortho-seeded-01';
+  const rep1: ReportRow = {
+    id: rep1Id,
+    session_id: 'sess-seeded-01',
+    user_id: 'user-anon-01',
+    status: 'submitted',
+    schema_version: 1,
+    department_key: 'orthopedics',
+    doctor_id: FICTIONAL_DOCTORS.orthopedics.id,
+    intake_reference: 'SHD-20261101-7KM4P2',
+    possible_urgent: false,
+    needs_human_review: false,
+    emergency_rule_id: null,
+    submitted_at: pastIso2,
+    reviewed_at: null,
+    reviewed_by: null,
+    created_at: pastIso2,
+    updated_at: pastIso2,
+    report: {
+      schema_version: 1,
+      patient: {
+        name: { status: 'provided', value: 'Asha Sharma' },
+        age: { status: 'provided', value: 38 },
+        gender: { status: 'provided', value: 'female' },
+        language: 'en',
+      },
+      primary_concern: { status: 'provided', value: 'Persistent sharp pain in right knee when climbing stairs' },
+      clinical_details: {
+        duration: { status: 'provided', value: '3 weeks' },
+        severity: { status: 'provided', value: 'Moderate, worse in the evening' },
+        conditions: { status: 'provided', value: ['High blood pressure'] },
+        medications: { status: 'declined', value: null },
+        allergies: { status: 'unknown', value: null },
+        other_symptoms: { status: 'provided', value: ['Mild local swelling around knee cap'] },
+      },
+      missing_information: ['clinical_details.medications', 'clinical_details.allergies'],
+      summary: {
+        text: 'Patient reports persistent sharp pain in the right knee for 3 weeks, described as moderate and worse in the evening. Reports mild local swelling and known hypertension.',
+        source: 'template',
+        generated_from: ['primary_concern', 'clinical_details.duration', 'clinical_details.severity', 'clinical_details.conditions', 'clinical_details.other_symptoms'],
+      },
+      routing_snapshot: {
+        department_key: 'orthopedics',
+        department_name: 'Orthopedics',
+        doctor_id: FICTIONAL_DOCTORS.orthopedics.id,
+        doctor_name: 'Dr. Kabir Mehta',
+        is_fallback: false,
+        preliminary: true,
+      },
+      emergency: null,
+    },
+  };
+  mockReports.set(rep1Id, rep1);
+
+  // Appointment for rep1
+  const apt1: Appointment = {
+    id: 'apt-seeded-01',
+    report_id: rep1Id,
+    doctor_id: FICTIONAL_DOCTORS.orthopedics.id,
+    doctor_name: FICTIONAL_DOCTORS.orthopedics.name,
+    department_name: 'Orthopedics',
+    slot_id: 'slot-seeded-01',
+    slot_start: new Date(now.getTime() + 86400000).toISOString(),
+    slot_end: new Date(now.getTime() + 86400000 + 1800000).toISOString(),
+    reference_code: 'APT-20261102-K9X2',
+    patient_name: 'Asha Sharma',
+    created_at: pastIso2,
+    status: 'confirmed',
+  };
+  mockAppointments.set(apt1.id, apt1);
+
+  // 2. Submitted Not Booked Report (General Medicine)
+  const rep2Id = 'rep-gen-seeded-02';
+  const rep2: ReportRow = {
+    id: rep2Id,
+    session_id: 'sess-seeded-02',
+    user_id: 'user-anon-02',
+    status: 'submitted',
+    schema_version: 1,
+    department_key: 'general_medicine',
+    doctor_id: FICTIONAL_DOCTORS.general_medicine.id,
+    intake_reference: 'SHD-20261101-9QW3L1',
+    possible_urgent: false,
+    needs_human_review: false,
+    emergency_rule_id: null,
+    submitted_at: pastIso,
+    reviewed_at: null,
+    reviewed_by: null,
+    created_at: pastIso,
+    updated_at: pastIso,
+    report: {
+      schema_version: 1,
+      patient: {
+        name: { status: 'provided', value: 'Rohan Deshmukh' },
+        age: { status: 'provided', value: 45 },
+        gender: { status: 'provided', value: 'male' },
+        language: 'en',
+      },
+      primary_concern: { status: 'provided', value: 'Low grade recurring evening fever and body ache' },
+      clinical_details: {
+        duration: { status: 'provided', value: '5 days' },
+        severity: { status: 'provided', value: 'Mild' },
+        conditions: { status: 'provided', value: [] },
+        medications: { status: 'provided', value: ['Paracetamol as needed'] },
+        allergies: { status: 'unknown', value: null },
+        other_symptoms: { status: 'provided', value: ['Fatigue and mild headache'] },
+      },
+      missing_information: ['clinical_details.allergies'],
+      summary: {
+        text: 'Patient reports recurring evening fever and fatigue for 5 days. Taking paracetamol with temporary relief. No reported drug allergies.',
+        source: 'template',
+        generated_from: ['primary_concern', 'clinical_details.duration', 'clinical_details.severity', 'clinical_details.medications', 'clinical_details.other_symptoms'],
+      },
+      routing_snapshot: {
+        department_key: 'general_medicine',
+        department_name: 'General Medicine',
+        doctor_id: FICTIONAL_DOCTORS.general_medicine.id,
+        doctor_name: 'Dr. Aditi Rao',
+        is_fallback: true,
+        preliminary: true,
+      },
+      emergency: null,
+    },
+  };
+  mockReports.set(rep2Id, rep2);
+
+  // 3. Urgent Partial Report (Emergency)
+  const rep3Id = 'rep-emg-seeded-03';
+  const rep3: ReportRow = {
+    id: rep3Id,
+    session_id: 'sess-seeded-03',
+    user_id: 'user-anon-03',
+    status: 'urgent_partial',
+    schema_version: 1,
+    department_key: 'emergency',
+    doctor_id: FICTIONAL_DOCTORS.emergency.id,
+    intake_reference: 'SHD-20261101-EMG881',
+    possible_urgent: true,
+    needs_human_review: false,
+    emergency_rule_id: 'severe_chest_pain',
+    submitted_at: null,
+    reviewed_at: null,
+    reviewed_by: null,
+    created_at: pastIso,
+    updated_at: pastIso,
+    report: {
+      schema_version: 1,
+      patient: {
+        name: { status: 'provided', value: 'Vikas Malhotra' },
+        age: { status: 'provided', value: 52 },
+        gender: { status: 'provided', value: 'male' },
+        language: 'en',
+      },
+      primary_concern: { status: 'provided', value: 'Heavy crushing pressure in center of chest' },
+      clinical_details: {
+        duration: { status: 'not_asked', value: null },
+        severity: { status: 'not_asked', value: null },
+        conditions: { status: 'not_asked', value: null },
+        medications: { status: 'not_asked', value: null },
+        allergies: { status: 'not_asked', value: null },
+        other_symptoms: { status: 'not_asked', value: null },
+      },
+      missing_information: [
+        'clinical_details.duration',
+        'clinical_details.severity',
+        'clinical_details.conditions',
+        'clinical_details.medications',
+        'clinical_details.allergies',
+        'clinical_details.other_symptoms',
+      ],
+      summary: null, // per RD-10, urgent_partial summary is null
+      routing_snapshot: {
+        department_key: 'emergency',
+        department_name: 'Emergency',
+        doctor_id: FICTIONAL_DOCTORS.emergency.id,
+        doctor_name: 'Dr. Neha Verma',
+        is_fallback: false,
+        preliminary: true,
+      },
+      emergency: {
+        rule_id: 'severe_chest_pain',
+        patient_statement: 'Heavy crushing pressure in center of chest with cold sweat',
+        triggered_at: pastIso,
+      },
+    },
+  };
+  mockReports.set(rep3Id, rep3);
+}
+
+initSeedReports();
+
+// -------------------------------------------------------------
+// Emergency Matching (docs/demo-emergency-rules.md)
+// -------------------------------------------------------------
+const EMERGENCY_RULES = [
+  {
+    id: 'severe_chest_pain',
+    patterns: [
+      /chest pain/i,
+      /pressure in (my )?chest/i,
+      /crushing chest/i,
+      /heavy chest/i,
+      /सीने में (बहुत )?तेज दर्द/i,
+      /छाती में तेज दबाव/i,
+      /सीने में भारीपन/i,
+    ],
+  },
+  {
+    id: 'breathing_emergency',
+    patterns: [
+      /cannot breathe/i,
+      /can't breathe/i,
+      /difficulty breathing/i,
+      /struggling to breathe/i,
+      /सांस नहीं आ रही/i,
+      /साँस लेने में बहुत तकलीफ़/i,
+      /सांस लेने में दिक्कत/i,
+    ],
+  },
+  {
+    id: 'stroke_signs',
+    patterns: [
+      /face (is )?drooping/i,
+      /one side (of my body )?feels weak/i,
+      /cannot speak clearly/i,
+      /slurred speech/i,
+      /चेहरा टेढ़ा/i,
+      /शरीर के एक तरफ कमजोर/i,
+      /बोलने में दिक्कत/i,
+    ],
+  },
+  {
+    id: 'unresponsive_or_unconscious',
+    patterns: [
+      /unconscious/i,
+      /cannot wake (them|him|her)/i,
+      /not responding/i,
+      /बेहोश/i,
+      /होश नहीं है/i,
+    ],
+  },
+  {
+    id: 'uncontrolled_bleeding',
+    patterns: [
+      /bleeding will not stop/i,
+      /losing a lot of blood/i,
+      /severe bleeding/i,
+      /खून बंद नहीं हो रहा/i,
+      /बहुत ज्यादा खून बह रहा/i,
+    ],
+  },
+  {
+    id: 'seizure_or_convulsion',
+    patterns: [
+      /seizure/i,
+      /convulsion/i,
+      /uncontrollable shaking/i,
+      /दौरा पड़ रहा/i,
+      /झटके आ रहे/i,
+    ],
+  },
+  {
+    id: 'severe_allergic_reaction',
+    patterns: [
+      /throat swelling/i,
+      /tongue swelling/i,
+      /anaphylaxis/i,
+      /गले में सूजन/i,
+      /जीभ में सूजन/i,
+    ],
+  },
+  {
+    id: 'poisoning_or_overdose',
+    patterns: [
+      /poison/i,
+      /overdose/i,
+      /too much medicine/i,
+      /ज़हर/i,
+      /दवा की बहुत ज्यादा मात्रा/i,
+    ],
+  },
+];
+
+function isNegated(text: string): boolean {
+  return (
+    /\b(no|not|neither|nor|without|never|don't|do not)\b/i.test(text) ||
+    /नहीं/i.test(text) ||
+    /दर्द नहीं/i.test(text)
+  );
+}
+
+function checkEmergencyPhrase(text: string): { matched: boolean; ruleId?: string } {
+  if (isNegated(text)) {
+    return { matched: false };
+  }
+  for (const rule of EMERGENCY_RULES) {
+    for (const pattern of rule.patterns) {
+      if (pattern.test(text)) {
+        return { matched: true, ruleId: rule.id };
+      }
+    }
+  }
+  return { matched: false };
+}
+
+function suggestDepartment(concern: string): DepartmentKey {
+  const lower = concern.toLowerCase();
+  if (lower.includes('knee') || lower.includes('bone') || lower.includes('fracture') || lower.includes('joint') || lower.includes('back pain') || lower.includes('shoulder')) {
+    return 'orthopedics';
+  }
+  if (lower.includes('skin') || lower.includes('rash') || lower.includes('itching') || lower.includes('acne') || lower.includes('eczema')) {
+    return 'dermatology';
+  }
+  if (lower.includes('heart') || lower.includes('palpitation') || lower.includes('blood pressure')) {
+    return 'cardiology';
+  }
+  if (lower.includes('hernia') || lower.includes('appendix') || lower.includes('gallbladder') || lower.includes('lump')) {
+    return 'general_surgery';
+  }
+  return 'general_medicine';
+}
+
+function buildDraftReport(session: SessionState): ReportDocumentV1 {
+  const data = session.collectedData;
+  const deptKey = suggestDepartment(data.primary_concern || '');
+  const doctor = FICTIONAL_DOCTORS[deptKey];
+
+  const missing: string[] = [];
+  if (!data.conditions || data.conditions.length === 0) missing.push('clinical_details.conditions');
+  if (!data.medications || data.medications.length === 0) missing.push('clinical_details.medications');
+  if (!data.allergies || data.allergies.length === 0) missing.push('clinical_details.allergies');
+  if (!data.other_symptoms || data.other_symptoms.length === 0) missing.push('clinical_details.other_symptoms');
+
+  const summaryText = `Patient ${data.name || 'Anonymous'} (${data.age || 'Unknown'} yrs, ${data.gender || 'Not specified'}) reports "${data.primary_concern || 'symptom'}". Duration: ${data.duration || 'Not specified'}. Severity: ${data.severity || 'Not specified'}.${data.conditions?.length ? ` Known conditions: ${data.conditions.join(', ')}.` : ''}${data.medications?.length ? ` Medications: ${data.medications.join(', ')}.` : ''}`;
+
+  return {
+    schema_version: 1,
+    patient: {
+      name: { status: data.name ? 'provided' : 'not_provided', value: data.name || null },
+      age: { status: data.age ? 'provided' : 'not_provided', value: data.age || null },
+      gender: {
+        status:
+          data.gender === 'Prefer not to say' || data.gender === 'declined'
+            ? 'declined'
+            : data.gender
+            ? 'provided'
+            : 'not_provided',
+        value:
+          data.gender === 'Prefer not to say' || data.gender === 'declined' || !data.gender
+            ? null
+            : (['male', 'female', 'other'].includes(data.gender.toLowerCase())
+                ? (data.gender.toLowerCase() as any)
+                : 'other'),
+      },
+      language: session.language,
+    },
+    primary_concern: { status: data.primary_concern ? 'provided' : 'not_provided', value: data.primary_concern || null },
+    clinical_details: {
+      duration: { status: data.duration ? 'provided' : 'not_provided', value: data.duration || null },
+      severity: { status: data.severity ? 'provided' : 'not_provided', value: data.severity || null },
+      conditions: { status: data.conditions?.length ? 'provided' : 'declined', value: data.conditions || null },
+      medications: { status: data.medications?.length ? 'provided' : 'declined', value: data.medications || null },
+      allergies: { status: data.allergies?.length ? 'provided' : 'declined', value: data.allergies || null },
+      other_symptoms: { status: data.other_symptoms?.length ? 'provided' : 'declined', value: data.other_symptoms || null },
+    },
+    missing_information: missing,
+    summary: {
+      text: summaryText,
+      source: 'template',
+      generated_from: ['primary_concern', 'clinical_details.duration', 'clinical_details.severity'],
+    },
+    routing_snapshot: {
+      department_key: deptKey,
+      department_name: doctor.department_name,
+      doctor_id: doctor.id,
+      doctor_name: doctor.name,
+      is_fallback: deptKey === 'general_medicine',
+      preliminary: true,
+    },
+    emergency: null,
+  };
+}
+
+function isSessionComplete(session: SessionState): boolean {
+  const d = session.collectedData;
+  if (!d.name || !d.age || !d.gender || !d.primary_concern || !d.duration || !d.severity) {
+    return false;
+  }
+  if (d.conditions === undefined || d.medications === undefined || d.allergies === undefined || d.other_symptoms === undefined) {
+    return false;
+  }
+  return true;
+}
+
+// -------------------------------------------------------------
+// Exported API Functions (AGENTS.md Contract)
+// -------------------------------------------------------------
+
+export async function startAnonymousSession(language: 'en' | 'hi' = 'en'): Promise<{ sessionId: string; userId: string }> {
+  const sessionId = `sess-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  const userId = `usr-anon-${Math.random().toString(36).substring(2, 9)}`;
+
+  const session: SessionState = {
+    sessionId,
+    userId,
+    language,
+    sessionStatus: 'created',
+    consentGranted: false,
+    turnCount: 0,
+    currentQuestionIndex: 0,
+    messages: [],
+    pendingAmbiguousEmergency: false,
+    collectedData: {},
+  };
+
+  mockSessions.set(sessionId, session);
+  return { sessionId, userId };
+}
+
+export async function startSession(language: 'en' | 'hi' = 'en'): Promise<ChatTurnResponse> {
+  const { sessionId } = await startAnonymousSession(language);
+  const session = mockSessions.get(sessionId)!;
+
+  return {
+    session_id: sessionId,
+    session_status: session.sessionStatus,
+    messages: session.messages,
+    turn_count: 0,
+    max_turns: 15,
+    is_complete: false,
+    is_cap_reached: false,
+    can_submit: false,
+  };
+}
+
+export async function resumeSession(sessionId: string): Promise<ChatTurnResponse> {
+  const session = mockSessions.get(sessionId);
+  if (!session) {
+    return startSession('en');
+  }
+
+  const currentQ = session.currentQuestionIndex < QUESTION_SPECS.length ? QUESTION_SPECS[session.currentQuestionIndex] : undefined;
+
+  return {
+    session_id: sessionId,
+    session_status: session.sessionStatus,
+    current_question: currentQ
+      ? {
+          id: currentQ.id,
+          text: session.language === 'hi' ? currentQ.textHi : currentQ.textEn,
+          text_hi: currentQ.textHi,
+          options: session.language === 'hi' ? currentQ.optionsHi : currentQ.optionsEn,
+          is_ambiguous_emergency: currentQ.id === 'emergency_clarification',
+        }
+      : undefined,
+    messages: session.messages,
+    turn_count: session.turnCount,
+    max_turns: 15,
+    is_complete: session.currentQuestionIndex >= QUESTION_SPECS.length,
+    is_cap_reached: session.turnCount >= 15,
+    can_submit: session.currentQuestionIndex >= QUESTION_SPECS.length && session.turnCount <= 15,
+    draft_report: session.draftReport,
+    submitted_report: session.submittedReport,
+  };
+}
+
+export async function recordConsent(
+  sessionId: string,
+  consent: boolean,
+  language: 'en' | 'hi',
+  consentVersion: string = CONSENT_VERSION,
+): Promise<ChatTurnResponse> {
+  const session = mockSessions.get(sessionId);
+  if (!session) {
+    throw new Error('Session not found');
+  }
+
+  session.language = language;
+  session.consentGranted = consent;
+  session.consentVersion = consentVersion;
+  session.sessionStatus = consent ? 'consented' : 'declined';
+
+  if (!consent) {
+    return {
+      session_id: sessionId,
+      session_status: 'declined',
+      messages: session.messages,
+      turn_count: session.turnCount,
+      max_turns: 15,
+      is_complete: false,
+      is_cap_reached: false,
+      can_submit: false,
+    };
+  }
+
+  // If consented, advance to first question (name)
+  session.sessionStatus = 'in_progress';
+  session.currentQuestionIndex = 0;
+  const firstQ = QUESTION_SPECS[0];
+
+  const firstMsg: ChatMessage = {
+    id: `msg-${Date.now()}`,
+    session_id: sessionId,
+    role: 'assistant',
+    content: session.language === 'hi' ? firstQ.textHi : firstQ.textEn,
+    question_id: firstQ.id,
+    created_at: new Date().toISOString(),
+    turn_index: 0,
+  };
+  session.messages.push(firstMsg);
+
+  return {
+    session_id: sessionId,
+    session_status: session.sessionStatus,
+    current_question: {
+      id: firstQ.id,
+      text: session.language === 'hi' ? firstQ.textHi : firstQ.textEn,
+      text_hi: firstQ.textHi,
+      options: session.language === 'hi' ? firstQ.optionsHi : firstQ.optionsEn,
+      is_ambiguous_emergency: false,
+    },
+    messages: session.messages,
+    turn_count: 0,
+    max_turns: 15,
+    is_complete: false,
+    is_cap_reached: false,
+    can_submit: false,
+  };
+}
+
+export async function chatTurn(action: SubmitTurnAction): Promise<ChatTurnResponse> {
+  const session = mockSessions.get(action.session_id);
+  if (!session) {
+    throw new Error('Session not found');
+  }
+
+  // Handle audio preview request per agreed backend contract (transcript_preview)
+  if (action.audio_base64) {
+    let simulatedVoiceAnswer = 'I have mild pain since yesterday';
+    const qId = action.question_id;
+    if (qId === 'name') simulatedVoiceAnswer = 'Pooja Verma';
+    else if (qId === 'age') simulatedVoiceAnswer = '29';
+    else if (qId === 'gender') simulatedVoiceAnswer = 'Female';
+    else if (qId === 'primary_concern') simulatedVoiceAnswer = 'Sharp knee pain while walking';
+    else if (qId === 'duration') simulatedVoiceAnswer = 'About 2 weeks';
+    else if (qId === 'severity') simulatedVoiceAnswer = 'Moderate';
+    else if (qId === 'conditions') simulatedVoiceAnswer = 'None known';
+    else if (qId === 'medications') simulatedVoiceAnswer = 'None';
+    else if (qId === 'allergies') simulatedVoiceAnswer = 'None known';
+    else if (qId === 'other_symptoms') simulatedVoiceAnswer = 'Mild swelling around the knee';
+
+    const currentQ = QUESTION_SPECS[session.currentQuestionIndex];
+
+    return {
+      session_id: session.sessionId,
+      session_status: session.sessionStatus,
+      current_question: currentQ
+        ? {
+            id: currentQ.id,
+            text: session.language === 'hi' ? currentQ.textHi : currentQ.textEn,
+            text_hi: currentQ.textHi,
+            options: session.language === 'hi' ? currentQ.optionsHi : currentQ.optionsEn,
+            is_ambiguous_emergency: currentQ.id === 'emergency_clarification',
+          }
+        : undefined,
+      messages: session.messages,
+      turn_count: session.turnCount, // unchanged while in transcript_preview state
+      max_turns: 15,
+      is_complete: false,
+      is_cap_reached: session.turnCount >= 15,
+      can_submit: false,
+      transcript_preview: {
+        state: 'transcript_preview',
+        text: simulatedVoiceAnswer,
+        question_id: action.question_id,
+      },
+    };
+  }
+
+  // Text phase
+  const patientText = (action.text || '').trim();
+
+  // Add patient message to log
+  session.turnCount += 1;
+  const pMsg: ChatMessage = {
+    id: `msg-${Date.now()}-p`,
+    session_id: session.sessionId,
+    role: 'patient',
+    content: patientText,
+    question_id: action.question_id,
+    created_at: new Date().toISOString(),
+    turn_index: session.turnCount,
+  };
+  session.messages.push(pMsg);
+
+  // Check 1: Did we ask the ambiguous emergency clarification question?
+  if (action.question_id === 'emergency_clarification') {
+    if (patientText.toLowerCase() === 'yes' || patientText === 'हाँ') {
+      // Confirmed emergency
+      session.sessionStatus = 'emergency';
+      const emgReport: ReportRow = {
+        id: `rep-${Date.now()}-emg`,
+        session_id: session.sessionId,
+        user_id: session.userId,
+        status: 'urgent_partial',
+        schema_version: 1,
+        department_key: 'emergency',
+        doctor_id: FICTIONAL_DOCTORS.emergency.id,
+        intake_reference: generateReferenceCode('SHD-EMG'),
+        possible_urgent: true,
+        needs_human_review: false,
+        emergency_rule_id: 'clarified_emergency',
+        submitted_at: null,
+        reviewed_at: null,
+        reviewed_by: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        report: {
+          schema_version: 1,
+          patient: {
+            name: { status: session.collectedData.name ? 'provided' : 'not_asked', value: session.collectedData.name || null },
+            age: { status: session.collectedData.age ? 'provided' : 'not_asked', value: session.collectedData.age || null },
+            gender: { status: 'not_asked', value: null },
+            language: session.language,
+          },
+          primary_concern: { status: 'provided', value: session.collectedData.primary_concern || patientText },
+          clinical_details: {
+            duration: { status: 'not_asked', value: null },
+            severity: { status: 'not_asked', value: null },
+            conditions: { status: 'not_asked', value: null },
+            medications: { status: 'not_asked', value: null },
+            allergies: { status: 'not_asked', value: null },
+            other_symptoms: { status: 'not_asked', value: null },
+          },
+          missing_information: [
+            'clinical_details.duration',
+            'clinical_details.severity',
+            'clinical_details.conditions',
+            'clinical_details.medications',
+            'clinical_details.allergies',
+            'clinical_details.other_symptoms',
+          ],
+          summary: null,
+          routing_snapshot: {
+            department_key: 'emergency',
+            department_name: 'Emergency',
+            doctor_id: FICTIONAL_DOCTORS.emergency.id,
+            doctor_name: 'Dr. Neha Verma',
+            is_fallback: false,
+            preliminary: true,
+          },
+          emergency: {
+            rule_id: 'clarified_emergency',
+            patient_statement: patientText,
+            triggered_at: new Date().toISOString(),
+          },
+        },
+      };
+      mockReports.set(emgReport.id, emgReport);
+      session.submittedReport = emgReport;
+
+      return {
+        session_id: session.sessionId,
+        session_status: 'emergency',
+        messages: session.messages,
+        turn_count: session.turnCount,
+        max_turns: 15,
+        is_complete: false,
+        is_cap_reached: false,
+        can_submit: false,
+        emergency_triggered: true,
+      };
+    } else {
+      // Negated emergency -> continue routine intake
+      session.pendingAmbiguousEmergency = false;
+    }
+  }
+
+  // Check 2: Check deterministic emergency starter rules on current text
+  const emgCheck = checkEmergencyPhrase(patientText);
+  if (emgCheck.matched) {
+    session.sessionStatus = 'emergency';
+    const emgReport: ReportRow = {
+      id: `rep-${Date.now()}-emg`,
+      session_id: session.sessionId,
+      user_id: session.userId,
+      status: 'urgent_partial',
+      schema_version: 1,
+      department_key: 'emergency',
+      doctor_id: FICTIONAL_DOCTORS.emergency.id,
+      intake_reference: generateReferenceCode('SHD-EMG'),
+      possible_urgent: true,
+      needs_human_review: false,
+      emergency_rule_id: emgCheck.ruleId || 'urgent_rule',
+      submitted_at: null,
+      reviewed_at: null,
+      reviewed_by: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      report: {
+        schema_version: 1,
+        patient: {
+          name: { status: session.collectedData.name ? 'provided' : 'not_asked', value: session.collectedData.name || null },
+          age: { status: session.collectedData.age ? 'provided' : 'not_asked', value: session.collectedData.age || null },
+          gender: { status: 'not_asked', value: null },
+          language: session.language,
+        },
+        primary_concern: { status: 'provided', value: patientText },
+        clinical_details: {
+          duration: { status: 'not_asked', value: null },
+          severity: { status: 'not_asked', value: null },
+          conditions: { status: 'not_asked', value: null },
+          medications: { status: 'not_asked', value: null },
+          allergies: { status: 'not_asked', value: null },
+          other_symptoms: { status: 'not_asked', value: null },
+        },
+        missing_information: [
+          'clinical_details.duration',
+          'clinical_details.severity',
+          'clinical_details.conditions',
+          'clinical_details.medications',
+          'clinical_details.allergies',
+          'clinical_details.other_symptoms',
+        ],
+        summary: null,
+        routing_snapshot: {
+          department_key: 'emergency',
+          department_name: 'Emergency',
+          doctor_id: FICTIONAL_DOCTORS.emergency.id,
+          doctor_name: 'Dr. Neha Verma',
+          is_fallback: false,
+          preliminary: true,
+        },
+        emergency: {
+          rule_id: emgCheck.ruleId || 'urgent_rule',
+          patient_statement: patientText,
+          triggered_at: new Date().toISOString(),
+        },
+      },
+    };
+    mockReports.set(emgReport.id, emgReport);
+    session.submittedReport = emgReport;
+
+    return {
+      session_id: session.sessionId,
+      session_status: 'emergency',
+      messages: session.messages,
+      turn_count: session.turnCount,
+      max_turns: 15,
+      is_complete: false,
+      is_cap_reached: false,
+      can_submit: false,
+      emergency_triggered: true,
+    };
+  }
+
+  // Save answer to collectedData
+  const qId = action.question_id || QUESTION_SPECS[session.currentQuestionIndex]?.id;
+  if (qId === 'name') session.collectedData.name = patientText;
+  else if (qId === 'age') {
+    const parsed = parseInt(patientText.replace(/\D/g, ''), 10);
+    session.collectedData.age = isNaN(parsed) ? 35 : parsed;
+  } else if (qId === 'gender') session.collectedData.gender = patientText;
+  else if (qId === 'primary_concern') session.collectedData.primary_concern = patientText;
+  else if (qId === 'duration') session.collectedData.duration = patientText;
+  else if (qId === 'severity') session.collectedData.severity = patientText;
+  else if (qId === 'conditions') {
+    session.collectedData.conditions = patientText.toLowerCase().includes('none') ? [] : [patientText];
+  } else if (qId === 'medications') {
+    session.collectedData.medications = patientText.toLowerCase().includes('none') ? [] : [patientText];
+  } else if (qId === 'allergies') {
+    session.collectedData.allergies = patientText.toLowerCase().includes('none') ? [] : [patientText];
+  } else if (qId === 'other_symptoms') {
+    session.collectedData.other_symptoms = patientText.toLowerCase().includes('none') || patientText.toLowerCase().includes('no') ? [] : [patientText];
+  }
+
+  // Advance question pointer if answering the currently asked question
+  if (QUESTION_SPECS[session.currentQuestionIndex]?.id === qId) {
+    session.currentQuestionIndex += 1;
+  }
+
+  const isSatisfied = isSessionComplete(session);
+
+  // Check 15-turn boundary
+  if (session.turnCount >= 15) {
+    session.draftReport = buildDraftReport(session);
+
+    return {
+      session_id: session.sessionId,
+      session_status: session.sessionStatus,
+      messages: session.messages,
+      turn_count: session.turnCount,
+      max_turns: 15,
+      is_complete: isSatisfied,
+      is_cap_reached: true,
+      can_submit: isSatisfied,
+      draft_report: session.draftReport,
+    };
+  }
+
+  // If questions completed, generate draft report
+  if (session.currentQuestionIndex >= QUESTION_SPECS.length) {
+    session.draftReport = buildDraftReport(session);
+    return {
+      session_id: session.sessionId,
+      session_status: session.sessionStatus,
+      messages: session.messages,
+      turn_count: session.turnCount,
+      max_turns: 15,
+      is_complete: isSatisfied,
+      is_cap_reached: false,
+      can_submit: isSatisfied,
+      draft_report: session.draftReport,
+    };
+  }
+
+  // Ask next question
+  const nextQ = QUESTION_SPECS[session.currentQuestionIndex];
+  const nextMsg: ChatMessage = {
+    id: `msg-${Date.now()}-a`,
+    session_id: session.sessionId,
+    role: 'assistant',
+    content: session.language === 'hi' ? nextQ.textHi : nextQ.textEn,
+    question_id: nextQ.id,
+    created_at: new Date().toISOString(),
+    turn_index: session.turnCount,
+  };
+  session.messages.push(nextMsg);
+
+  return {
+    session_id: session.sessionId,
+    session_status: session.sessionStatus,
+    current_question: {
+      id: nextQ.id,
+      text: session.language === 'hi' ? nextQ.textHi : nextQ.textEn,
+      text_hi: nextQ.textHi,
+      options: session.language === 'hi' ? nextQ.optionsHi : nextQ.optionsEn,
+      is_ambiguous_emergency: false,
+    },
+    messages: session.messages,
+    turn_count: session.turnCount,
+    max_turns: 15,
+    is_complete: false,
+    is_cap_reached: false,
+    can_submit: false,
+  };
+}
+
+export async function correctDraftReport(action: CorrectDraftReportAction): Promise<ChatTurnResponse> {
+  const session = mockSessions.get(action.session_id);
+  if (!session || !session.draftReport) {
+    throw new Error('Draft report not found');
+  }
+
+  // Apply allowlisted field updates only (matching backend applyCorrections)
+  for (const [key, val] of Object.entries(action.updates)) {
+    const fKey = key as CorrectableField;
+    if (!CORRECTABLE_FIELDS.includes(fKey)) {
+      continue;
+    }
+    const status = val?.status;
+    if (status !== 'provided' && status !== 'declined') {
+      continue;
+    }
+
+    if (status === 'declined') {
+      // Non-declinable check (gender is the only permitted exception)
+      if (NON_DECLINABLE_FIELDS.includes(fKey)) {
+        continue; // rejected
+      }
+      if (fKey === 'patient.gender') session.collectedData.gender = 'declined';
+      if (fKey === 'clinical_details.conditions') session.collectedData.conditions = [];
+      if (fKey === 'clinical_details.medications') session.collectedData.medications = [];
+      if (fKey === 'clinical_details.allergies') session.collectedData.allergies = [];
+      if (fKey === 'clinical_details.other_symptoms') session.collectedData.other_symptoms = [];
+      continue;
+    }
+
+    // Status is 'provided'
+    if (fKey === 'patient.name' && val?.value) session.collectedData.name = String(val.value);
+    if (fKey === 'patient.age' && val?.value) {
+      const num = typeof val.value === 'string' ? parseInt(val.value, 10) : Number(val.value);
+      if (!isNaN(num) && num >= 0 && num <= 120) session.collectedData.age = num;
+    }
+    if (fKey === 'patient.gender' && val?.value) session.collectedData.gender = String(val.value);
+    if (fKey === 'primary_concern' && val?.value) session.collectedData.primary_concern = String(val.value);
+    if (fKey === 'clinical_details.duration' && val?.value) session.collectedData.duration = String(val.value);
+    if (fKey === 'clinical_details.severity' && val?.value) session.collectedData.severity = String(val.value);
+    if (fKey === 'clinical_details.conditions') session.collectedData.conditions = Array.isArray(val?.value) ? val.value : [String(val?.value)];
+    if (fKey === 'clinical_details.medications') session.collectedData.medications = Array.isArray(val?.value) ? val.value : [String(val?.value)];
+    if (fKey === 'clinical_details.allergies') session.collectedData.allergies = Array.isArray(val?.value) ? val.value : [String(val?.value)];
+    if (fKey === 'clinical_details.other_symptoms') session.collectedData.other_symptoms = Array.isArray(val?.value) ? val.value : [String(val?.value)];
+  }
+
+  session.draftReport = buildDraftReport(session);
+
+  return {
+    session_id: session.sessionId,
+    session_status: session.sessionStatus,
+    messages: session.messages,
+    turn_count: session.turnCount,
+    max_turns: 15,
+    is_complete: true,
+    is_cap_reached: session.turnCount >= 15,
+    can_submit: true,
+    draft_report: session.draftReport,
+  };
+}
+
+export async function submitReport(action: SubmitReportAction): Promise<ChatTurnResponse> {
+  const session = mockSessions.get(action.session_id);
+  if (!session || !session.draftReport) {
+    throw new Error('No draft report to submit');
+  }
+
+  session.sessionStatus = 'submitted';
+  const deptKey = session.draftReport.routing_snapshot.department_key;
+  const doctor = FICTIONAL_DOCTORS[deptKey];
+  const refCode = generateReferenceCode('SHD');
+
+  const submitted: ReportRow = {
+    id: `rep-${Date.now()}`,
+    session_id: session.sessionId,
+    user_id: session.userId,
+    status: 'submitted',
+    schema_version: 1,
+    department_key: deptKey,
+    doctor_id: doctor.id,
+    intake_reference: refCode,
+    possible_urgent: false,
+    needs_human_review: false,
+    emergency_rule_id: null,
+    submitted_at: new Date().toISOString(),
+    reviewed_at: null,
+    reviewed_by: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    report: session.draftReport,
+  };
+
+  mockReports.set(submitted.id, submitted);
+  session.submittedReport = submitted;
+
+  return {
+    session_id: session.sessionId,
+    session_status: 'submitted',
+    messages: session.messages,
+    turn_count: session.turnCount,
+    max_turns: 15,
+    is_complete: true,
+    is_cap_reached: false,
+    can_submit: false,
+    submitted_report: submitted,
+  };
+}
+
+export async function speak(_sessionId: string, _questionId: string): Promise<{ audioUrl?: string }> {
+  return { audioUrl: undefined };
+}
+
+// -------------------------------------------------------------
+// Booking & Doctor Functions (Postgres RPC equivalents in mock)
+// -------------------------------------------------------------
+
+export async function getAvailableSlots(doctorId: string, dateStr: string): Promise<AppointmentSlot[]> {
+  if (doctorId === FICTIONAL_DOCTORS.emergency.id) {
+    return []; // Emergency has no routine slots
+  }
+
+  const slots: AppointmentSlot[] = [];
+  const targetDate = new Date(dateStr);
+  const dayOfWeek = targetDate.getDay();
+
+  // Weekdays only
+  if (dayOfWeek === 0 || dayOfWeek === 6) {
+    return [];
+  }
+
+  // Clinic hours: 09:00 - 17:00, 30 min slots, lunch 13:00 - 14:00
+  const hours = [9, 10, 11, 12, 14, 15, 16];
+  for (const h of hours) {
+    for (const m of [0, 30]) {
+      const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      const period = h < 12 ? 'AM' : 'PM';
+      const displayH = h > 12 ? h - 12 : h;
+      const displayStr = `${displayH}:${String(m).padStart(2, '0')} ${period}`;
+
+      const slotId = `slot-${doctorId}-${dateStr}-${timeStr}`;
+      
+      const isBooked = Array.from(mockAppointments.values()).some(
+        (a) => a.doctor_id === doctorId && a.slot_id === slotId
+      );
+
+      slots.push({
+        id: slotId,
+        doctor_id: doctorId,
+        start_time: `${dateStr}T${timeStr}:00+05:30`,
+        end_time: `${dateStr}T${h}:${m === 0 ? '30' : '59'}:00+05:30`,
+        date: dateStr,
+        time_display: displayStr,
+        is_available: !isBooked,
+      });
+    }
+  }
+
+  return slots;
+}
+
+export async function bookAppointment(req: BookAppointmentRequest): Promise<BookAppointmentResponse> {
+  const report = mockReports.get(req.report_id);
+  if (!report) {
+    throw new Error('Report not found');
+  }
+
+  if (report.status === 'urgent_partial' || report.department_key === 'emergency') {
+    throw new Error('Emergency reports are permanently ineligible for routine booking');
+  }
+
+  if ((report.possible_urgent || report.needs_human_review) && !report.reviewed_at) {
+    throw new Error('Booking paused pending doctor review');
+  }
+
+  const existingApt = Array.from(mockAppointments.values()).find(
+    (a) => a.doctor_id === req.doctor_id && a.slot_id === req.slot_id
+  );
+  if (existingApt) {
+    throw new Error('Slot was just taken');
+  }
+
+  const refCode = generateReferenceCode('APT');
+  const doctor = Object.values(FICTIONAL_DOCTORS).find((d) => d.id === req.doctor_id) || FICTIONAL_DOCTORS.general_medicine;
+
+  const apt: Appointment = {
+    id: `apt-${Date.now()}`,
+    report_id: req.report_id,
+    doctor_id: req.doctor_id,
+    doctor_name: doctor.name,
+    department_name: doctor.department_name,
+    slot_id: req.slot_id,
+    slot_start: new Date().toISOString(),
+    slot_end: new Date(Date.now() + 1800000).toISOString(),
+    reference_code: refCode,
+    patient_name: report.report.patient.name.value || 'Patient',
+    created_at: new Date().toISOString(),
+    status: 'confirmed',
+  };
+
+  mockAppointments.set(apt.id, apt);
+  return { appointment: apt, reference_code: refCode };
+}
+
+export async function markReportReviewed(reportId: string): Promise<MarkReportReviewedResponse> {
+  const report = mockReports.get(reportId);
+  if (!report) {
+    throw new Error('Report not found');
+  }
+
+  const now = new Date().toISOString();
+  if (!report.reviewed_at) {
+    report.reviewed_at = now;
+    report.reviewed_by = 'doc-current-auth-uid';
+  }
+
+  return {
+    success: true,
+    report_id: reportId,
+    reviewed_at: report.reviewed_at,
+    reviewed_by: report.reviewed_by,
+  };
+}
+
+export async function doctorLogin(email: string, _password?: string): Promise<DoctorLoginResponse> {
+  const doctor = Object.values(FICTIONAL_DOCTORS).find((d) => d.email.toLowerCase() === email.toLowerCase()) || FICTIONAL_DOCTORS.general_medicine;
+  return {
+    doctor,
+    token: `mock-jwt-${doctor.id}`,
+  };
+}
+
+export async function doctorLogout(): Promise<void> {
+  return;
+}
+
+export async function getDoctorReports(doctorId?: string): Promise<ReportRow[]> {
+  const currentDoc = doctorId ? Object.values(FICTIONAL_DOCTORS).find((d) => d.id === doctorId) : null;
+  if (!currentDoc) {
+    return Array.from(mockReports.values()).filter((r) => r.status !== 'draft');
+  }
+
+  const isGeneralMedOrEmergency = currentDoc.department_key === 'general_medicine' || currentDoc.department_key === 'emergency';
+
+  return Array.from(mockReports.values()).filter((r) => {
+    if (r.status === 'draft') return false;
+    if (r.doctor_id === currentDoc.id) return true;
+    if (isGeneralMedOrEmergency && r.department_key === 'emergency') {
+      return true;
+    }
+    return false;
+  });
+}
+
+export async function getDoctorReportDetail(reportId: string): Promise<ReportRow | null> {
+  return mockReports.get(reportId) || null;
+}
+
+export async function getDoctorAppointments(doctorId?: string): Promise<Appointment[]> {
+  const currentDocId = doctorId || FICTIONAL_DOCTORS.general_medicine.id;
+  return Array.from(mockAppointments.values()).filter((a) => a.doctor_id === currentDocId);
+}
+
+export async function getDoctorDashboardStats(doctorId?: string): Promise<DoctorDashboardStats> {
+  const reports = await getDoctorReports(doctorId);
+  const appointments = await getDoctorAppointments(doctorId);
+  const bookedReportIds = new Set(appointments.map((a) => a.report_id));
+
+  let urgent = 0;
+  let new_reports = 0;
+  let booked = 0;
+  let not_booked = 0;
+
+  for (const r of reports) {
+    if (r.status === 'urgent_partial') {
+      urgent += 1;
+    } else if (r.status === 'submitted') {
+      if (!r.reviewed_at) {
+        new_reports += 1;
+      }
+      if (bookedReportIds.has(r.id)) {
+        booked += 1;
+      } else {
+        not_booked += 1;
+      }
+    }
+  }
+
+  return { urgent, new_reports, booked, not_booked };
+}

@@ -1,0 +1,320 @@
+import { spawn } from 'node:child_process';
+import assert from 'node:assert/strict';
+
+const CHROME_PATH = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const PORT = 4173;
+const CDP_PORT = 9222;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+class CdpClient {
+  constructor(wsUrl) {
+    this.ws = new WebSocket(wsUrl);
+    this.id = 0;
+    this.pending = new Map();
+
+    this.ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.method === 'Runtime.consoleAPICalled') {
+        console.log('    [Console]', msg.params.type, msg.params.args.map(a => a.value || a.description).join(' '));
+      }
+      if (msg.method === 'Runtime.exceptionThrown') {
+        console.error('    [Uncaught Error]', msg.params.exceptionDetails?.text, msg.params.exceptionDetails?.exception?.description);
+      }
+      if (msg.id && this.pending.has(msg.id)) {
+        const { resolve, reject } = this.pending.get(msg.id);
+        this.pending.delete(msg.id);
+        if (msg.error) {
+          reject(new Error(msg.error.message || JSON.stringify(msg.error)));
+        } else {
+          resolve(msg.result);
+        }
+      }
+    };
+  }
+
+  async ready() {
+    if (this.ws.readyState === WebSocket.OPEN) return;
+    await new Promise((resolve, reject) => {
+      this.ws.onopen = resolve;
+      this.ws.onerror = reject;
+    });
+  }
+
+  send(method, params = {}) {
+    return new Promise((resolve, reject) => {
+      const id = ++this.id;
+      this.pending.set(id, { resolve, reject });
+      this.ws.send(JSON.stringify({ id, method, params }));
+    });
+  }
+
+  async eval(expr) {
+    const res = await this.send('Runtime.evaluate', {
+      expression: expr,
+      awaitPromise: true,
+      returnByValue: true,
+    });
+    return res.result?.value;
+  }
+
+  async navigate(url) {
+    await this.send('Page.navigate', { url });
+    await sleep(600);
+  }
+
+  async waitForText(textMatcher, timeoutMs = 4000) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const text = await this.eval('document.body.innerText || ""');
+      const matches = typeof textMatcher === 'string' ? text.includes(textMatcher) : textMatcher.test(text);
+      if (matches) {
+        return text;
+      }
+      await sleep(150);
+    }
+    const current = await this.eval('document.body.innerText || ""');
+    throw new Error(`Timed out waiting for "${textMatcher}". Current body text: "${current.slice(0, 200).replace(/\n/g, ' ')}"`);
+  }
+
+  async close() {
+    this.ws.close();
+  }
+}
+
+async function runVerification() {
+  console.log('--- Headless Chrome Full-Flow Interaction Verification ---');
+
+  // 1. Start Vite preview server
+  console.log('[1/7] Starting Vite preview server on port', PORT);
+  const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--host', '127.0.0.1', '--strictPort'], {
+    cwd: process.cwd(),
+    stdio: 'inherit',
+  });
+
+  // Wait for server to be responsive
+  let serverReady = false;
+  for (let i = 0; i < 30; i++) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${PORT}`);
+      if (res.ok) {
+        serverReady = true;
+        break;
+      }
+    } catch {
+      await sleep(200);
+    }
+  }
+  if (!serverReady) {
+    server.kill();
+    throw new Error('Vite preview server failed to start within 6s');
+  }
+  console.log('✓ Vite preview server is up and responding');
+
+  // 2. Launch Google Chrome headless with remote debugging port
+  console.log('[2/7] Launching Google Chrome headless with CDP port', CDP_PORT);
+  const tmpProfile = `/tmp/cdp-chrome-profile-${Date.now()}`;
+  const chrome = spawn(
+    CHROME_PATH,
+    [
+      '--headless=new',
+      `--remote-debugging-port=${CDP_PORT}`,
+      `--user-data-dir=${tmpProfile}`,
+      '--no-sandbox',
+      '--disable-gpu',
+      '--disable-dev-shm-usage',
+    ],
+    { stdio: 'pipe' }
+  );
+
+  let cdpReady = false;
+  for (let i = 0; i < 30; i++) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`);
+      if (res.ok) {
+        cdpReady = true;
+        break;
+      }
+    } catch {
+      await sleep(200);
+    }
+  }
+  if (!cdpReady) {
+    chrome.kill();
+    server.kill();
+    throw new Error('Chrome CDP failed to start within 6s');
+  }
+  console.log('✓ Chrome headless is up with CDP ready');
+
+  // Create new page target
+  const targetRes = await fetch(`http://127.0.0.1:${CDP_PORT}/json/new`, { method: 'PUT' });
+  const target = await targetRes.json();
+  const cdp = new CdpClient(target.webSocketDebuggerUrl);
+  await cdp.ready();
+  await cdp.send('Page.enable');
+  await cdp.send('Runtime.enable');
+
+  const verificationResults = [];
+
+  try {
+    // 3. Test Patient Journey on /
+    console.log('[3/7] Testing Patient Shell on /');
+    await cdp.navigate(`http://127.0.0.1:${PORT}/`);
+
+    // Wait for React app to mount in #root
+    for (let i = 0; i < 20; i++) {
+      const rootHtml = await cdp.eval('document.getElementById("root")?.innerHTML || ""');
+      if (rootHtml.trim().length > 0) break;
+      await sleep(200);
+    }
+
+    const rootText = await cdp.eval('document.getElementById("root")?.innerText || document.body.innerText');
+    console.log('  -> Rendered text length:', rootText.length, 'preview:', rootText.slice(0, 100).replace(/\n/g, ' '));
+    assert.ok(rootText.includes('Samvad') || rootText.includes('HealthDesk'), 'App brand must render');
+    assert.ok(rootText.includes('Start Talking'), 'Start Talking button must render');
+    assert.ok(rootText.includes('Type Instead'), 'Type Instead alternative button must render');
+    console.log('  ✓ PatientShell mounted successfully on /');
+    verificationResults.push({ step: 'PatientShell mount on /', status: 'PASS' });
+
+    // Click "Type Instead"
+    console.log('  -> Clicking "Type Instead" button');
+    await cdp.eval(`
+      (() => {
+        const btns = Array.from(document.querySelectorAll('button'));
+        const typeBtn = btns.find(b => b.innerText.includes('Type Instead'));
+        if (typeBtn) typeBtn.click();
+      })()
+    `);
+    await sleep(400);
+
+    // Verify transition to Consent screen
+    const consentText = await cdp.eval('document.body.innerText');
+    assert.ok(consentText.includes('Consent'), 'Must transition to Consent screen');
+    assert.ok(consentText.includes('Samvad HealthDesk AI is an AI intake assistant and not a doctor'), 'Consent copy must display');
+    assert.ok(consentText.includes('Yes, I agree'), 'Consent Yes button must render');
+    assert.ok(consentText.includes('No, do not proceed'), 'Consent No button must render');
+    console.log('  ✓ Transitioned to Consent screen with exact consent text');
+    verificationResults.push({ step: 'Transition to Consent screen', status: 'PASS' });
+
+    // Click "Yes, I agree"
+    console.log('  -> Clicking "Yes, I agree" button');
+    await cdp.eval(`
+      (() => {
+        const btns = Array.from(document.querySelectorAll('button'));
+        const agreeBtn = btns.find(b => b.innerText.includes('Yes, I agree') || b.innerText.includes('agree'));
+        if (agreeBtn) agreeBtn.click();
+      })()
+    `);
+    await sleep(600);
+
+    // Verify conversation screen renders
+    const convText = await cdp.eval('document.body.innerText');
+    assert.ok(convText.includes('name') || convText.includes('full name') || convText.includes('Namaste'), 'First assistant message asking for name must render');
+    assert.ok(convText.includes('Tap to speak') || convText.includes('Type instead'), 'Voice controls must render on conversation screen');
+    console.log('  ✓ Conversation screen rendered with first question and mic control');
+
+    // Switch to Text mode in conversation
+    console.log('  -> Switching conversation to text mode');
+    await cdp.eval(`
+      (() => {
+        const btns = Array.from(document.querySelectorAll('button'));
+        const typeBtn = btns.find(b => b.innerText.toLowerCase().includes('type'));
+        if (typeBtn) typeBtn.click();
+      })()
+    `);
+    await sleep(300);
+
+    const hasInput = await cdp.eval(`Boolean(document.querySelector('input[type="text"]'))`);
+    assert.equal(hasInput, true, 'Text input must render after switching to text mode');
+    console.log('  ✓ Text input field rendered successfully');
+    verificationResults.push({ step: 'Conversation screen render & text mode toggle', status: 'PASS' });
+
+    // 4. Test Doctor Portal on /doctor
+    console.log('[4/7] Testing Doctor Shell on /doctor');
+    await cdp.navigate(`http://127.0.0.1:${PORT}/doctor`);
+
+    // Verify DoctorShell mounts and displays Evaluator Access card
+    const doctorLoginText = await cdp.waitForText(/Evaluator access/i);
+    const docLower = doctorLoginText.toLowerCase();
+    assert.ok(docLower.includes('evaluator access'), 'Mandatory Evaluator access card header must render');
+    assert.ok(docLower.includes('credentials are shared privately with reviewers'), 'D8 privacy note must render');
+    assert.ok(docLower.includes('not displayed in public project materials'), 'D8 public exclusion note must render');
+    console.log('  ✓ Doctor login screen mounted with mandatory Evaluator Access notes');
+    verificationResults.push({ step: 'DoctorShell login & Evaluator Access card', status: 'PASS' });
+
+    // 5. Submit doctor login
+    console.log('[5/7] Submitting doctor login form for Dr. Aditi Rao');
+    await cdp.eval(`
+      (() => {
+        const form = document.querySelector('form');
+        if (form) {
+          const submitBtn = form.querySelector('button[type="submit"]');
+          if (submitBtn) submitBtn.click();
+        }
+      })()
+    `);
+
+    // Verify dashboard renders with stat cards
+    const dashText = await cdp.waitForText(/Dr. Aditi Rao/i);
+    const dashLower = dashText.toLowerCase();
+    assert.ok(dashLower.includes('dr. aditi rao') || dashLower.includes('general medicine'), 'Doctor profile info must display');
+    assert.ok(dashLower.includes('urgent') || dashLower.includes('triage'), 'Urgent triage stat must display');
+    assert.ok(dashLower.includes('new reports') || dashLower.includes('new intake'), 'New reports stat must display');
+    assert.ok(dashLower.includes('booked') || dashLower.includes('appointments'), 'Appointments/Booked metric must display');
+    console.log('  ✓ Doctor dashboard rendered with verified stat cards');
+    verificationResults.push({ step: 'Doctor dashboard & stat cards render', status: 'PASS' });
+
+    // 6. Test Reports List and detail view
+    console.log('[6/7] Testing Reports tab and detail view');
+    await cdp.eval(`
+      (() => {
+        const navBtns = Array.from(document.querySelectorAll('button, a'));
+        const reportsTab = navBtns.find(b => b.innerText.toLowerCase().includes('reports'));
+        if (reportsTab) reportsTab.click();
+      })()
+    `);
+
+    const reportsListText = await cdp.waitForText(/Patient Intake Reports/i);
+    const repLower = reportsListText.toLowerCase();
+    assert.ok(repLower.includes('all') && repLower.includes('urgent'), 'Reports list tabs must render');
+    console.log('  ✓ Doctor reports list view rendered with tabs');
+    verificationResults.push({ step: 'Doctor reports list view & tabs', status: 'PASS' });
+
+    // 7. Test round-trip navigation back and forth between / and /doctor
+    console.log('[7/7] Testing round-trip navigation between / and /doctor');
+    await cdp.navigate(`http://127.0.0.1:${PORT}/`);
+    const patientNavText = await cdp.waitForText('Start Talking');
+    assert.ok(patientNavText.includes('Samvad HealthDesk AI'), 'Navigation back to / succeeds');
+
+    await cdp.navigate(`http://127.0.0.1:${PORT}/doctor`);
+    const doctorNavText = await cdp.waitForText('Samvad');
+    assert.ok(doctorNavText.includes('Dr. Aditi Rao') || doctorNavText.includes('Samvad Clinical Desk'), 'Navigation back to /doctor succeeds');
+    console.log('  ✓ Seamless direct and back/forth navigation verified');
+    verificationResults.push({ step: 'Round-trip navigation / ↔ /doctor', status: 'PASS' });
+
+  } finally {
+    await cdp.close();
+    chrome.kill();
+    server.kill();
+    console.log('✓ Teardown complete: preview server and headless Chrome closed');
+  }
+
+  console.log('\n--- Interaction Verification Summary ---');
+  let allPassed = true;
+  for (const r of verificationResults) {
+    console.log(`[${r.status}] ${r.step}`);
+    if (r.status !== 'PASS') allPassed = false;
+  }
+
+  if (!allPassed) {
+    process.exit(1);
+  }
+  console.log('All headless Chrome interaction tests passed!\n');
+}
+
+runVerification().catch((err) => {
+  console.error('Headless Chrome Verification Failed:', err);
+  process.exit(1);
+});
