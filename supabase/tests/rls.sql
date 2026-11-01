@@ -11,6 +11,13 @@
 
 begin;
 
+-- Deterministic counts: clear the intake domain inside the transaction (rolled back).
+delete from public.appointments;
+delete from public.reports;
+delete from public.messages;
+delete from public.consent_records;
+delete from public.sessions;
+
 -- ---------------------------------------------------------------------------
 -- Identities are resolved by email. Create these four users on the LOCAL stack first
 -- (Auth admin API), then run this file. No hardcoded UUIDs and no auth.users writes.

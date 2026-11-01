@@ -91,4 +91,4 @@ begin
   raise notice 'PASS: a foreign report is not found';
 end $$;
 
-commit;
+rollback;

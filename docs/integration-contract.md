@@ -221,7 +221,21 @@ POST /rest/v1/rpc/book_appointment
 
 Errors (PostgREST): `P0002` not found / not owned, `22023` not eligible (draft, urgent, emergency, bad horizon), `42501` held pending review, `23505` slot taken or already booked.
 
-**Frontend mapping note:** `BookAppointmentRequest.slot_id` and `.doctor_id` are presentation data. Send `p_slot_start` from `slot_id` (ISO start) and ignore `doctor_id`; the server derives it.
+**Frontend mapping note (authoritative):** pass the **`slot_start` timestamp returned by `get_available_slots`** as `p_slot_start`, unchanged and in the same ISO-8601 offset form (`+05:30`). Do **not** invent a slot id, and do **not** send `doctor_id` — the server derives the doctor and department from the report. `BookAppointmentRequest.slot_id` / `.doctor_id` are presentation-only and must not be treated as authority.
+
+**SQLSTATE → UI mapping (recoverable):**
+
+| SQLSTATE | Meaning | UI behaviour |
+|---|---|---|
+| `23505` | Slot taken, or this report already booked another slot | Show "That slot was just taken", refresh availability, let the patient choose again. Never show SQL text. |
+| `42501` | Report held pending review, or not a doctor (review RPC) | Show the approved "booking paused until a doctor reviews it" copy |
+| `22023` | Not eligible: draft, `urgent_partial`, emergency department, invalid horizon | No slots UI; emergency shows the 112 guidance only |
+| `P0002` | Report not found or not owned | Generic failure; do not reveal why |
+| `28000` | Not authenticated | Re-authenticate |
+
+PostgREST returns these in the `code` field of the error body. The message is a stable English string; the UI must key off `code`, not the message, and must never surface database details to the patient.
+
+**Horizon enforcement:** `p_days` is optional (default 14) and capped server-side; `NULL`, `0`, negative or `> 14` values raise `22023`. The client cannot extend the horizon by changing the argument. Slots are generated for the Asia/Kolkata date range `today … today + (p_days - 1)`.
 
 **Documented deviation:** `get_available_slots` is `SECURITY DEFINER`, not invoker, because `reports` deliberately has no browser read policy, so an invoker function cannot validate ownership. It keeps an empty `search_path`, checks `auth.uid()`, and grants EXECUTE to `authenticated` only. No table access was added.
 
