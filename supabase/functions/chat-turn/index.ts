@@ -22,6 +22,7 @@ import type {
   RoutingSnapshot,
 } from "../_shared/contract.ts";
 import { AppError, toErrorCode } from "../_shared/errors.ts";
+import { preflight, withCors } from "../_shared/cors.ts";
 import { consoleLogger } from "../_shared/logging.ts";
 import { parseChatTurnRequest, type ChatTurnRequest } from "../_shared/validation.ts";
 import { isUuid, requireOwnedRow } from "../_shared/auth.ts";
@@ -89,14 +90,12 @@ interface MessageRow {
   created_at: string;
 }
 
-const CORS_HEADERS: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+function corsConfig(): string | null {
+  return Deno.env.get("ALLOWED_ORIGINS") ?? null;
+}
 
 function json(payload: ChatTurnResponse | { error: string }, status = 200): Response {
-  return Response.json(payload, { status, headers: CORS_HEADERS });
+  return Response.json(payload, { status });
 }
 
 async function loadSession(admin: Admin, sessionId: string, userId: string): Promise<SessionRow> {
@@ -904,8 +903,10 @@ async function handleSubmitReport(
 
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
-    if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
-    if (req.method !== "POST") return new Response("method not allowed", { status: 405, headers: CORS_HEADERS });
+    const origin = req.headers.get("origin");
+    const respond = async (): Promise<Response> => {
+    if (req.method === "OPTIONS") return preflight(origin, corsConfig());
+    if (req.method !== "POST") return withCors(new Response("method not allowed", { status: 405 }), origin, corsConfig());
 
     const userId = ctx.userClaims?.id;
     if (!isUuid(userId)) return json({ error: "unauthorized" }, 401);
@@ -950,5 +951,7 @@ export default {
         : 500;
       return json({ error: code }, status);
     }
+    };
+    return withCors(await respond(), origin, corsConfig());
   }),
 };

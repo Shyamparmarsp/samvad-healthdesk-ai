@@ -82,6 +82,7 @@ Deno.test("policy: functions read only allowlisted environment variables", () =>
         "GROQ_BASE_URL",
         "PRISMA_BASE_URL",
         "TIMBRE_ENDPOINT",
+        "ALLOWED_ORIGINS",
       ];
       assert(
         allowed.some((name) => match.includes(name)),

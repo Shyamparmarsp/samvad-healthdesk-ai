@@ -12,6 +12,7 @@
  */
 
 import { withSupabase } from "@supabase/server";
+import { preflight, withCors } from "../_shared/cors.ts";
 import { AppError, toErrorCode } from "../_shared/errors.ts";
 import { consoleLogger } from "../_shared/logging.ts";
 import { synthesize } from "../_shared/timbre.ts";
@@ -25,20 +26,20 @@ interface SpeakRequest {
   question_id?: unknown;
 }
 
-const CORS_HEADERS: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+function corsConfig(): string | null {
+  return Deno.env.get("ALLOWED_ORIGINS") ?? null;
+}
 
 function textFallback(message: string, status = 200): Response {
-  return Response.json({ text: message }, { status, headers: CORS_HEADERS });
+  return Response.json({ text: message }, { status });
 }
 
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
-    if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
-    if (req.method !== "POST") return new Response("method not allowed", { status: 405, headers: CORS_HEADERS });
+    const origin = req.headers.get("origin");
+    const respond = async (): Promise<Response> => {
+    if (req.method === "OPTIONS") return preflight(origin, corsConfig());
+    if (req.method !== "POST") return withCors(new Response("method not allowed", { status: 405 }), origin, corsConfig());
 
     const userId = ctx.userClaims?.id;
     if (!userId) return textFallback("", 401);
@@ -121,7 +122,7 @@ export default {
       ) as ArrayBuffer;
       return new Response(audioBuffer, {
         status: 200,
-        headers: { ...CORS_HEADERS, "Content-Type": result.contentType, "Cache-Control": "no-store" },
+        headers: { "Content-Type": result.contentType, "Cache-Control": "no-store" },
       });
     } catch (error) {
       const code = toErrorCode(error);
@@ -131,6 +132,8 @@ export default {
       }
       return textFallback("", 500);
     }
+    };
+    return withCors(await respond(), origin, corsConfig());
   }),
 };
 

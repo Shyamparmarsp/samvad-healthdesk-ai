@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-11-01T20:44:39.392Z",
+  "target": "http://127.0.0.1:54321",
+  "providerMode": "stub",
+  "suites": [
+    {
+      "suite": "integration",
+      "ok": true,
+      "tail": "52/52 scenarios passed"
+    },
+    {
+      "suite": "adaptive",
+      "ok": true,
+      "tail": "29/29 adaptive scenarios passed"
+    }
+  ],
+  "ok": true
+}
