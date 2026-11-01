@@ -328,7 +328,7 @@ async function runVisualQA() {
     await cdp.waitForText(/name|नाम/i);
     await sendAnswer('Emergency Patient');
 
-    await cdp.waitForText(/age|उम्र/i);
+    await cdp.waitForText(/age|years|old|उम्र/i);
     await sendAnswer('55');
 
     await cdp.waitForText(/gender|लिंग/i);
@@ -349,11 +349,31 @@ async function runVisualQA() {
     await cdp.waitForText(/Evaluator Access|Clinical Desk/i);
     await cdp.captureScreenshot('doctor-login-1280x820.png');
 
-    // Submit login
+    // Submit login (clicks demo identity button if present, or fills aditi.rao@hospital.demo)
     await cdp.eval(`
       (() => {
+        const aditiBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Dr. Aditi Rao'));
+        if (aditiBtn) {
+          aditiBtn.click();
+        } else {
+          const emailInput = document.querySelector('input[type="email"]');
+          if (emailInput && !emailInput.value) {
+            emailInput.value = 'aditi.rao@hospital.demo';
+            emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+            emailInput.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          const pwdInput = document.querySelector('input[type="password"]');
+          if (pwdInput && !pwdInput.value) {
+            pwdInput.value = 'DemoPass123!';
+            pwdInput.dispatchEvent(new Event('input', { bubbles: true }));
+            pwdInput.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }
         const form = document.querySelector('form');
-        if (form) form.querySelector('button[type="submit"]')?.click();
+        if (form) {
+          const submitBtn = form.querySelector('button[type="submit"]');
+          if (submitBtn) submitBtn.click();
+        }
       })()
     `);
     await sleep(600);
