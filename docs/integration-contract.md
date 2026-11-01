@@ -65,10 +65,16 @@ All requests are JSON with a discriminating `action`. Unknown actions and unknow
 { action: "record_consent"; session_id: string; consent: boolean; consent_version: string; language: "en" | "hi" }
 { action: "submit_turn"; session_id: string; question_id: QuestionId;
   text?: string; audio_base64?: string; audio_format?: string }   // exactly one of text/audio
-{ action: "correct_draft_report"; session_id: string; report_id: string;
+{ action: "correct_draft_report"; session_id: string; report_id?: string;
   updates: Partial<Record<CorrectableField, { value: unknown; status: "provided" | "declined" }>> }
-{ action: "submit_report"; session_id: string; report_id: string }
+{ action: "submit_report"; session_id: string; report_id?: string }
 ```
+
+**`report_id` is optional (M4-S16-B).** A session owns exactly one report
+(`reports.session_id` is UNIQUE) and no response ever returns the report row id, so the
+browser usually cannot supply it. Ownership is always proven from `session_id` plus the
+verified `auth.uid()`; a supplied `report_id` only narrows the lookup, and a mismatch is
+`not_found`. A non-uuid value is `invalid_request`.
 
 `QuestionId` is the union already in `src/types/api.ts`: `greeting`, `name`, `age`, `gender`, `primary_concern`, `duration`, `severity`, `conditions`, `medications`, `allergies`, `other_symptoms`, `emergency_clarification`.
 
@@ -148,7 +154,8 @@ Rejected with `field_not_editable`: `id`, `session_id`, `user_id`, `schema_versi
 - A deterministic match returns `emergency_triggered: true` with `session_status: "emergency"` and a `draft_report` whose `status` is `urgent_partial`. Show the plain-text 112 guidance — no `tel:` link, no button, no claim that anyone was notified.
 - Ambiguity returns `current_question.id === "emergency_clarification"` with Yes/No options. **"No" negates only that candidate**; it is not a safety clearance. The patient's ambiguous statement is preserved in `messages`.
 - Emergency and `urgent_partial` reports never receive routine slots. Routine booking is also paused for a submitted report with `possible_urgent` or `needs_human_review` until a doctor marks it reviewed.
-- `speak` accepts `{ session_id, question_id }` only. It returns audio bytes for an **adaptive** current question, or `{ "text": "..." }` when TTS is unavailable or capped. Cached opening prompts are served from `public/audio/` and must never call `speak`.
+- `speak` accepts `{ session_id, question_id }` only. It returns audio bytes for an **adaptive** current question — including an adaptive **bank** id (`GM-001` … `CARD-030`), which is the case Timbre exists for — or `{ "text": "..." }` when TTS is unavailable or capped. Cached opening prompts are served from `public/audio/` and must never call `speak`.
+- **M4-S16-B correction:** `speak` previously required a core `QuestionId`, so every adaptive bank question got `400` and the paid TTS path was unreachable from the shipped flow. It now accepts core ids and bank ids, validating only that the id is the session's *current* question.
 
 ---
 
@@ -238,6 +245,21 @@ PostgREST returns these in the `code` field of the error body. The message is a 
 **Horizon enforcement:** `p_days` is optional (default 14) and capped server-side; `NULL`, `0`, negative or `> 14` values raise `22023`. The client cannot extend the horizon by changing the argument. Slots are generated for the Asia/Kolkata date range `today … today + (p_days - 1)`.
 
 **Documented deviation:** `get_available_slots` is `SECURITY DEFINER`, not invoker, because `reports` deliberately has no browser read policy, so an invoker function cannot validate ownership. It keeps an empty `search_path`, checks `auth.uid()`, and grants EXECUTE to `authenticated` only. No table access was added.
+
+**Doctor appointment reads (M4-S16-B, `20261102160000_doctor_appointment_reads.sql`):** `appointments` has no browser grant and no policy, and no RPC was ever added, so the dashboard could never see a booking — "Booked" was always `0` and the Today/Upcoming/Past tabs were empty. `appointments` stays closed; the migration adds one read-only function:
+
+```
+POST /rest/v1/rpc/get_doctor_appointments      (no arguments)
+Authorization: Bearer <doctor JWT>
+200 → [ { appointment_id, report_id, doctor_id, doctor_name, department_key, department_name,
+          patient_name, slot_start, slot_end, reference_code, appointment_status, created_at } ]
+```
+
+- Returns only rows whose `doctor_id` matches the caller's `doctor_profiles` row; a caller with no mapping gets an empty set, never an error that confirms a mapping exists.
+- `SECURITY DEFINER` for the same reason `get_available_slots` is: the table is deliberately unreadable from the browser, so an invoker function could not read it. Controls match the other two: empty `search_path`, schema-qualified names, `auth.uid()` validated inline, `EXECUTE` revoked from `PUBLIC`/`anon`/`authenticated` and granted to `authenticated` only, no dynamic SQL, `SELECT` only.
+- Does **not** return `appointments.user_id`; the doctor gets the patient display name from the report JSONB instead.
+- No date filter: Today/Upcoming/Past and the Completed label are derived from `slot_start` client-side, so hiding past rows would break the Past tab.
+- The documented deviation is now three reviewed `SECURITY DEFINER` functions, not two. `AGENTS.md` names only `book_appointment()` and `mark_report_reviewed()` as exceptions; `get_available_slots` was already an accepted third, and this read follows exactly that precedent because there is no alternative that both keeps the table unreadable and serves the doctor dashboard. Recorded here and enforced by `_shared/schema.test.ts`.
 
 ---
 

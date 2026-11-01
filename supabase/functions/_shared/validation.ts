@@ -45,16 +45,26 @@ export interface SubmitTurnRequest {
   audio_base64?: string;
   audio_format?: string;
 }
+/**
+ * `report_id` is optional for the two report actions.
+ *
+ * A session owns exactly one report (`reports.session_id` is UNIQUE), and the handler
+ * always resolves that report through `session_id` + the verified owner, so the id adds
+ * no authority. It is accepted when the client has it (so a mismatched id can be
+ * rejected as not_found) and omitted when the client only knows the session — which is
+ * the normal browser case, because neither `start_session`, `resume_session` nor
+ * `submit_turn` returns a report row id.
+ */
 export interface CorrectDraftReportRequest {
   action: "correct_draft_report";
   session_id: string;
-  report_id: string;
+  report_id?: string;
   updates: Partial<Record<CorrectableField, { value: unknown; status: "provided" | "declined" }>>;
 }
 export interface SubmitReportRequest {
   action: "submit_report";
   session_id: string;
-  report_id: string;
+  report_id?: string;
 }
 
 export type ChatTurnRequest =
@@ -172,7 +182,8 @@ export function parseChatTurnRequest(raw: unknown): ParseResult<ChatTurnRequest>
       if (!hasOnlyKeys(raw, ["action", "session_id", "report_id", "updates"])) {
         return { ok: false, code: "invalid_request" };
       }
-      if (!isSessionId(raw.session_id) || !isSessionId(raw.report_id)) {
+      if (!isSessionId(raw.session_id)) return { ok: false, code: "invalid_request" };
+      if (raw.report_id !== undefined && !isSessionId(raw.report_id)) {
         return { ok: false, code: "invalid_request" };
       }
       if (!isRecord(raw.updates) || Object.keys(raw.updates).length === 0) {
@@ -191,10 +202,18 @@ export function parseChatTurnRequest(raw: unknown): ParseResult<ChatTurnRequest>
       if (!hasOnlyKeys(raw, ["action", "session_id", "report_id"])) {
         return { ok: false, code: "invalid_request" };
       }
-      if (!isSessionId(raw.session_id) || !isSessionId(raw.report_id)) {
+      if (!isSessionId(raw.session_id)) return { ok: false, code: "invalid_request" };
+      if (raw.report_id !== undefined && !isSessionId(raw.report_id)) {
         return { ok: false, code: "invalid_request" };
       }
-      return { ok: true, value: { action: "submit_report", session_id: raw.session_id, report_id: raw.report_id } };
+      return {
+        ok: true,
+        value: {
+          action: "submit_report",
+          session_id: raw.session_id,
+          ...(raw.report_id === undefined ? {} : { report_id: raw.report_id }),
+        },
+      };
     }
   }
 }

@@ -826,18 +826,20 @@ async function handleSubmitTurn(
 async function handleCorrectDraft(
   admin: Admin,
   userId: string,
-  request: { session_id: string; report_id: string; updates: Record<string, { value: unknown; status: string }> },
+  request: { session_id: string; report_id?: string; updates: Record<string, { value: unknown; status: string }> },
 ): Promise<Response> {
   const session = await loadSession(admin, request.session_id, userId);
-  const { data: report } = await admin
+  // A session owns exactly one report. An optional client-sent id only narrows the
+  // lookup, so a stale or foreign id is a not_found rather than a cross-report write.
+  let reportQuery = admin
     .from("reports")
     .select("id, user_id, status, report")
-    .eq("id", request.report_id)
-    .eq("session_id", session.id)
-    .maybeSingle();
+    .eq("session_id", session.id);
+  if (request.report_id) reportQuery = reportQuery.eq("id", request.report_id);
+  const { data: report } = await reportQuery.maybeSingle();
 
   const owned = requireOwnedRow(report as { user_id: string } | null, userId);
-  const row = owned as unknown as { status: string; report: ReportDocumentV1 };
+  const row = owned as unknown as { id: string; status: string; report: ReportDocumentV1 };
   if (row.status !== "draft") throw new AppError("invalid_state");
 
   const current = fieldsFromDocument(row.report);
@@ -856,7 +858,7 @@ async function handleCorrectDraft(
   await admin
     .from("reports")
     .update({ report: document })
-    .eq("id", request.report_id)
+    .eq("id", row.id)
     .eq("user_id", userId)
     .eq("status", "draft");
 
@@ -869,7 +871,7 @@ async function handleCorrectDraft(
 async function handleSubmitReport(
   admin: Admin,
   userId: string,
-  request: { session_id: string; report_id: string },
+  request: { session_id: string; report_id?: string },
 ): Promise<Response> {
   const session = await loadSession(admin, request.session_id, userId);
   const messages = await loadMessages(admin, session.id);
@@ -877,15 +879,14 @@ async function handleSubmitReport(
   if (!isComplete(fields)) throw new AppError("invalid_state");
   if (session.status === "emergency") throw new AppError("invalid_state");
 
-  const { data: submitted } = await admin
+  let updateQuery = admin
     .from("reports")
     .update({ status: "submitted", submitted_at: new Date().toISOString() })
-    .eq("id", request.report_id)
     .eq("session_id", session.id)
     .eq("user_id", userId)
-    .eq("status", "draft")
-    .select("*")
-    .maybeSingle();
+    .eq("status", "draft");
+  if (request.report_id) updateQuery = updateQuery.eq("id", request.report_id);
+  const { data: submitted } = await updateQuery.select("*").maybeSingle();
 
   if (!submitted) throw new AppError("invalid_state");
 

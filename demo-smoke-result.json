@@ -1,18 +1,36 @@
 {
-  "generatedAt": "2026-11-01T20:44:39.392Z",
+  "runId": "d2d7563e-fadb-42cc-93bb-20e86af0caa9",
+  "generatedAt": "2026-11-01T21:38:34.379Z",
   "target": "http://127.0.0.1:54321",
   "providerMode": "stub",
+  "identityIsolation": {
+    "preexistingAnonymous": 150,
+    "createdByThisRun": 20,
+    "deleted": 20,
+    "remainingFromThisRun": 0
+  },
   "suites": [
     {
       "suite": "integration",
       "ok": true,
+      "exitCode": 0,
+      "passed": 52,
+      "total": 52,
       "tail": "52/52 scenarios passed"
     },
     {
       "suite": "adaptive",
       "ok": true,
+      "exitCode": 0,
+      "passed": 29,
+      "total": 29,
       "tail": "29/29 adaptive scenarios passed"
     }
   ],
+  "cleanup": {
+    "attempted": 20,
+    "failed": 0,
+    "ok": true
+  },
   "ok": true
 }

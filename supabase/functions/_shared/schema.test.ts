@@ -48,12 +48,19 @@ Deno.test("schema: every table enables row level security", () => {
   }
 });
 
-Deno.test("schema: SECURITY DEFINER is confined to the two reviewed RPCs", () => {
+Deno.test("schema: SECURITY DEFINER is confined to the reviewed RPCs", () => {
   const definers = listMigrations().filter((name) => readMigration(name).toLowerCase().includes("security definer"));
-  assertEqual(definers.length, 2, "exactly two migrations declare SECURITY DEFINER (one function each)");
+  const reviewed = [
+    "20261102120000_mark_report_reviewed.sql",
+    "20261102130000_availability_and_booking.sql",
+    // Added in M4-S16-B for a read the browser has no table grant for. It applies the
+    // same controls below and is documented in docs/integration-contract.md.
+    "20261102160000_doctor_appointment_reads.sql",
+  ];
+  assertEqual(definers.length, reviewed.length, "only reviewed migrations may declare SECURITY DEFINER");
   assertEqual(
     definers.sort().join(","),
-    "20261102120000_mark_report_reviewed.sql,20261102130000_availability_and_booking.sql",
+    [...reviewed].sort().join(","),
     "the reviewed functions only",
   );
 
