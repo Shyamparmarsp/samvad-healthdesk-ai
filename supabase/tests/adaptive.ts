@@ -74,6 +74,56 @@ while (current && String(current).match(/^ORTH-/) && attempts < 6) {
 ok("at most three adaptive answers are accepted", attempts === 3, `adaptive_answered=${attempts}`);
 ok("a fourth adaptive question is never selected", !String(current ?? "").match(/^ORTH-/), String(current ?? "none"));
 
+// --- complete flow: concern -> draft, and routing consistency ---
+async function completeSession(language: "en" | "hi", concern: string) {
+  const r = await fetch(`${BASE}/auth/v1/signup`, { method: "POST", headers: { apikey: ANON, "content-type": "application/json" }, body: "{}" });
+  const token = (await r.json()).access_token as string;
+  const start = await call("/functions/v1/chat-turn", { action: "start_session", language }, token);
+  const sid = start.body.session_id as string;
+  await call("/functions/v1/chat-turn", { action: "record_consent", session_id: sid, consent: true, consent_version: "2026-11-01.v1", language }, token);
+  const script: Array<[string, string]> = [
+    ["name", "Asha Test"], ["age", "34"], ["gender", "Female"],
+    ["primary_concern", concern], ["duration", "3 weeks"], ["severity", "moderate"],
+    ["conditions", "none"], ["medications", "none"], ["allergies", "none"], ["other_symptoms", "none"],
+  ];
+  let last: any = null;
+  for (const [q, a] of script) last = (await turn(token, sid, q, a)).body;
+  return { token, sid, last };
+}
+
+async function storedDepartment(sid: string): Promise<string | null> {
+  const key = Deno.env.get("LOCAL_SERVICE_KEY") ?? "";
+  if (!key) return null;
+  const r = await fetch(`${BASE}/rest/v1/sessions?select=preliminary_department&id=eq.${sid}`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+  const rows = await r.json();
+  return Array.isArray(rows) && rows[0] ? rows[0].preliminary_department : null;
+}
+
+for (const [concern, expected] of [
+  ["fever and tiredness for a week", ["general_medicine"]],
+  ["knee pain when walking", ["orthopedics"]],
+  ["abdominal pain after meals", ["general_medicine", "general_surgery"]],
+  ["itchy skin rash on the arm", ["dermatology"]],
+  ["chest discomfort when walking", ["cardiology"]],
+] as const) {
+  const s6 = await completeSession("en", concern);
+  const routing = s6.last?.draft_report?.routing_snapshot?.department_key;
+  const stored = await storedDepartment(s6.sid);
+  const label = `${expected.join(" or ")} draft`;
+  ok(`${label}: draft routing matches the persisted preliminary department`,
+    expected.includes(routing as never) && (stored === null || stored === routing),
+    `draft=${routing} stored=${stored ?? "n/a"}`);
+  ok(`${label}: report reached draft with a summary`, s6.last?.draft_report?.summary !== null && s6.last?.can_submit === true, `can_submit=${s6.last?.can_submit}`);
+}
+
+// --- fallback when routing fails ---
+await fetch("http://127.0.0.1:8787/__control", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ groq: "malformed" }) });
+const fallback = await completeSession("en", "knee pain when walking");
+await fetch("http://127.0.0.1:8787/__control", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ groq: "ok" }) });
+ok("routing failure falls back to General Medicine",
+  fallback.last?.draft_report?.routing_snapshot?.department_key === "general_medicine" && fallback.last?.draft_report?.routing_snapshot?.is_fallback === true,
+  JSON.stringify(fallback.last?.draft_report?.routing_snapshot ?? null));
+
 const failed = results.filter(([, pass]) => !pass);
 console.log(`\n${results.length - failed.length}/${results.length} adaptive scenarios passed`);
 if (failed.length) Deno.exit(1);
