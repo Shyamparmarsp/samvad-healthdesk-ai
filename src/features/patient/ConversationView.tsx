@@ -141,6 +141,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   const [typedText, setTypedText] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [countdown, setCountdown] = useState(30);
+  const [micError, setMicError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll chat log
@@ -161,7 +162,24 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     return () => clearInterval(timer);
   }, [isListening, countdown]);
 
-  const handleStartListening = () => {
+  const handleStartListening = async () => {
+    setMicError(null);
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+      } catch (err: any) {
+        if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+          setMicError(
+            language === 'hi'
+              ? 'माइक्रोफ़ोन अनुमति अस्वीकृत हुई। आप नीचे लिखकर उत्तर दे सकते हैं।'
+              : 'Microphone permission was denied. Switched to text intake mode.',
+          );
+          setInputMode('text');
+          return;
+        }
+      }
+    }
     setIsListening(true);
     setCountdown(30);
   };
@@ -248,6 +266,24 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         </div>
       )}
 
+      {/* Mic Permission Denied / Recording Error Banner */}
+      {micError && (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="mx-4 mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 shadow-sm flex items-center justify-between"
+        >
+          <span>{micError}</span>
+          <button
+            onClick={() => setMicError(null)}
+            aria-label="Dismiss error"
+            className="text-amber-700 hover:text-amber-900 font-bold ml-2 text-xs"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Scrolling Chat Message Log */}
       <div role="log" aria-live="polite" className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.map((msg) => {
@@ -326,6 +362,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
             <button
               onClick={() => handleChipClick('Yes')}
               disabled={isProcessing}
+              aria-label={t.common.yes}
               className="flex-1 py-2 rounded-lg bg-red-600 text-white font-semibold text-xs shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
             >
               {t.common.yes}
@@ -333,6 +370,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
             <button
               onClick={() => handleChipClick('No')}
               disabled={isProcessing}
+              aria-label={t.common.no}
               className="flex-1 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 font-medium text-xs hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400"
             >
               {t.common.no}

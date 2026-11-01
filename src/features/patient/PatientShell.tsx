@@ -217,11 +217,12 @@ export const PatientShell: React.FC = () => {
   ) => {
     if (!sessionId) return;
     setErrorMessage(null);
+    const activeReportId = chatState?.submitted_report?.id || '';
     try {
       const res = await correctDraftReport({
         action: 'correct_draft_report',
         session_id: sessionId,
-        report_id: 'draft',
+        report_id: activeReportId,
         updates: { [field]: patch },
       });
       setChatState(res);
@@ -236,11 +237,12 @@ export const PatientShell: React.FC = () => {
     if (!sessionId) return;
     setIsProcessing(true);
     setErrorMessage(null);
+    const activeReportId = chatState?.submitted_report?.id || '';
     try {
       const res = await submitReport({
         action: 'submit_report',
         session_id: sessionId,
-        report_id: 'draft',
+        report_id: activeReportId,
       });
       setChatState(res);
       setCurrentScreen('booking');

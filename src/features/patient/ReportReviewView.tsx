@@ -57,13 +57,18 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
   return (
     <div className="flex flex-col h-full bg-surface-mobile">
       {/* Header */}
-      <div className="px-6 py-4 bg-white/70 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-10">
-        <h2 className="text-xl font-bold text-text-primary tracking-tight">
-          {t.review.title}
-        </h2>
-        <p className="text-xs text-text-secondary mt-0.5">
-          {t.review.subtitle}
-        </p>
+      <div className="px-6 py-4 bg-white/70 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-10 flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-text-primary tracking-tight">
+            {t.review.title}
+          </h2>
+          <p className="text-xs text-text-secondary mt-0.5">
+            {t.review.subtitle}
+          </p>
+        </div>
+        <span className="text-[10px] px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-bold uppercase tracking-wider">
+          Draft Preview
+        </span>
       </div>
 
       {/* Incomplete 15-Turn Cap Banner (D9 Copy) */}
