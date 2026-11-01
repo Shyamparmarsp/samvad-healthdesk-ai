@@ -858,20 +858,28 @@ async function runVerification() {
     await cdp.waitForText(/समय|How long|कब/i);
     await sendAnswer('3 दिन');
 
-    await cdp.waitForText(/तीव्रता|Severity/i);
-    await clickChip(/मध्यम|Moderate/i);
+    await cdp.waitForText(/तीव्रता|गंभीर|Severity/i);
+    await clickChip(/मध्यम|Moderate|गंभीर/i);
+    await sendAnswer('मध्यम');
 
-    await cdp.waitForText(/बीमारी|Conditions/i);
+    await cdp.waitForText(/बीमारी|पुरानी|Conditions/i);
     await clickChip(/कोई नहीं|None/i);
+    await sendAnswer('कोई नहीं');
 
     await cdp.waitForText(/दवा|Medicines/i);
     await clickChip(/कोई नहीं|None/i);
+    await sendAnswer('कोई नहीं');
 
     await cdp.waitForText(/एलर्जी|Allergies/i);
     await clickChip(/कोई नहीं|None/i);
+    await sendAnswer('कोई नहीं');
 
-    await cdp.waitForText(/अन्य लक्षण|Other/i);
-    await clickChip(/कोई अन्य|No other/i);
+    // Check if other symptoms is asked or if review screen is already reached
+    const postAllergies = await cdp.waitForText(/अन्य लक्षण|और बात|समीक्षा|Review/i);
+    if (!/समीक्षा|Review/i.test(postAllergies)) {
+      await clickChip(/कोई अन्य|No other/i);
+      await sendAnswer('कोई अन्य लक्षण नहीं');
+    }
 
     // Verify Hindi Review Screen
     const hindiReviewText = await cdp.waitForText(/अपनी इनटेक रिपोर्ट की समीक्षा करें|समीक्षा/i);
