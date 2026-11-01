@@ -1,19 +1,19 @@
 {
-  "generatedAt": "2026-11-01T22:56:04.140Z",
+  "generatedAt": "2026-11-01T22:57:47.422Z",
   "prerequisites": {
     "apiUp": true,
     "functionsUp": true,
     "stubUp": true,
     "dbUp": true,
-    "skipSmoke": true,
-    "frontend": false
+    "skipSmoke": false,
+    "frontend": true
   },
   "summary": {
-    "total": 21,
-    "pass": 19,
+    "total": 23,
+    "pass": 23,
     "fail": 0,
     "blocked": 0,
-    "notTested": 2
+    "notTested": 0
   },
   "steps": [
     {
@@ -22,7 +22,7 @@
       "status": "PASS",
       "required": true,
       "detail": "type check clean",
-      "ms": 445
+      "ms": 481
     },
     {
       "group": "static",
@@ -30,7 +30,7 @@
       "status": "PASS",
       "required": true,
       "detail": "181 passed, 0 failed",
-      "ms": 1203
+      "ms": 1255
     },
     {
       "group": "static",
@@ -38,7 +38,7 @@
       "status": "PASS",
       "required": true,
       "detail": "150 questions valid",
-      "ms": 19
+      "ms": 24
     },
     {
       "group": "static",
@@ -46,7 +46,7 @@
       "status": "PASS",
       "required": true,
       "detail": "CSV ids match the bank",
-      "ms": 23
+      "ms": 29
     },
     {
       "group": "static",
@@ -54,7 +54,7 @@
       "status": "PASS",
       "required": true,
       "detail": "17 fixtures valid",
-      "ms": 34
+      "ms": 37
     },
     {
       "group": "static",
@@ -62,7 +62,7 @@
       "status": "PASS",
       "required": true,
       "detail": "no key-shaped strings in tracked files",
-      "ms": 33
+      "ms": 82
     },
     {
       "group": "providers",
@@ -78,7 +78,7 @@
       "status": "PASS",
       "required": true,
       "detail": "refused before any request (exit 2)",
-      "ms": 16
+      "ms": 18
     },
     {
       "group": "database",
@@ -86,7 +86,7 @@
       "status": "PASS",
       "required": true,
       "detail": "29/29 pass, 0 fail, 0 blocked",
-      "ms": 1310
+      "ms": 1467
     },
     {
       "group": "database",
@@ -94,7 +94,7 @@
       "status": "PASS",
       "required": true,
       "detail": "5 assertions passed",
-      "ms": 122
+      "ms": 158
     },
     {
       "group": "database",
@@ -102,7 +102,7 @@
       "status": "PASS",
       "required": true,
       "detail": "4 assertions passed",
-      "ms": 133
+      "ms": 123
     },
     {
       "group": "database",
@@ -110,7 +110,7 @@
       "status": "PASS",
       "required": true,
       "detail": "10 assertions passed",
-      "ms": 186
+      "ms": 438
     },
     {
       "group": "database",
@@ -118,7 +118,7 @@
       "status": "PASS",
       "required": true,
       "detail": "4 assertions passed",
-      "ms": 141
+      "ms": 175
     },
     {
       "group": "database",
@@ -126,7 +126,7 @@
       "status": "PASS",
       "required": true,
       "detail": "4 assertions passed",
-      "ms": 113
+      "ms": 138
     },
     {
       "group": "database",
@@ -134,7 +134,7 @@
       "status": "PASS",
       "required": true,
       "detail": "5 assertions passed",
-      "ms": 118
+      "ms": 166
     },
     {
       "group": "operations",
@@ -142,7 +142,7 @@
       "status": "PASS",
       "required": true,
       "detail": "28/28 rehearsal checks; 10 migrations applied",
-      "ms": 2632
+      "ms": 3652
     },
     {
       "group": "operations",
@@ -150,7 +150,7 @@
       "status": "PASS",
       "required": true,
       "detail": "17/22 pass, 0 fail, 5 owner-blocked",
-      "ms": 357
+      "ms": 390
     },
     {
       "group": "operations",
@@ -158,7 +158,7 @@
       "status": "PASS",
       "required": true,
       "detail": "16/16 checks",
-      "ms": 281
+      "ms": 520
     },
     {
       "group": "operations",
@@ -166,23 +166,39 @@
       "status": "PASS",
       "required": true,
       "detail": "5 refusal cases passed",
-      "ms": 20
+      "ms": 23
     },
     {
       "group": "operations",
       "name": "demo smoke (integration + adaptive)",
-      "status": "NOT TESTED",
-      "required": false,
-      "detail": "--skip-smoke requested; NOT TESTED in this run",
-      "ms": 0
+      "status": "PASS",
+      "required": true,
+      "detail": "integration 52/52, adaptive 29/29; identities created=20 deleted=20",
+      "ms": 5607
     },
     {
       "group": "frontend",
-      "name": "typescript + tests + build",
-      "status": "NOT TESTED",
-      "required": false,
-      "detail": "not requested; run with --frontend",
-      "ms": 0
+      "name": "typescript",
+      "status": "PASS",
+      "required": true,
+      "detail": "clean",
+      "ms": 2023
+    },
+    {
+      "group": "frontend",
+      "name": "unit + api suites",
+      "status": "PASS",
+      "required": true,
+      "detail": "pass=26+7+51 fail=0+0+0",
+      "ms": 19104
+    },
+    {
+      "group": "frontend",
+      "name": "production build",
+      "status": "PASS",
+      "required": true,
+      "detail": "build succeeded",
+      "ms": 2869
     }
   ],
   "ok": true,
