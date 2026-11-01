@@ -257,3 +257,41 @@ Read-only check of the frontend worktree — both previously open items are **ad
 - `src/types/consent.ts` exports `CONSENT_VERSION = '2026-11-01.v1'` and the same English wording.
 
 No mismatch found in the six action definitions or the report v1.2 correction semantics.
+
+---
+
+## 14. Adaptive intake question bank (`question-bank-v1`)
+
+**Status:** draft content, `draft_owner_review` on every entry. Not clinically validated. Hindi wording requires human review.
+
+| Item | Value |
+|---|---|
+| Bank version | `question-bank-v1` |
+| Questions | **150** — 30 each for `general_medicine`, `orthopedics`, `general_surgery`, `dermatology`, `cardiology` |
+| Language variants | **300** (one English + one Hindi text per question, paired under one id) |
+| ID convention | `GM-001…GM-030`, `ORTH-…`, `SURG-…`, `DERM-…`, `CARD-…`; stable across versions, never reused |
+| Answer types | `free_text`, `yes_no`, `single_choice` |
+| Source | `supabase/functions/_shared/intake/bank-v1.ts` (static, version-controlled; no database table) |
+
+Each question carries a department, topic and tag list, one report field, optional localised options, version and review status. Choice options are stored as `{ value, en, hi }`.
+
+**Language behaviour:** the same id always returns the same clinical question. `questionText(id, "en" | "hi")` selects the stored text; nothing is translated at runtime. Patient answers may be English, Hindi, Hinglish or a mix — the backend stores the patient's words verbatim and never replaces them.
+
+**`current_question` usage (unchanged shape):**
+
+```json
+{
+  "id": "CARD-003",
+  "text": "Does it come with walking or climbing?",
+  "text_hi": "चलने या सीढ़ी चढ़ने पर होती है?",
+  "options": ["Yes", "No"]
+}
+```
+
+Choice questions return localised `options`; a bank id is passed in the existing `question_id` field of `submit_turn`. **No `QuestionId` union change is required for rendering** — the union should be widened to accept bank ids (`string`) when the adaptive flow ships, or the frontend can accept `string` for `current_question.id`.
+
+**Retrieval:** deterministic metadata only (department → tag overlap → missing report field), max 8 candidates. Groq may select **one candidate id** via a strict JSON schema; it cannot write question text. Invalid id, malformed output, timeout or missing key falls back to the first candidate deterministically.
+
+**Limits:** at most **3** adaptive questions per session (`MAX_ADAPTIVE_QUESTIONS`), on top of the scripted core; adaptive answers count toward the 15-answer cap only after patient confirmation; no provider calls after the cap; adaptive questions never run in emergency or `urgent_partial` flows.
+
+**Fixture:** `supabase/functions/_shared/intake/question-bank.test.ts` asserts counts, pairing, option localisation and retrieval behaviour.
