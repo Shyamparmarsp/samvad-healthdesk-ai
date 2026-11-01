@@ -5,6 +5,20 @@
 in `supabase/functions/_shared/cors.ts` **cannot be enforced at the platform layer**, and
 records why that is acceptable here.
 
+## 0. Three layers, three different answers
+
+| Layer | What it does | Evidence | Status |
+|---|---|---|---|
+| **Function policy** (`supabase/functions/_shared/cors.ts`) | exact-origin allowlist, `Access-Control-Max-Age`, `Vary: Origin` | unit-tested in `_shared/cors.test.ts` | **PASS** (policy is correct) |
+| **Local platform** (edge runtime `:8081` + Kong `:54321`) | answers OPTIONS itself and forces `Access-Control-Allow-Origin: *` | measured probes in §2 | **FAIL** for restrictiveness (platform behaviour, not our code) |
+| **Hosted production** | same open-source runtime is expected, but not observed | none | **NOT TESTED / BLOCKED** — requires an owner deployment |
+
+**Release rule:** because layer 3 is unverified, this project does **not** claim
+restrictive CORS in production. `ALLOWED_ORIGINS` is configured as an exact-origin
+allowlist for correctness, and the release matrix records runtime CORS restriction as
+**FAIL (platform)** with production behaviour **NOT TESTED**. JWT verification, RLS and
+ownership checks remain the only authorisation controls and were not weakened.
+
 No service was stopped, restarted or reconfigured. Probes were read-only HTTP requests
 sent from inside the `supabase_db_*` container (the only container image with a `curl`
 binary; the edge runtime and Kong images have neither `curl` nor `wget`).

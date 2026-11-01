@@ -1,0 +1,21 @@
+{
+  "generatedAt": "2026-11-01T22:51:17.483Z",
+  "mode": "non-live",
+  "externalRequests": 0,
+  "providers": {
+    "groq": {
+      "status": "NOT_RUN",
+      "reason": "non-live mode is the default"
+    },
+    "prisma": {
+      "status": "NOT_RUN",
+      "reason": "non-live mode is the default"
+    },
+    "timbre": {
+      "status": "NOT_RUN",
+      "reason": "non-live mode is the default"
+    }
+  },
+  "ok": null,
+  "note": "No live provider verification has been performed. This is not a pass."
+}
