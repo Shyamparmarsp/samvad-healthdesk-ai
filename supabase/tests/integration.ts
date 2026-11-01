@@ -24,6 +24,19 @@ if (!ANON || !SERVICE) {
   Deno.exit(2);
 }
 
+// Fail closed: if the local stub is unavailable the run must abort, never continue in a
+// state where a provider call could escape to a real endpoint.
+try {
+  const probe = await fetch(`${STUB}/__stats`);
+  if (!probe.ok) throw new Error(`stub returned ${probe.status}`);
+  const probeBody = await probe.json();
+  if (typeof probeBody.groqCalls !== "number") throw new Error("stub does not look like the local stub");
+} catch (error) {
+  console.error(`ABORT: local provider stub at ${STUB} is not reachable (${String(error)}).`);
+  console.error("Refusing to run: without the stub, provider traffic could reach a real endpoint.");
+  Deno.exit(2);
+}
+
 interface Result {
   name: string;
   label: string;
@@ -589,12 +602,102 @@ record(
 );
 
 // ---------------------------------------------------------------------------
+// 10. Mark Reviewed over HTTP (real doctor JWTs, real RPC)
+// ---------------------------------------------------------------------------
+const rpcReview = (token: string, reportId: string) =>
+  api("/rest/v1/rpc/mark_report_reviewed", { method: "POST", body: JSON.stringify({ p_report_id: reportId }) }, token);
+
+const beforeReview = (await api(`/rest/v1/reports?select=status,department_key,doctor_id,possible_urgent,needs_human_review,report&id=eq.${reportId}`, {}, undefined)).body?.[0];
+
+const firstReview = await rpcReview(orToken, reportId);
+record(
+  "the assigned doctor marks a submitted report reviewed",
+  "HTTP+DB",
+  firstReview.status === 200 && firstReview.body?.[0]?.already_reviewed === false,
+  `status=${firstReview.status}`,
+);
+const firstReviewedAt = firstReview.body?.[0]?.reviewed_at;
+
+const repeatReview = await rpcReview(orToken, reportId);
+record(
+  "a repeated review is idempotent and keeps the first timestamp",
+  "HTTP+DB",
+  repeatReview.status === 200 && repeatReview.body?.[0]?.already_reviewed === true && repeatReview.body?.[0]?.reviewed_at === firstReviewedAt,
+  `first=${firstReviewedAt} second=${repeatReview.body?.[0]?.reviewed_at}`,
+);
+
+const afterReview = (await api(`/rest/v1/reports?select=status,department_key,doctor_id,possible_urgent,needs_human_review,report,reviewed_by&id=eq.${reportId}`, {}, undefined)).body?.[0];
+record(
+  "review changes only the two review fields",
+  "HTTP+DB",
+  afterReview?.status === beforeReview?.status &&
+    afterReview?.doctor_id === beforeReview?.doctor_id &&
+    afterReview?.department_key === beforeReview?.department_key &&
+    afterReview?.possible_urgent === beforeReview?.possible_urgent &&
+    afterReview?.needs_human_review === beforeReview?.needs_human_review &&
+    JSON.stringify(afterReview?.report) === JSON.stringify(beforeReview?.report),
+);
+record(
+  "reviewed_by records the authenticated doctor identity",
+  "HTTP+DB",
+  typeof afterReview?.reviewed_by === "string" && afterReview.reviewed_by.length === 36,
+  `reviewed_by=${afterReview?.reviewed_by ? "set" : "missing"}`,
+);
+
+const unassignedReview = await rpcReview(deToken, reportId);
+record("an unassigned doctor is rejected", "HTTP+DB", unassignedReview.status >= 400, `status=${unassignedReview.status}`);
+
+const patientReview = await rpcReview(patientA, reportId);
+record("a patient is rejected", "HTTP+DB", patientReview.status >= 400, `status=${patientReview.status}`);
+
+const draftReportId = (await api(`/rest/v1/reports?select=id&status=eq.draft`, {}, undefined)).body?.[0]?.id;
+if (draftReportId) {
+  const draftReview = await rpcReview(orToken, draftReportId);
+  record("a draft report is rejected", "HTTP+DB", draftReview.status >= 400, `status=${draftReview.status}`);
+} else {
+  record("a draft report is rejected", "Not tested / blocked", false, "no draft report fixture available");
+}
+
+const urgentReportId = (await api(`/rest/v1/reports?select=id&session_id=eq.${sessionD}`, {}, undefined)).body?.[0]?.id;
+if (urgentReportId) {
+  const gmUrgent = await rpcReview(gmToken, urgentReportId);
+  record(
+    "a General Medicine doctor is denied on an emergency report (OD-03 interim)",
+    "HTTP+DB",
+    gmUrgent.status >= 400,
+    `status=${gmUrgent.status}`,
+  );
+
+  const emUrgent = await rpcReview(emToken, urgentReportId);
+  record(
+    "the Emergency doctor reviews the eligible emergency report",
+    "HTTP+DB",
+    emUrgent.status === 200 && typeof emUrgent.body?.[0]?.reviewed_at === "string",
+    `status=${emUrgent.status}`,
+  );
+
+  const urgentState = (await api(`/rest/v1/reports?select=status,department_key&id=eq.${urgentReportId}`, {}, undefined)).body?.[0];
+  record(
+    "emergency review changes neither status nor booking eligibility",
+    "HTTP+DB",
+    urgentState?.status === "urgent_partial" && urgentState?.department_key === "emergency",
+    JSON.stringify(urgentState?.status),
+  );
+} else {
+  record("emergency review matrix", "Not tested / blocked", false, "no urgent report fixture available");
+}
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 const stats = await stubStats();
 facts.stub = stats;
 console.log(`\nStub call counts: groq=${stats.groqCalls} prisma=${stats.prismaCalls} timbre=${stats.ttsCalls}`);
 console.log(JSON.stringify({ facts }, null, 2));
+
+// Every provider-dependent path must have used the local stub. A zero counter means the
+// request either never happened or escaped somewhere else.
+record("the local stub served every provider-dependent path", "STUB", stats.groqCalls >= 2 && stats.prismaCalls >= 1 && stats.ttsCalls >= 2, `groq=${stats.groqCalls} prisma=${stats.prismaCalls} timbre=${stats.ttsCalls}`);
 
 const failed = results.filter((entry) => !entry.ok);
 console.log(`\n${results.length - failed.length}/${results.length} scenarios passed`);

@@ -166,9 +166,47 @@ Rejected with `field_not_editable`: `id`, `session_id`, `user_id`, `schema_versi
 
 ---
 
-## 10. Open decisions that affect the UI
+## 10. Mark Reviewed RPC (implemented, `20261102120000_mark_report_reviewed.sql`)
+
+```
+POST /rest/v1/rpc/mark_report_reviewed
+Authorization: Bearer <doctor JWT>      apikey: <publishable/anon>
+{ "p_report_id": "<report uuid>" }
+
+200 → [ { "report_id": uuid, "reviewed_at": ISO-8601, "reviewed_by": uuid, "already_reviewed": boolean } ]
+```
+
+- `reviewed_by` is the authenticated doctor identity (`auth.uid()`), exactly as approved in RD-17.
+- `already_reviewed: true` means the first review is preserved; the timestamp never changes.
+- Errors arrive as PostgREST errors: `42501` (not a doctor / not authorised), `P0002` (not found), `22023` (draft, not reviewable). The UI shows a generic failure and must not claim success.
+
+| Caller | `submitted` report | `urgent_partial` emergency report | Draft |
+|---|---|---|---|
+| Assigned doctor | **allowed** | not applicable | rejected |
+| Emergency doctor | only if assigned | **allowed** | rejected |
+| General Medicine doctor | only if assigned | **denied (OD-03 interim)** | rejected |
+| Any other mapped doctor | denied | denied | rejected |
+| Patient / anonymous | denied | denied | denied |
+
+Review changes exactly two columns. It never changes status, flags, content, routing or booking eligibility, so an emergency report stays permanently unbookable.
+
+Frontend usage: call it, then re-read the report; do not update local state optimistically.
+
+---
+
+## 11. Open decisions that affect the UI
 
 | ID | Question | Current backend behaviour |
 |---|---|---|
 | OD-02 | Does the emergency clarification answer consume one of the 15 turns? | **Not counted.** The answer is stored in `sessions.clarification_answer` for evidence, the question stays current until resolved. Do not build UI that assumes either rule until the owner decides. |
 | OD-09 | Does a later clear "No" clear an earlier `needs_human_review`? | **No.** The flag is conservative and stays set until the owner decides. |
+| OD-03 | May a General Medicine doctor mark an Emergency report reviewed? | **No (interim).** Read cross-visibility does not grant review authority. The Emergency doctor may review; General Medicine is denied until the owner decides. |
+
+## 12. Frontend adoption status (verified 2 November 2026)
+
+Read-only check of the frontend worktree — both previously open items are **adopted**:
+
+- `src/types/api.ts` declares `TranscriptPreview` with `state: 'transcript_preview'` and `transcript_preview?: TranscriptPreview`; `src/lib/api.ts` builds it and documents that `turn_count` is unchanged while it is present.
+- `src/types/consent.ts` exports `CONSENT_VERSION = '2026-11-01.v1'` and the same English wording.
+
+No mismatch found in the six action definitions or the report v1.2 correction semantics.

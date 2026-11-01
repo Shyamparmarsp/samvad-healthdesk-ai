@@ -48,9 +48,17 @@ Deno.test("schema: every table enables row level security", () => {
   }
 });
 
-Deno.test("schema: no SECURITY DEFINER anywhere", () => {
-  const sql = allSql().toLowerCase();
-  assert(!sql.includes("security definer"), "SECURITY DEFINER is not allowed");
+Deno.test("schema: SECURITY DEFINER is confined to mark_report_reviewed", () => {
+  const definers = listMigrations().filter((name) => readMigration(name).toLowerCase().includes("security definer"));
+  assertEqual(definers.length, 1, "exactly one migration declares SECURITY DEFINER");
+  assertEqual(definers[0], "20261102120000_mark_report_reviewed.sql", "the reviewed RPC only");
+
+  const sql = readMigration(definers[0]).toLowerCase();
+  assert(sql.includes("set search_path = ''"), "empty search_path");
+  assert(sql.includes("auth.uid()"), "caller identity validated inline");
+  assert(sql.includes("revoke all on function public.mark_report_reviewed(uuid) from public, anon, authenticated"), "execute revoked");
+  assert(sql.includes("grant execute on function public.mark_report_reviewed(uuid) to authenticated"), "authenticated only");
+  assert(!sql.includes("grant update"), "no table write grant added");
 });
 
 Deno.test("schema: browser roles never receive write privileges", () => {

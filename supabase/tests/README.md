@@ -5,9 +5,10 @@
 
 | Suite | File | Result |
 |---|---|---|
-| Edge Function lifecycle (real HTTP + real DB, stubbed providers) | `integration.ts` | **41 / 41 scenarios PASS** |
+| Edge Function lifecycle (real HTTP + real DB, stubbed providers) | `integration.ts` | **52 / 52 scenarios PASS** |
 | RLS and ownership | `rls.sql` | PASS — 5 assertion blocks, all NOTICEs |
 | Constraints, grants, IST bucketing | `constraints.sql` | PASS — 4 blocks |
+| Mark Reviewed authorisation matrix | `mark_reviewed.sql` | PASS — 10 blocks |
 | Atomic reservation, limit 5 | pgbench, 20 clients | 5 allowed / 15 denied, `used = 5` |
 | Atomic reservation, limit 14 | pgbench, 20 clients | 14 allowed / 6 denied, `used = 14` |
 
