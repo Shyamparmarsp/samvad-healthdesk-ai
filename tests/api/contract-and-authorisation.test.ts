@@ -204,10 +204,15 @@ describe('M4 frontend integration — contract and authorisation (local Supabase
     assert.ok(forged.error, 'a patient must never insert a report');
   });
 
-  it('[RLS] a patient cannot see or book another patient\'s appointment rows', async () => {
+  it('[RLS] a patient cannot read appointment rows, even their own', async () => {
+    // No browser grant at all: access fails loudly instead of returning rows.
     const rows = await fx.patient.client.from('appointments').select('id');
-    assert.equal(rows.error, null);
-    assert.deepEqual(rows.data, [], 'the appointments policy is doctor-scoped');
+    assert.ok(rows.error, 'appointments must not be table-readable by a browser role');
+
+    // The doctor-only read RPC returns nothing for a caller with no doctor_profiles row.
+    const rpc = await fx.patient.client.rpc('get_doctor_appointments');
+    assert.equal(rpc.error, null);
+    assert.deepEqual(rpc.data, [], 'a non-doctor sees no appointments');
   });
 
   it('[RLS] the assigned doctor sees the submitted report, a draft never appears', async () => {

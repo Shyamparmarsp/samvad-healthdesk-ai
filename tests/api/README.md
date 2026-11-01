@@ -83,7 +83,7 @@ Legend: **Real** = the Supabase-mode path, **Mock** = the in-memory demo path.
 | 16 | `doctorLogout` | `auth.signOut` | real | no-op | n/a | n/a | `patient-journey` | — |
 | 17 | `getDoctorReports` | PostgREST `reports` | real, RLS-scoped | local filter with the Emergency cross-visibility | caller-scoped RLS (`reports_doctor_read`); drafts never match | **Fixed**: throws `ApiError` with the PostgREST code instead of a bare Error | `patient-journey`, `contract` | — |
 | 18 | `getDoctorReportDetail` | PostgREST `reports` | real, `maybeSingle` | local map | same policy | same | `patient-journey`, `safety`, `contract` | — |
-| 19 | `getDoctorAppointments` | PostgREST `appointments` | real read (new policy) + enrichment from `doctors`/`departments`/`reports` | local filter | caller-scoped: a doctor reads only appointments matching their own `doctor_profiles` row | **Fixed**: throws instead of returning `[]`, which previously made a denied read look like "nothing booked" | `patient-journey`, `contract` | **Fixed (blocking)**: `appointments` had no browser `SELECT` grant or policy, so the real dashboard could never show a booking, "Booked" was always 0 and the Today/Upcoming/Past tabs were always empty. Migration `20261102160000_doctor_appointment_reads.sql` adds a read-only, doctor-scoped policy + grant. Rows were also missing `doctor_name`, `department_name` and `patient_name`; they are now enriched from the reference tables and the visible report. |
+| 19 | `getDoctorAppointments` | RPC `get_doctor_appointments()` | real RPC returning derived rows | local filter | `SECURITY DEFINER` read RPC scoped to the caller's own `doctor_profiles` row; a non-doctor gets an empty set, never a 403 | **Fixed**: throws instead of returning `[]`, which previously made a denied read look like "nothing booked" | `patient-journey`, `contract` | **Fixed (blocking)**: `appointments` has no browser grant or policy, so the real dashboard could never show a booking — "Booked" was always 0 and the Today/Upcoming/Past tabs were always empty. Migration `20261102160000_doctor_appointment_reads.sql` adds one read-only function; the table stays closed. It also supplies `doctor_name`, `department_name` and `patient_name`, which the old table read never returned. |
 | 20 | `getDoctorDashboardStats` | derived from #17 + #19 | client-side count over the doctor's visible rows | same | inherits both reads | inherits | `patient-journey` | definition follows `docs/report-design.md` §15; it now inherits the corrected appointment read instead of silently counting everything as "Not booked" |
 
 ### Cross-cutting contract checks confirmed
@@ -109,8 +109,10 @@ These are in the backend worktree (`feat/backend`) and are documented in
    verified `auth.uid()`.
 2. `speak` accepts adaptive bank question ids (`GM-001` … `CARD-030`). They are the only
    questions that need Timbre, and it previously returned `400` for every one of them.
-3. `20261102160000_doctor_appointment_reads.sql` adds the read-only doctor-scoped
-   appointment policy and grant.
+3. `20261102160000_doctor_appointment_reads.sql` adds the read-only, doctor-scoped
+   `get_doctor_appointments()` RPC. `appointments` deliberately keeps no browser grant, so
+   this is the third reviewed `SECURITY DEFINER` function (after `book_appointment` and
+   `mark_report_reviewed`, and alongside the accepted `get_available_slots` deviation).
 
 ## 4. Outstanding frontend (Antigravity-owned) dependency
 

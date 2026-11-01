@@ -2025,76 +2025,47 @@ export async function getDoctorReportDetail(reportId: string): Promise<ReportRow
 export async function getDoctorAppointments(doctorId?: string): Promise<Appointment[]> {
   if (currentAppMode === 'supabase') {
     const client = getSupabaseClient();
-    const { data, error } = await client
-      .from('appointments')
-      .select('*')
-      .order('slot_start', { ascending: true });
+    // appointments has no browser grant and no read policy, so this is a narrow
+    // read-only RPC (20261102160000_doctor_appointment_reads.sql) rather than a table
+    // select. Previously the table read was denied and the error was swallowed into [].
+    const { data, error } = await client.rpc('get_doctor_appointments');
 
     if (error) {
-      // Previously this returned [] on any error, which made the dashboard silently
-      // report every report as "Not booked" when the read was actually denied.
+      if (error.code === '28000') {
+        throw new ApiError('Not authenticated.', 'unauthorized', 401);
+      }
       throw new ApiError(error.message || 'Failed to fetch appointments', error.code, 400);
     }
 
     const rows = (data || []) as {
-      id: string;
+      appointment_id: string;
       report_id: string;
-      user_id: string;
       doctor_id: string;
+      doctor_name: string;
+      department_key: DepartmentKey | null;
+      department_name: string | null;
+      patient_name: string | null;
       slot_start: string;
       slot_end: string;
-      status: 'confirmed' | 'cancelled';
       reference_code: string;
+      appointment_status: 'confirmed' | 'cancelled';
       created_at: string;
     }[];
-    if (rows.length === 0) return [];
 
-    const doctorIds = Array.from(new Set(rows.map((row) => row.doctor_id).filter(isUuid)));
-    const reportIds = Array.from(new Set(rows.map((row) => row.report_id).filter(isUuid)));
-
-    const [doctorResult, departmentResult, reportResult] = await Promise.all([
-      doctorIds.length
-        ? client.from('doctors').select('id, display_name, department_key').in('id', doctorIds)
-        : Promise.resolve({ data: [], error: null }),
-      client.from('departments').select('key, name'),
-      reportIds.length
-        ? client.from('reports').select('id, report').in('id', reportIds)
-        : Promise.resolve({ data: [], error: null }),
-    ]);
-
-    const doctorById = new Map(
-      ((doctorResult.data || []) as { id: string; display_name: string; department_key: DepartmentKey }[]).map(
-        (doctor) => [doctor.id, doctor],
-      ),
-    );
-    const departmentByKey = new Map(
-      ((departmentResult.data || []) as { key: string; name: string }[]).map((dept) => [dept.key, dept.name]),
-    );
-    const patientNameByReport = new Map(
-      ((reportResult.data || []) as { id: string; report: ReportDocumentV1 }[]).map((report) => {
-        const name = report.report?.patient?.name;
-        return [report.id, name?.status === 'provided' && typeof name.value === 'string' ? name.value : ''];
-      }),
-    );
-
-    return rows.map((row) => {
-      const doctor = doctorById.get(row.doctor_id);
-      const departmentKey = doctor?.department_key ?? null;
-      return {
-        id: row.id,
-        report_id: row.report_id,
-        doctor_id: row.doctor_id,
-        doctor_name: doctor?.display_name || '',
-        department_name: (departmentKey && departmentByKey.get(departmentKey)) || departmentNameFor(departmentKey),
-        slot_id: row.slot_start,
-        slot_start: row.slot_start,
-        slot_end: row.slot_end,
-        reference_code: row.reference_code,
-        patient_name: patientNameByReport.get(row.report_id) || '',
-        created_at: row.created_at,
-        status: row.status,
-      };
-    });
+    return rows.map((row) => ({
+      id: row.appointment_id,
+      report_id: row.report_id,
+      doctor_id: row.doctor_id,
+      doctor_name: row.doctor_name || '',
+      department_name: row.department_name || departmentNameFor(row.department_key),
+      slot_id: row.slot_start,
+      slot_start: row.slot_start,
+      slot_end: row.slot_end,
+      reference_code: row.reference_code,
+      patient_name: row.patient_name || '',
+      created_at: row.created_at,
+      status: row.appointment_status,
+    }));
   }
 
   const currentDocId = doctorId || FICTIONAL_DOCTORS.general_medicine.id;
