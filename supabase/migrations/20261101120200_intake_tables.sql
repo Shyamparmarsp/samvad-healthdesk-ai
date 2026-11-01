@@ -21,6 +21,7 @@ create table public.sessions (
   answer_turn_count smallint not null default 0 check (answer_turn_count between 0 and 15),
   current_question_id text null,
   pending_clarification_rule_id text null,
+  needs_human_review boolean not null default false,
   ended_at timestamptz null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -92,6 +93,8 @@ comment on table public.sessions is
   'Server-owned intake session. answer_turn_count is the authoritative 15-answer cap and is only advanced by a conditional UPDATE.';
 comment on column public.sessions.pending_transcript_expires_at is
   'Server-side expiry (10 minutes from persistence). Expired pendings are treated as absent and are never returned.';
+comment on column public.sessions.needs_human_review is
+  'Set when an ambiguous emergency statement was never reliably resolved. Copied onto the report at draft generation and blocks routine booking until Mark Reviewed.';
 comment on column public.sessions.audio_claim_expires_at is
   'Claim lock/execution deadline. Refreshed at the dispatch fence. An expired claim can never write a transcript.';
 

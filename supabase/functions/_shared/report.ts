@@ -423,3 +423,19 @@ export function isDepartmentKey(value: unknown): value is DepartmentKey {
     value === "cardiology"
   );
 }
+
+/** Rebuilds the editable field map from a stored document (used by corrections). */
+export function fieldsFromDocument(doc: ReportDocumentV1): FieldMap {
+  return {
+    "patient.name": doc.patient.name as FieldValue<unknown>,
+    "patient.age": doc.patient.age as FieldValue<unknown>,
+    "patient.gender": doc.patient.gender as FieldValue<unknown>,
+    "primary_concern": doc.primary_concern as FieldValue<unknown>,
+    "clinical_details.duration": doc.clinical_details.duration as FieldValue<unknown>,
+    "clinical_details.severity": doc.clinical_details.severity as FieldValue<unknown>,
+    "clinical_details.conditions": doc.clinical_details.conditions as FieldValue<unknown>,
+    "clinical_details.medications": doc.clinical_details.medications as FieldValue<unknown>,
+    "clinical_details.allergies": doc.clinical_details.allergies as FieldValue<unknown>,
+    "clinical_details.other_symptoms": doc.clinical_details.other_symptoms as FieldValue<unknown>,
+  };
+}

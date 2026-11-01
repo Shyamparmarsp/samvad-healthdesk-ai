@@ -208,5 +208,11 @@ export interface ChatTurnResponse {
   submitted_report?: ReportRow;
   emergency_triggered?: boolean;
   demo_busy?: boolean;
+  /**
+   * Additive field (backend proposal, pending frontend adoption): the transcript
+   * produced by an audio turn, awaiting the patient's confirmation. The turn is not
+   * accepted and turn_count is unchanged while this is present.
+   */
+  pending_transcript?: string;
   error?: string;
 }

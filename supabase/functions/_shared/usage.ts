@@ -21,7 +21,7 @@ export interface RpcResponse {
 
 /** Minimal structural client: only `.rpc` is used, so tests need no network. */
 export interface RpcClient {
-  rpc(name: string, params?: Record<string, unknown>): Promise<RpcResponse>;
+  rpc(name: string, params?: Record<string, unknown>): PromiseLike<RpcResponse>;
 }
 
 export type ReservationResult =
