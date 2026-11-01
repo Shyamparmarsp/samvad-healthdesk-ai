@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-01T22:57:16.877Z",
-  "rehearsalDatabase": "samvad_rehearsal_20261101225713",
+  "generatedAt": "2026-11-01T23:00:52.883Z",
+  "rehearsalDatabase": "samvad_rehearsal_20261101230049",
   "kept": false,
   "migrations": [
     "ok  20261101120000_enums_and_helpers.sql",
@@ -12,11 +12,12 @@
     "ok  20261102130000_availability_and_booking.sql",
     "ok  20261102140000_ist_day_bucket.sql",
     "ok  20261102150000_session_preliminary_department.sql",
-    "ok  20261102160000_doctor_appointment_reads.sql"
+    "ok  20261102160000_doctor_appointment_reads.sql",
+    "ok  20261102170000_report_immutability.sql"
   ],
   "summary": {
-    "total": 28,
-    "pass": 28,
+    "total": 29,
+    "pass": 29,
     "fail": 0,
     "blocked": 0
   },
@@ -29,7 +30,7 @@
     {
       "step": "1. create empty database",
       "status": "PASS",
-      "detail": "samvad_rehearsal_20261101225713"
+      "detail": "samvad_rehearsal_20261101230049"
     },
     {
       "step": "2. clone auth/extensions schema (no rows)",
@@ -92,9 +93,14 @@
       "detail": ""
     },
     {
+      "step": "3. migrate 20261102170000_report_immutability.sql",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
       "step": "3b. migration record",
       "status": "PASS",
-      "detail": "CLI-less clean room: 10/10 files applied individually (no ledger table by design)"
+      "detail": "CLI-less clean room: 11/11 files applied individually (no ledger table by design)"
     },
     {
       "step": "4. reference seed applied",
@@ -159,7 +165,7 @@
     {
       "step": "7. cleanup",
       "status": "PASS",
-      "detail": "dropped samvad_rehearsal_20261101225713"
+      "detail": "dropped samvad_rehearsal_20261101230049"
     }
   ],
   "ok": true,

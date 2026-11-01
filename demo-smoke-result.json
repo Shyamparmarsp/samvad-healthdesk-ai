@@ -1,10 +1,10 @@
 {
-  "runId": "6a942307-285d-4d1c-8ab4-d7f7dd0553af",
-  "generatedAt": "2026-11-01T22:57:23.416Z",
+  "runId": "c2d5aa74-050c-4466-8039-40ae5498159c",
+  "generatedAt": "2026-11-01T23:00:58.324Z",
   "target": "http://127.0.0.1:54321",
   "providerMode": "stub",
   "identityIsolation": {
-    "preexistingAnonymous": 158,
+    "preexistingAnonymous": 159,
     "createdByThisRun": 20,
     "deleted": 20,
     "remainingFromThisRun": 0

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-01T22:57:47.422Z",
+  "generatedAt": "2026-11-01T23:01:25.205Z",
   "prerequisites": {
     "apiUp": true,
     "functionsUp": true,
@@ -9,8 +9,8 @@
     "frontend": true
   },
   "summary": {
-    "total": 23,
-    "pass": 23,
+    "total": 24,
+    "pass": 24,
     "fail": 0,
     "blocked": 0,
     "notTested": 0
@@ -22,7 +22,7 @@
       "status": "PASS",
       "required": true,
       "detail": "type check clean",
-      "ms": 481
+      "ms": 738
     },
     {
       "group": "static",
@@ -30,7 +30,7 @@
       "status": "PASS",
       "required": true,
       "detail": "181 passed, 0 failed",
-      "ms": 1255
+      "ms": 1022
     },
     {
       "group": "static",
@@ -38,7 +38,7 @@
       "status": "PASS",
       "required": true,
       "detail": "150 questions valid",
-      "ms": 24
+      "ms": 19
     },
     {
       "group": "static",
@@ -46,7 +46,7 @@
       "status": "PASS",
       "required": true,
       "detail": "CSV ids match the bank",
-      "ms": 29
+      "ms": 25
     },
     {
       "group": "static",
@@ -54,7 +54,7 @@
       "status": "PASS",
       "required": true,
       "detail": "17 fixtures valid",
-      "ms": 37
+      "ms": 32
     },
     {
       "group": "static",
@@ -62,7 +62,7 @@
       "status": "PASS",
       "required": true,
       "detail": "no key-shaped strings in tracked files",
-      "ms": 82
+      "ms": 34
     },
     {
       "group": "providers",
@@ -78,7 +78,7 @@
       "status": "PASS",
       "required": true,
       "detail": "refused before any request (exit 2)",
-      "ms": 18
+      "ms": 16
     },
     {
       "group": "database",
@@ -86,7 +86,7 @@
       "status": "PASS",
       "required": true,
       "detail": "29/29 pass, 0 fail, 0 blocked",
-      "ms": 1467
+      "ms": 1415
     },
     {
       "group": "database",
@@ -94,7 +94,7 @@
       "status": "PASS",
       "required": true,
       "detail": "5 assertions passed",
-      "ms": 158
+      "ms": 152
     },
     {
       "group": "database",
@@ -102,7 +102,7 @@
       "status": "PASS",
       "required": true,
       "detail": "4 assertions passed",
-      "ms": 123
+      "ms": 126
     },
     {
       "group": "database",
@@ -110,7 +110,7 @@
       "status": "PASS",
       "required": true,
       "detail": "10 assertions passed",
-      "ms": 438
+      "ms": 192
     },
     {
       "group": "database",
@@ -118,7 +118,7 @@
       "status": "PASS",
       "required": true,
       "detail": "4 assertions passed",
-      "ms": 175
+      "ms": 132
     },
     {
       "group": "database",
@@ -126,7 +126,7 @@
       "status": "PASS",
       "required": true,
       "detail": "4 assertions passed",
-      "ms": 138
+      "ms": 123
     },
     {
       "group": "database",
@@ -134,15 +134,23 @@
       "status": "PASS",
       "required": true,
       "detail": "5 assertions passed",
-      "ms": 166
+      "ms": 120
+    },
+    {
+      "group": "database",
+      "name": "sql suite: report_immutability",
+      "status": "PASS",
+      "required": true,
+      "detail": "5 assertions passed",
+      "ms": 125
     },
     {
       "group": "operations",
       "name": "clean-room migration rehearsal",
       "status": "PASS",
       "required": true,
-      "detail": "28/28 rehearsal checks; 10 migrations applied",
-      "ms": 3652
+      "detail": "29/29 rehearsal checks; 11 migrations applied",
+      "ms": 2927
     },
     {
       "group": "operations",
@@ -150,7 +158,7 @@
       "status": "PASS",
       "required": true,
       "detail": "17/22 pass, 0 fail, 5 owner-blocked",
-      "ms": 390
+      "ms": 211
     },
     {
       "group": "operations",
@@ -158,7 +166,7 @@
       "status": "PASS",
       "required": true,
       "detail": "16/16 checks",
-      "ms": 520
+      "ms": 231
     },
     {
       "group": "operations",
@@ -166,7 +174,7 @@
       "status": "PASS",
       "required": true,
       "detail": "5 refusal cases passed",
-      "ms": 23
+      "ms": 18
     },
     {
       "group": "operations",
@@ -174,7 +182,7 @@
       "status": "PASS",
       "required": true,
       "detail": "integration 52/52, adaptive 29/29; identities created=20 deleted=20",
-      "ms": 5607
+      "ms": 4983
     },
     {
       "group": "frontend",
@@ -182,7 +190,7 @@
       "status": "PASS",
       "required": true,
       "detail": "clean",
-      "ms": 2023
+      "ms": 1801
     },
     {
       "group": "frontend",
@@ -190,7 +198,7 @@
       "status": "PASS",
       "required": true,
       "detail": "pass=26+7+51 fail=0+0+0",
-      "ms": 19104
+      "ms": 21511
     },
     {
       "group": "frontend",
@@ -198,7 +206,7 @@
       "status": "PASS",
       "required": true,
       "detail": "build succeeded",
-      "ms": 2869
+      "ms": 3557
     }
   ],
   "ok": true,

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-01T22:57:12.030Z",
+  "generatedAt": "2026-11-01T23:00:48.985Z",
   "database": "supabase_db_samvad-backend",
   "readOnly": true,
   "summary": {
@@ -13,13 +13,13 @@
       "area": "Migrations",
       "check": "checked-in migration set",
       "status": "PASS",
-      "detail": "10 files (expected 10)"
+      "detail": "11 timestamped migration files"
     },
     {
       "area": "Migrations",
       "check": "ledger matches the checked-in set",
       "status": "PASS",
-      "detail": "10 applied"
+      "detail": "11 applied"
     },
     {
       "area": "Schema",
@@ -181,7 +181,7 @@
       "area": "Owner readiness",
       "check": "no SQL inserts into auth.users in the repo",
       "status": "PASS",
-      "detail": "10 migrations; seed files use the Dashboard/Admin API only"
+      "detail": "11 migrations; seed files use the Dashboard/Admin API only"
     }
   ],
   "ok": true
