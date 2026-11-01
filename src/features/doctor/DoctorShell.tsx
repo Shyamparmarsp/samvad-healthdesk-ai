@@ -235,6 +235,7 @@ export const DoctorShell: React.FC = () => {
           selectedReport.status === 'urgent_partial' ? (
             <DoctorUrgentDetail
               report={selectedReport}
+              currentDoctor={currentDoctor}
               onBack={() => setCurrentView('reports')}
               onRefreshReport={() => loadData(currentDoctor.id)}
             />

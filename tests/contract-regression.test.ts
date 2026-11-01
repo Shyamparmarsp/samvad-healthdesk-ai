@@ -80,12 +80,13 @@ describe('Contract Regression Tests', () => {
     const turnRes = await chatTurn(textAction);
     assert.equal(turnRes.turn_count, 1);
 
-    // Action 4: submit_turn (audio preview request)
+    // Action 4: submit_turn (audio preview request with accepted audio_format)
     const audioAction: SubmitTurnAction = {
       action: 'submit_turn',
       session_id: sessionId,
       question_id: 'age',
       audio_base64: 'UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=',
+      audio_format: 'audio/wav',
     };
     const audioRes = await chatTurn(audioAction);
     assert.ok(audioRes.transcript_preview);
@@ -137,7 +138,7 @@ describe('Contract Regression Tests', () => {
       assert.ok(key in s, `Response envelope missing mandatory field: ${key}`);
     }
 
-    // Verify all 7 session status enum values are defined and recognized
+    // Verify all 7 session status enum values are defined and recognized (terminal status is 'ended')
     const allowedStatuses: SessionStatus[] = [
       'created',
       'consented',
@@ -145,7 +146,7 @@ describe('Contract Regression Tests', () => {
       'in_progress',
       'submitted',
       'emergency',
-      'closed',
+      'ended',
     ];
     assert.equal(allowedStatuses.length, 7);
 

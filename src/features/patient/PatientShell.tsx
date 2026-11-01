@@ -199,7 +199,9 @@ export const PatientShell: React.FC = () => {
     const res = await bookAppointment({
       report_id: chatState.submitted_report.id,
       slot_id: slotId,
+      slot_start: slotId,
       doctor_id: chatState.submitted_report.doctor_id,
+      patient_name: chatState.submitted_report.report.patient.name.value || undefined,
     });
     setActiveAppointment(res.appointment);
     setCurrentScreen('confirmed_booking');

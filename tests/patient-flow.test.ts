@@ -192,7 +192,22 @@ describe('Patient Flow Journeys', () => {
     assert.equal(emergencySlots.length, 0, 'Emergency doctor must have zero routine slots');
   });
 
-  it('Journey 5 & 6: Ambiguous emergency answer -> Yes/No clarification; Negation handling', async () => {
+  it('Journey 5: Ambiguous emergency answer -> Yes/No clarification chips', async () => {
+    const startRes = await startSession('en');
+    await recordConsent(startRes.session_id, true, 'en', CONSENT_VERSION);
+
+    // Test Clarification "Yes" -> enters urgent path
+    const clarifYesTurn = await chatTurn({
+      action: 'submit_turn',
+      session_id: startRes.session_id,
+      question_id: 'emergency_clarification',
+      text: 'Yes',
+    });
+    assert.equal(clarifYesTurn.emergency_triggered, true);
+    assert.equal(clarifYesTurn.session_status, 'emergency');
+  });
+
+  it('Journey 6: Ambiguous statement negated -> resumes intake without assuming safety clearance', async () => {
     const startRes = await startSession('en');
     await recordConsent(startRes.session_id, true, 'en', CONSENT_VERSION);
 
@@ -206,7 +221,7 @@ describe('Patient Flow Journeys', () => {
     assert.equal(negatedTurn.emergency_triggered, undefined);
     assert.notEqual(negatedTurn.session_status, 'emergency');
 
-    // Test Ambiguous Emergency Clarification: Answer "No" negates only that candidate
+    // Test Ambiguous Emergency Clarification: Answer "No" negates only that candidate (not general clearance)
     const clarifNoTurn = await chatTurn({
       action: 'submit_turn',
       session_id: startRes.session_id,
@@ -215,16 +230,6 @@ describe('Patient Flow Journeys', () => {
     });
     assert.equal(clarifNoTurn.emergency_triggered, undefined);
     assert.notEqual(clarifNoTurn.session_status, 'emergency');
-
-    // Test Clarification "Yes" -> enters urgent path
-    const clarifYesTurn = await chatTurn({
-      action: 'submit_turn',
-      session_id: startRes.session_id,
-      question_id: 'emergency_clarification',
-      text: 'Yes',
-    });
-    assert.equal(clarifYesTurn.emergency_triggered, true);
-    assert.equal(clarifYesTurn.session_status, 'emergency');
   });
 
   it('Journey 7: Audio capture -> transcript preview -> patient edit/confirmation -> answer submission', async () => {
@@ -237,7 +242,7 @@ describe('Patient Flow Journeys', () => {
       session_id: startRes.session_id,
       question_id: 'name',
       audio_base64: 'fake_audio_stream',
-      audio_format: 'audio/webm',
+      audio_format: 'audio/wav',
     });
 
     // Wire contract requirement: returns transcript_preview and turn_count is NOT incremented

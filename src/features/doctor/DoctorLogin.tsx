@@ -10,15 +10,17 @@ export const DoctorLogin: React.FC<DoctorLoginProps> = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('aditi.rao@hospital.demo');
   const [password, setPassword] = useState('••••••••••••');
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setLoginError(null);
     try {
       const res = await doctorLogin(email, password);
       onLoginSuccess(res.doctor);
-    } catch (err) {
-      console.error('Login error', err);
+    } catch (err: any) {
+      setLoginError(err?.message || 'Invalid email or password');
     } finally {
       setIsLoading(false);
     }
@@ -55,6 +57,16 @@ export const DoctorLogin: React.FC<DoctorLoginProps> = ({ onLoginSuccess }) => {
           </p>
         </div>
 
+        {/* Login Error Alert */}
+        {loginError && (
+          <div className="p-3.5 rounded-xl bg-red-100 border border-red-300 text-red-900 text-xs font-medium flex items-center gap-2">
+            <svg className="w-4 h-4 text-red-700 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>{loginError}</span>
+          </div>
+        )}
+
         {/* Login Form (D1) */}
         <form
           onSubmit={handleLogin}
@@ -68,7 +80,10 @@ export const DoctorLogin: React.FC<DoctorLoginProps> = ({ onLoginSuccess }) => {
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setEmail(FICTIONAL_DOCTORS.general_medicine.email)}
+                onClick={() => {
+                  setEmail(FICTIONAL_DOCTORS.general_medicine.email);
+                  setLoginError(null);
+                }}
                 className={`py-2 px-2.5 rounded-lg text-xs font-semibold border text-left transition-all ${
                   email === FICTIONAL_DOCTORS.general_medicine.email
                     ? 'bg-brand-navy border-brand-navy text-white shadow-sm'
@@ -81,7 +96,10 @@ export const DoctorLogin: React.FC<DoctorLoginProps> = ({ onLoginSuccess }) => {
 
               <button
                 type="button"
-                onClick={() => setEmail(FICTIONAL_DOCTORS.emergency.email)}
+                onClick={() => {
+                  setEmail(FICTIONAL_DOCTORS.emergency.email);
+                  setLoginError(null);
+                }}
                 className={`py-2 px-2.5 rounded-lg text-xs font-semibold border text-left transition-all ${
                   email === FICTIONAL_DOCTORS.emergency.email
                     ? 'bg-red-700 border-red-700 text-white shadow-sm'
@@ -101,7 +119,10 @@ export const DoctorLogin: React.FC<DoctorLoginProps> = ({ onLoginSuccess }) => {
             <input
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setLoginError(null);
+              }}
               required
               className="w-full h-11 px-3.5 rounded-input border border-slate-300 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-navy"
             />
@@ -114,7 +135,10 @@ export const DoctorLogin: React.FC<DoctorLoginProps> = ({ onLoginSuccess }) => {
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setLoginError(null);
+              }}
               required
               className="w-full h-11 px-3.5 rounded-input border border-slate-300 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-navy font-mono"
             />

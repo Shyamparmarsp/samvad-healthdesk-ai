@@ -34,6 +34,19 @@ import {
 } from '../types/doctor';
 
 import { CONSENT_VERSION } from '../types/consent';
+import { getSupabaseClient, isSupabaseConfigured } from './supabase';
+
+export type AppMode = 'mock' | 'supabase';
+
+let currentAppMode: AppMode = isSupabaseConfigured ? 'supabase' : 'mock';
+
+export function getAppMode(): AppMode {
+  return currentAppMode;
+}
+
+export function setAppMode(mode: AppMode): void {
+  currentAppMode = mode;
+}
 
 // -------------------------------------------------------------
 // Fictional Doctors (docs/demo-seed-data.md)
@@ -638,6 +651,21 @@ function isSessionComplete(session: SessionState): boolean {
 // -------------------------------------------------------------
 
 export async function startAnonymousSession(language: 'en' | 'hi' = 'en'): Promise<{ sessionId: string; userId: string }> {
+  if (currentAppMode === 'supabase') {
+    const client = getSupabaseClient();
+    const { data: authData, error: authErr } = await client.auth.signInAnonymously();
+    if (authErr || !authData.user) {
+      throw new Error(`Anonymous authentication failed: ${authErr?.message || 'Unknown error'}`);
+    }
+    const { data, error } = await client.functions.invoke<ChatTurnResponse>('chat-turn', {
+      body: { action: 'start_session', language },
+    });
+    if (error || !data) {
+      throw new Error(error?.message || 'Failed to start session on backend');
+    }
+    return { sessionId: data.session_id, userId: authData.user.id };
+  }
+
   const sessionId = `sess-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const userId = `usr-anon-${Math.random().toString(36).substring(2, 9)}`;
 
@@ -664,6 +692,22 @@ export function setMockDailyCapExceeded(exceeded: boolean) {
 }
 
 export async function startSession(language: 'en' | 'hi' = 'en'): Promise<ChatTurnResponse> {
+  if (currentAppMode === 'supabase') {
+    const client = getSupabaseClient();
+    const { data: sessionData } = await client.auth.getSession();
+    if (!sessionData?.session?.user) {
+      const { error: authErr } = await client.auth.signInAnonymously();
+      if (authErr) throw new Error(`Anonymous authentication failed: ${authErr.message}`);
+    }
+    const { data, error } = await client.functions.invoke<ChatTurnResponse>('chat-turn', {
+      body: { action: 'start_session', language },
+    });
+    if (error || !data) {
+      throw new Error(error?.message || 'Failed to start session on backend');
+    }
+    return data;
+  }
+
   if (mockDailyCapExceeded) {
     return {
       session_id: '',
@@ -695,6 +739,17 @@ export async function startSession(language: 'en' | 'hi' = 'en'): Promise<ChatTu
 }
 
 export async function resumeSession(sessionId: string): Promise<ChatTurnResponse> {
+  if (currentAppMode === 'supabase') {
+    const client = getSupabaseClient();
+    const { data, error } = await client.functions.invoke<ChatTurnResponse>('chat-turn', {
+      body: { action: 'resume_session', session_id: sessionId },
+    });
+    if (error || !data) {
+      throw new Error(error?.message || 'Failed to resume session');
+    }
+    return data;
+  }
+
   const session = mockSessions.get(sessionId);
   if (!session) {
     return startSession('en');
@@ -731,6 +786,23 @@ export async function recordConsent(
   language: 'en' | 'hi',
   consentVersion: string = CONSENT_VERSION,
 ): Promise<ChatTurnResponse> {
+  if (currentAppMode === 'supabase') {
+    const client = getSupabaseClient();
+    const { data, error } = await client.functions.invoke<ChatTurnResponse>('chat-turn', {
+      body: {
+        action: 'record_consent',
+        session_id: sessionId,
+        consent,
+        consent_version: consentVersion,
+        language,
+      },
+    });
+    if (error || !data) {
+      throw new Error(error?.message || 'Failed to record consent');
+    }
+    return data;
+  }
+
   const session = mockSessions.get(sessionId);
   if (!session) {
     throw new Error('Session not found');
@@ -790,6 +862,24 @@ export async function recordConsent(
 }
 
 export async function chatTurn(action: SubmitTurnAction): Promise<ChatTurnResponse> {
+  if (currentAppMode === 'supabase') {
+    const client = getSupabaseClient();
+    const { data, error } = await client.functions.invoke<ChatTurnResponse>('chat-turn', {
+      body: {
+        action: 'submit_turn',
+        session_id: action.session_id,
+        question_id: action.question_id,
+        ...(action.text !== undefined ? { text: action.text } : {}),
+        ...(action.audio_base64 !== undefined ? { audio_base64: action.audio_base64 } : {}),
+        ...(action.audio_format !== undefined ? { audio_format: action.audio_format } : {}),
+      },
+    });
+    if (error || !data) {
+      throw new Error(error?.message || 'Failed to process chat turn');
+    }
+    return data;
+  }
+
   const session = mockSessions.get(action.session_id);
   if (!session) {
     throw new Error('Session not found');
@@ -1108,6 +1198,22 @@ export async function chatTurn(action: SubmitTurnAction): Promise<ChatTurnRespon
 }
 
 export async function correctDraftReport(action: CorrectDraftReportAction): Promise<ChatTurnResponse> {
+  if (currentAppMode === 'supabase') {
+    const client = getSupabaseClient();
+    const { data, error } = await client.functions.invoke<ChatTurnResponse>('chat-turn', {
+      body: {
+        action: 'correct_draft_report',
+        session_id: action.session_id,
+        report_id: action.report_id,
+        updates: action.updates,
+      },
+    });
+    if (error || !data) {
+      throw new Error(error?.message || 'Failed to correct draft report');
+    }
+    return data;
+  }
+
   const session = mockSessions.get(action.session_id);
   if (!session || !session.draftReport) {
     throw new Error('Draft report not found');
@@ -1169,6 +1275,21 @@ export async function correctDraftReport(action: CorrectDraftReportAction): Prom
 }
 
 export async function submitReport(action: SubmitReportAction): Promise<ChatTurnResponse> {
+  if (currentAppMode === 'supabase') {
+    const client = getSupabaseClient();
+    const { data, error } = await client.functions.invoke<ChatTurnResponse>('chat-turn', {
+      body: {
+        action: 'submit_report',
+        session_id: action.session_id,
+        report_id: action.report_id,
+      },
+    });
+    if (error || !data) {
+      throw new Error(error?.message || 'Failed to submit report');
+    }
+    return data;
+  }
+
   const session = mockSessions.get(action.session_id);
   if (!session || !session.draftReport) {
     throw new Error('No draft report to submit');
@@ -1215,7 +1336,18 @@ export async function submitReport(action: SubmitReportAction): Promise<ChatTurn
   };
 }
 
-export async function speak(_sessionId: string, _questionId: string): Promise<{ audioUrl?: string }> {
+export async function speak(sessionId: string, questionId: string): Promise<{ audioUrl?: string; text?: string }> {
+  if (currentAppMode === 'supabase') {
+    const client = getSupabaseClient();
+    const { data, error } = await client.functions.invoke<{ audio_url?: string; text?: string }>('speak', {
+      body: { session_id: sessionId, question_id: questionId },
+    });
+    if (error) {
+      return { audioUrl: undefined };
+    }
+    return { audioUrl: data?.audio_url || undefined, text: data?.text };
+  }
+
   return { audioUrl: undefined };
 }
 
@@ -1223,12 +1355,59 @@ export async function speak(_sessionId: string, _questionId: string): Promise<{ 
 // Booking & Doctor Functions (Postgres RPC equivalents in mock)
 // -------------------------------------------------------------
 
-export async function getAvailableSlots(doctorId: string, dateStr: string): Promise<AppointmentSlot[]> {
+export async function getAvailableSlots(
+  reportIdOrDoctorId: string,
+  dateStrOrDays?: string | number,
+): Promise<AppointmentSlot[]> {
+  if (currentAppMode === 'supabase') {
+    const client = getSupabaseClient();
+    const days = typeof dateStrOrDays === 'number' ? dateStrOrDays : 14;
+    const { data, error } = await client.rpc('get_available_slots', {
+      p_report_id: reportIdOrDoctorId,
+      p_days: days,
+    });
+    if (error) {
+      if (error.code === '42501') {
+        throw new Error('Booking paused until a doctor reviews this report.');
+      }
+      if (error.code === '22023') {
+        throw new Error('Not eligible for routine booking.');
+      }
+      if (error.code === 'P0002') {
+        throw new Error('Report not found or not owned.');
+      }
+      throw new Error(error.message || 'Failed to retrieve available slots');
+    }
+
+    const rawSlots = (data || []) as { slot_start: string; slot_end: string }[];
+    return rawSlots.map((row) => {
+      const d = new Date(row.slot_start);
+      const dateStr = row.slot_start.slice(0, 10);
+      const h = d.getHours();
+      const m = d.getMinutes();
+      const period = h < 12 ? 'AM' : 'PM';
+      const displayH = h % 12 === 0 ? 12 : h % 12;
+      const displayStr = `${displayH}:${String(m).padStart(2, '0')} ${period}`;
+
+      return {
+        id: row.slot_start,
+        doctor_id: '',
+        start_time: row.slot_start,
+        end_time: row.slot_end,
+        date: dateStr,
+        time_display: displayStr,
+        is_available: true,
+      };
+    });
+  }
+
+  const doctorId = mockReports.get(reportIdOrDoctorId)?.doctor_id || reportIdOrDoctorId;
   if (doctorId === FICTIONAL_DOCTORS.emergency.id) {
     return []; // Emergency has no routine slots
   }
 
   const slots: AppointmentSlot[] = [];
+  const dateStr = typeof dateStrOrDays === 'string' ? dateStrOrDays : new Date().toISOString().slice(0, 10);
   const targetDate = new Date(dateStr);
   const dayOfWeek = targetDate.getDay();
 
@@ -1268,6 +1447,69 @@ export async function getAvailableSlots(doctorId: string, dateStr: string): Prom
 }
 
 export async function bookAppointment(req: BookAppointmentRequest): Promise<BookAppointmentResponse> {
+  if (currentAppMode === 'supabase') {
+    const client = getSupabaseClient();
+    const slotStart = req.slot_start || req.slot_id;
+    if (!slotStart) {
+      throw new Error('Missing slot timestamp for booking');
+    }
+    const { data, error } = await client.rpc('book_appointment', {
+      p_report_id: req.report_id,
+      p_slot_start: slotStart,
+    });
+    if (error) {
+      if (error.code === '23505') {
+        throw new Error('That slot was just taken. Please select another slot.');
+      }
+      if (error.code === '42501') {
+        throw new Error('Booking paused until a doctor reviews this report.');
+      }
+      if (error.code === '22023') {
+        throw new Error('Emergency reports are permanently ineligible for routine booking.');
+      }
+      if (error.code === 'P0002') {
+        throw new Error('Report not found or not owned.');
+      }
+      throw new Error(error.message || 'Failed to book appointment');
+    }
+
+    const rows = (data || []) as {
+      appointment_id: string;
+      reference_code: string;
+      slot_start: string;
+      slot_end: string;
+      doctor_id: string;
+      already_booked: boolean;
+    }[];
+
+    if (!rows.length) {
+      throw new Error('No appointment returned from server');
+    }
+    const row = rows[0];
+    const doctor = Object.values(FICTIONAL_DOCTORS).find((d) => d.id === row.doctor_id) || FICTIONAL_DOCTORS.general_medicine;
+
+    const appointment: Appointment = {
+      id: row.appointment_id,
+      report_id: req.report_id,
+      doctor_id: row.doctor_id,
+      doctor_name: doctor.name,
+      department_name: doctor.department_name,
+      slot_id: row.slot_start,
+      slot_start: row.slot_start,
+      slot_end: row.slot_end,
+      reference_code: row.reference_code,
+      patient_name: req.patient_name || 'Patient',
+      created_at: new Date().toISOString(),
+      status: 'confirmed',
+    };
+
+    return {
+      appointment,
+      reference_code: row.reference_code,
+      already_booked: row.already_booked,
+    };
+  }
+
   const report = mockReports.get(req.report_id);
   if (!report) {
     throw new Error('Report not found');
@@ -1294,11 +1536,11 @@ export async function bookAppointment(req: BookAppointmentRequest): Promise<Book
   const apt: Appointment = {
     id: `apt-${Date.now()}`,
     report_id: req.report_id,
-    doctor_id: req.doctor_id,
+    doctor_id: req.doctor_id || doctor.id,
     doctor_name: doctor.name,
     department_name: doctor.department_name,
-    slot_id: req.slot_id,
-    slot_start: new Date().toISOString(),
+    slot_id: req.slot_id || 'slot-default',
+    slot_start: req.slot_start || new Date().toISOString(),
     slot_end: new Date(Date.now() + 1800000).toISOString(),
     reference_code: refCode,
     patient_name: report.report.patient.name.value || 'Patient',
@@ -1311,6 +1553,45 @@ export async function bookAppointment(req: BookAppointmentRequest): Promise<Book
 }
 
 export async function markReportReviewed(reportId: string): Promise<MarkReportReviewedResponse> {
+  if (currentAppMode === 'supabase') {
+    const client = getSupabaseClient();
+    const { data, error } = await client.rpc('mark_report_reviewed', {
+      p_report_id: reportId,
+    });
+    if (error) {
+      if (error.code === '42501') {
+        throw new Error('Not authorised to review this report.');
+      }
+      if (error.code === '22023') {
+        throw new Error('Draft reports cannot be reviewed.');
+      }
+      if (error.code === 'P0002') {
+        throw new Error('Report not found.');
+      }
+      throw new Error(error.message || 'Failed to mark report reviewed');
+    }
+
+    const rows = (data || []) as {
+      report_id: string;
+      reviewed_at: string;
+      reviewed_by: string;
+      already_reviewed: boolean;
+    }[];
+
+    if (!rows.length) {
+      throw new Error('No review data returned');
+    }
+    const row = rows[0];
+
+    return {
+      success: true,
+      report_id: row.report_id,
+      reviewed_at: row.reviewed_at,
+      reviewed_by: row.reviewed_by,
+      already_reviewed: row.already_reviewed,
+    };
+  }
+
   const report = mockReports.get(reportId);
   if (!report) {
     throw new Error('Report not found');
@@ -1330,7 +1611,59 @@ export async function markReportReviewed(reportId: string): Promise<MarkReportRe
   };
 }
 
-export async function doctorLogin(email: string, _password?: string): Promise<DoctorLoginResponse> {
+export async function doctorLogin(email: string, password?: string): Promise<DoctorLoginResponse> {
+  if (currentAppMode === 'supabase') {
+    const client = getSupabaseClient();
+    const { data: authData, error: authErr } = await client.auth.signInWithPassword({
+      email,
+      password: password || '',
+    });
+    if (authErr || !authData.user) {
+      throw new Error(authErr?.message || 'Invalid credentials');
+    }
+
+    const { data: profileData, error: profileErr } = await client
+      .from('doctor_profiles')
+      .select('doctor_id')
+      .eq('user_id', authData.user.id)
+      .maybeSingle();
+
+    if (profileErr || !profileData) {
+      const fallbackDoc = Object.values(FICTIONAL_DOCTORS).find(
+        (d) => d.email.toLowerCase() === email.toLowerCase()
+      );
+      if (fallbackDoc) {
+        return { doctor: fallbackDoc, token: authData.session?.access_token || '' };
+      }
+      throw new Error('User is not a mapped doctor');
+    }
+
+    const { data: doctorRow } = await client
+      .from('doctors')
+      .select('*')
+      .eq('id', profileData.doctor_id)
+      .maybeSingle();
+
+    const deptKey = (doctorRow?.department_key || 'general_medicine') as DepartmentKey;
+    const seedDoc = FICTIONAL_DOCTORS[deptKey];
+
+    const doctor: DoctorProfile = {
+      id: profileData.doctor_id,
+      name: doctorRow?.display_name || seedDoc?.name || 'Doctor',
+      department_key: deptKey,
+      department_name: seedDoc?.department_name || deptKey,
+      title: seedDoc?.title || 'Consultant',
+      initials: seedDoc?.initials || 'DR',
+      email,
+      routine_slots_enabled: deptKey !== 'emergency',
+    };
+
+    return {
+      doctor,
+      token: authData.session?.access_token || '',
+    };
+  }
+
   const doctor = Object.values(FICTIONAL_DOCTORS).find((d) => d.email.toLowerCase() === email.toLowerCase()) || FICTIONAL_DOCTORS.general_medicine;
   return {
     doctor,
@@ -1339,10 +1672,26 @@ export async function doctorLogin(email: string, _password?: string): Promise<Do
 }
 
 export async function doctorLogout(): Promise<void> {
-  return;
+  if (currentAppMode === 'supabase') {
+    const client = getSupabaseClient();
+    await client.auth.signOut();
+  }
 }
 
 export async function getDoctorReports(doctorId?: string): Promise<ReportRow[]> {
+  if (currentAppMode === 'supabase') {
+    const client = getSupabaseClient();
+    const { data, error } = await client
+      .from('reports')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw new Error(error.message || 'Failed to fetch doctor reports');
+    }
+    return (data || []) as ReportRow[];
+  }
+
   const currentDoc = doctorId ? Object.values(FICTIONAL_DOCTORS).find((d) => d.id === doctorId) : null;
   if (!currentDoc) {
     return Array.from(mockReports.values()).filter((r) => r.status !== 'draft');
@@ -1361,10 +1710,37 @@ export async function getDoctorReports(doctorId?: string): Promise<ReportRow[]> 
 }
 
 export async function getDoctorReportDetail(reportId: string): Promise<ReportRow | null> {
+  if (currentAppMode === 'supabase') {
+    const client = getSupabaseClient();
+    const { data, error } = await client
+      .from('reports')
+      .select('*')
+      .eq('id', reportId)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message || 'Failed to fetch report detail');
+    }
+    return (data || null) as ReportRow | null;
+  }
+
   return mockReports.get(reportId) || null;
 }
 
 export async function getDoctorAppointments(doctorId?: string): Promise<Appointment[]> {
+  if (currentAppMode === 'supabase') {
+    const client = getSupabaseClient();
+    const { data, error } = await client
+      .from('appointments')
+      .select('*')
+      .order('slot_start', { ascending: true });
+
+    if (error) {
+      return [];
+    }
+    return (data || []) as Appointment[];
+  }
+
   const currentDocId = doctorId || FICTIONAL_DOCTORS.general_medicine.id;
   return Array.from(mockAppointments.values()).filter((a) => a.doctor_id === currentDocId);
 }

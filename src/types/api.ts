@@ -119,15 +119,23 @@ export interface ChatTurnResponse {
   error?: string;
 }
 
+export interface AvailableSlot {
+  slot_start: string;
+  slot_end: string;
+}
+
 export interface BookAppointmentRequest {
   report_id: string;
-  slot_id: string;
-  doctor_id: string;
+  slot_id?: string;
+  slot_start?: string;
+  doctor_id?: string;
+  patient_name?: string;
 }
 
 export interface BookAppointmentResponse {
   appointment: Appointment;
   reference_code: string;
+  already_booked?: boolean;
 }
 
 export interface MarkReportReviewedResponse {
@@ -135,6 +143,7 @@ export interface MarkReportReviewedResponse {
   report_id: string;
   reviewed_at: string;
   reviewed_by: string | null;
+  already_reviewed?: boolean;
 }
 
 export interface DoctorLoginResponse {

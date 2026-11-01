@@ -61,7 +61,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
     setIsLoadingSlots(true);
     setSlotTakenError(false);
     try {
-      const data = await getAvailableSlots(report.doctor_id, date);
+      const data = await getAvailableSlots(report.id, date);
       setSlots(data);
       // Select first available slot
       const firstFree = data.find((s) => s.is_available);
@@ -80,7 +80,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
     try {
       await onBookAppointment(selectedSlotId);
     } catch (err: any) {
-      if (err?.message?.includes('taken')) {
+      if (err?.message?.includes('taken') || err?.message?.includes('23505')) {
         setSlotTakenError(true);
         // Refresh slots
         await loadSlots(selectedDate);

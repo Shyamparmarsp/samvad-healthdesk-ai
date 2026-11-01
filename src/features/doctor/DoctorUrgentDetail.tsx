@@ -1,29 +1,37 @@
 import React, { useState } from 'react';
 import { ReportRow } from '../../types/report';
+import { DoctorProfile } from '../../types/doctor';
 import { markReportReviewed } from '../../lib/api';
 
 interface DoctorUrgentDetailProps {
   report: ReportRow;
+  currentDoctor?: DoctorProfile | null;
   onBack: () => void;
   onRefreshReport: () => void;
 }
 
 export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
   report,
+  currentDoctor,
   onBack,
   onRefreshReport,
 }) => {
   const [isMarking, setIsMarking] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const isReviewed = Boolean(report.reviewed_at);
 
+  // OD-03 Interim rule: General Medicine has read cross-visibility, but only Emergency doctor has review authority
+  const canReview = !currentDoctor || currentDoctor.department_key === 'emergency';
+
   const handleMarkReviewed = async () => {
-    if (isMarking || isReviewed) return;
+    if (isMarking || isReviewed || !canReview) return;
     setIsMarking(true);
+    setReviewError(null);
     try {
       await markReportReviewed(report.id);
       onRefreshReport();
-    } catch (err) {
-      console.error('Failed to mark urgent report reviewed', err);
+    } catch (err: any) {
+      setReviewError(err?.message || 'Failed to acknowledge triage report');
     } finally {
       setIsMarking(false);
     }
@@ -50,6 +58,16 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
           </span>
         </div>
       </div>
+
+      {/* Review Error Alert */}
+      {reviewError && (
+        <div className="p-4 rounded-xl bg-red-100 border border-red-300 text-red-900 text-xs font-medium flex items-center gap-2">
+          <svg className="w-4 h-4 text-red-700 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span>{reviewError}</span>
+        </div>
+      )}
 
       {/* Emergency Rule Match Citation Banner (D5) */}
       <div className="p-6 rounded-card bg-red-50 border-2 border-red-200 shadow-sm">
@@ -98,7 +116,7 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
               <span className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
                 Acknowledged by Doctor
               </span>
-            ) : (
+            ) : canReview ? (
               <button
                 onClick={handleMarkReviewed}
                 disabled={isMarking}
@@ -106,6 +124,10 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
               >
                 {isMarking ? 'Updating...' : 'Acknowledge Triage'}
               </button>
+            ) : (
+              <span className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-200" title="OD-03: General Medicine has read cross-visibility only">
+                Read-only cross-visibility
+              </span>
             )}
           </div>
         </div>
