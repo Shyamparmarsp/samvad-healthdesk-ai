@@ -72,7 +72,15 @@ Deno.serve({ port, onListen: () => console.log(`stub listening on ${port}`) }, a
     }
     const body = (await req.json()) as { messages?: Array<{ content?: string }> };
     const text = (body.messages ?? []).map((message) => message.content ?? "").join(" ").toLowerCase();
-    const department = text.includes("knee") || text.includes("joint") ? "orthopedics" : "general_medicine";
+    const department = text.includes("knee") || text.includes("joint")
+      ? "orthopedics"
+      : text.includes("rash") || text.includes("skin") || text.includes("itch")
+      ? "dermatology"
+      : text.includes("chest") || text.includes("heart")
+      ? "cardiology"
+      : text.includes("abdomen") || text.includes("stomach")
+      ? "general_surgery"
+      : "general_medicine";
     return json({
       choices: [{ message: { role: "assistant", content: JSON.stringify({ department_key: department }) } }],
     });

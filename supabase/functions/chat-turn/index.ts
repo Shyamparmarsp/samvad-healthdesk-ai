@@ -76,7 +76,7 @@ interface SessionRow {
   pending_transcript_expires_at: string | null;
   clarification_answer: string | null;
   needs_human_review: boolean;
-  report_department?: string;
+  preliminary_department: string | null;
 }
 
 interface MessageRow {
@@ -176,6 +176,12 @@ async function resolveDraftRouting(
 ): Promise<{ routing: RoutingSnapshot; source: "model" | "fallback" }> {
   const reference = await loadReferenceData(admin);
 
+  // Reuse the department already decided for this session; never re-ask the model.
+  if (session.preliminary_department) {
+    const resolved = resolveRouting(session.preliminary_department, reference.departments, reference.doctors);
+    return { routing: resolved.routing, source: resolved.source };
+  }
+
   let candidate: string | null = null;
   const apiKey = Deno.env.get("GROQ_API_KEY") ?? "";
   const concern = fields.primary_concern;
@@ -193,6 +199,13 @@ async function resolveDraftRouting(
   }
 
   const resolved = resolveRouting(candidate, reference.departments, reference.doctors);
+  if (!session.preliminary_department) {
+    await admin
+      .from("sessions")
+      .update({ preliminary_department: resolved.routing.department_key })
+      .eq("id", session.id)
+      .eq("user_id", session.user_id);
+  }
   consoleLogger.info("action_completed", {
     action: "route_department",
     source: resolved.source,
@@ -286,7 +299,27 @@ async function maybeAdaptiveQuestion(
   const asked = askedBankIds(messages);
   if (asked.length >= MAX_ADAPTIVE_QUESTIONS) return null;
 
-  const department = session.report_department ?? "general_medicine";
+  let department = session.preliminary_department;
+  if (!department) {
+    // Decide once, from the concern, using the same validated routing logic as the draft.
+    const reference = await loadReferenceData(admin);
+    const concernText = typeof fields.primary_concern.value === "string" ? fields.primary_concern.value : "";
+    const suggestion = concernText
+      ? await suggestDepartment(
+        { apiKey: Deno.env.get("GROQ_API_KEY") ?? "", baseUrl: Deno.env.get("GROQ_BASE_URL") ?? undefined },
+        concernText,
+      )
+      : null;
+    const resolved = resolveRouting(suggestion, reference.departments, reference.doctors);
+    department = resolved.routing.department_key;
+    await admin
+      .from("sessions")
+      .update({ preliminary_department: department })
+      .eq("id", session.id)
+      .eq("user_id", session.user_id);
+    consoleLogger.info("action_completed", { action: "route_preliminary", source: resolved.source, reason: resolved.reason });
+  }
+
   const concern = fields.primary_concern;
   const tags = typeof concern.value === "string"
     ? concern.value.toLowerCase().split(/[^a-zऀ-ॿ]+/).filter((word) => word.length > 3)

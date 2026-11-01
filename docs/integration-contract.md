@@ -326,3 +326,16 @@ Choice questions return localised `options`; `yes_no` returns `["Yes","No"]` or 
 **Type guidance:** keep `QuestionId` for the core ids and add a separate union or validated type for bank ids (`BankQuestionId = "GM-001" | … | "CARD-030"`). Do not widen the core union to `string`; validate at runtime with `getQuestion(id)`.
 
 **Known limitation (smallest future fix):** adaptive retrieval uses `general_medicine` until a department is known, because the report (and therefore the routed department) does not exist before completion. Persisting the Groq department suggestion on the session when it is first computed would let retrieval use the correct bank.
+
+---
+
+## 16. Preliminary department for adaptive retrieval (verified)
+
+The session now caches the preliminary department in `sessions.preliminary_department` (new column, FK to `departments`, `CHECK` excludes `'emergency'`). It is written only by the backend from the validated routing result and reused for every subsequent adaptive selection and for draft routing — Groq is asked **once per session**, never per turn.
+
+- Source: the validated `suggestDepartment` → `resolveRouting` pair already used for drafts.
+- Fallback: General Medicine with `is_fallback: true` when routing is unavailable, malformed or inconclusive.
+- Emergency is never routed: the deterministic matcher runs first, and the column check rejects `'emergency'`.
+- Browser input never supplies a department; drafts and adaptive retrieval read the same cached value, so they cannot disagree.
+
+**No response-shape change.** No frontend change is required.
