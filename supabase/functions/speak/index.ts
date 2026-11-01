@@ -39,6 +39,8 @@ function textFallback(message: string, status = 200): Response {
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
     const origin = req.headers.get("origin");
+    const correlationId = crypto.randomUUID();
+    const startedAt = performance.now();
     const respond = async (): Promise<Response> => {
     if (req.method === "OPTIONS") return preflight(origin, corsConfig());
     if (req.method !== "POST") return withCors(new Response("method not allowed", { status: 405 }), origin, corsConfig());
@@ -127,7 +129,14 @@ export default {
       return textFallback("", 500);
     }
     };
-    return withCors(await respond(), origin, corsConfig());
+    const response = await respond();
+    consoleLogger.info("request_completed", {
+      correlation_id: correlationId,
+      action: "speak",
+      status: response.status,
+      duration_ms: Math.round(performance.now() - startedAt),
+    });
+    return withCors(response, origin, corsConfig());
   }),
 };
 

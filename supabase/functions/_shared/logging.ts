@@ -8,6 +8,7 @@
 
 export type LogEvent =
   | "request_received"
+  | "request_completed"
   | "action_completed"
   | "action_rejected"
   | "provider_attempt"

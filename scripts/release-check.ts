@@ -213,7 +213,7 @@ if (!dbUp) {
     };
   });
 
-  for (const suite of ["rls", "constraints", "mark_reviewed", "booking", "ist_boundary", "doctor_appointments"]) {
+  for (const suite of ["rls", "constraints", "mark_reviewed", "booking", "ist_boundary", "doctor_appointments", "report_immutability"]) {
     await step("database", `sql suite: ${suite}`, true, async () => {
       const result = await run("docker", ["exec", "-i", DB_CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-v", "ON_ERROR_STOP=1"], undefined);
       // psql reads the file from stdin; use a shell-free approach via a temp file copy.

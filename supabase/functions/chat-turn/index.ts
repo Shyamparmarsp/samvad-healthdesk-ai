@@ -537,6 +537,14 @@ async function handleConsent(
   request: { session_id: string; consent: boolean; consent_version: string; language: "en" | "hi" },
 ): Promise<Response> {
   const session = await loadSession(admin, request.session_id, userId);
+  const desiredStatus = request.consent ? "consented" : "declined";
+
+  // Idempotent replay: a lost response must not present an ambiguous failure. If the
+  // session already holds the same decision, return the current state and change nothing
+  // (consent_records is UNIQUE per session, so a second insert would also fail).
+  if (session.status === desiredStatus) {
+    return json(baseResponse(session, await loadMessages(admin, session.id)));
+  }
   if (session.status !== "created") throw new AppError("invalid_state");
 
   const decision = request.consent ? "yes" : "no";
@@ -879,6 +887,34 @@ async function handleSubmitReport(
   if (!isComplete(fields)) throw new AppError("invalid_state");
   if (session.status === "emergency") throw new AppError("invalid_state");
 
+  const { data: existingReport } = await admin
+    .from("reports")
+    .select("id, status")
+    .eq("session_id", session.id)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (request.report_id && existingReport && existingReport.id !== request.report_id) {
+    throw new AppError("not_found");
+  }
+
+  // Idempotent replay: the first call succeeded but the response was lost. Return the
+  // stored report as a normal success instead of `invalid_state`, so the client can never
+  // be left guessing whether the report reached the doctor.
+  if (existingReport?.status === "submitted") {
+    const { data: row } = await admin
+      .from("reports")
+      .select("*")
+      .eq("id", existingReport.id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!row) throw new AppError("not_found");
+    const replay = baseResponse(await loadSession(admin, session.id, userId), messages);
+    replay.submitted_report = row as ReportRow;
+    replay.can_submit = false;
+    return json(replay);
+  }
+
   let updateQuery = admin
     .from("reports")
     .update({ status: "submitted", submitted_at: new Date().toISOString() })
@@ -905,6 +941,11 @@ async function handleSubmitReport(
 export default {
   fetch: withSupabase({ auth: "user" }, async (req, ctx) => {
     const origin = req.headers.get("origin");
+    // Correlation only: the id is random and never derived from a patient identifier, so
+    // a log line cannot be joined back to a person.
+    const correlationId = crypto.randomUUID();
+    const startedAt = performance.now();
+    let actionName = "unparsed";
     const respond = async (): Promise<Response> => {
     if (req.method === "OPTIONS") return preflight(origin, corsConfig());
     if (req.method !== "POST") return withCors(new Response("method not allowed", { status: 405 }), origin, corsConfig());
@@ -924,6 +965,7 @@ export default {
 
     const admin = ctx.supabaseAdmin as Admin;
     const request = parsed.value as ChatTurnRequest;
+    actionName = request.action;
 
     try {
       switch (request.action) {
@@ -953,6 +995,13 @@ export default {
       return json({ error: code }, status);
     }
     };
-    return withCors(await respond(), origin, corsConfig());
+    const response = await respond();
+    consoleLogger.info("request_completed", {
+      correlation_id: correlationId,
+      action: actionName,
+      status: response.status,
+      duration_ms: Math.round(performance.now() - startedAt),
+    });
+    return withCors(response, origin, corsConfig());
   }),
 };

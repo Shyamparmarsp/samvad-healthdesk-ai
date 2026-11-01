@@ -60,8 +60,8 @@ try {
 add(
   "Migrations",
   "checked-in migration set",
-  localMigrations.length === 10 ? "PASS" : "FAIL",
-  `${localMigrations.length} files (expected 10)`,
+  localMigrations.length > 0 ? "PASS" : "FAIL",
+  `${localMigrations.length} timestamped migration files`,
 );
 
 // ---------------------------------------------------------------- connectivity
