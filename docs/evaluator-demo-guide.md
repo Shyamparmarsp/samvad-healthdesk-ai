@@ -166,4 +166,46 @@ Report Detail ➔ Mark Reviewed (Audit Stamp) ➔ Appointments Schedule
 
 ---
 
+## 5. Known Limitations & Clinical Governance Disclaimers
+
+> [!CAUTION]
+> **Non-Clinical Demonstration Prototype**
+> - **Synthetic Data Only:** Fictional doctor personas (Dr. Aditi Rao, Dr. Neha Verma) and synthetic patient records only. Real personal health information (PHI) must never be entered.
+> - **Zero Diagnostic Authority:** This system does not diagnose diseases, calculate morbidity/mortality risk scores, recommend pharmaceutical dosages, or create therapeutic care plans. All medical evaluation belongs solely to qualified licensed physicians.
+> - **Demo Emergency Triggers:** Emergency keyword matching rules are illustrative demonstration filters. They are **not** clinically validated triage algorithms (such as Manchester Triage System or ESI).
+> - **No Emergency Dispatch:** Presenting plain-text 112 advice does **not** dial emergency services, send SMS alerts, or summon first responders.
+> - **Hindi Language Disclaimer:** Hindi translations and Devanagari prompts are approved for demonstration purposes only. Comprehensive clinical certification by certified medical linguists is required prior to any clinical deployment.
+> - **Daily Application Limits:** Project-wide caps in Asia/Kolkata timezone (100 sessions, 300 Groq calls, 150 Prisma STT calls, 120 Timbre TTS calls) are enforced to safeguard API credits.
+
+---
+
+## 6. Bilingual Hindi Walkthrough Journey (वैकल्पिक हिन्दी डेमो यात्रा)
+
+For evaluators reviewing Hindi language capabilities:
+
+1. **आरंभ (Welcome):**
+   * मुख्य पृष्ठ (`/`) पर भाषा विकल्प में **"हिन्दी"** चुनें।
+   * **"बोलकर बात करें"** या **"लिखकर बताएं"** पर क्लिक करें।
+2. **सहमति (Consent Gate):**
+   * स्क्रीन पर एआई इनटेक सहमति पत्र पढ़ें।
+   * **"हाँ, मैं सहमत हूँ"** पर क्लिक करें।
+3. **प्रारंभिक जानकारी (Demographics):**
+   * **नाम:** `"राजेश कुमार"` दर्ज करें।
+   * **उम्र:** `"35"` दर्ज करें।
+   * **लिंग:** ऑन-स्क्रीन चिप **"पुरुष"** चुनें।
+   * **मुख्य समस्या:** `"पेट में तेज दर्द और मरोड़ जैसा लग रहा है"` दर्ज करें।
+4. **अतिरिक्त स्पष्टीकरण (Adaptive Follow-up):**
+   * **अवधि:** `"3 दिन"` दर्ज करें।
+   * **तीव्रता:** **"मध्यम"** चिप चुनें।
+   * **पुरानी बीमारी:** **"कोई नहीं"** चिप चुनें।
+   * **दवाइयाँ:** **"कोई नहीं"** चिप चुनें।
+5. **ड्राफ्ट रिपोर्ट समीक्षा (Review):**
+   * **"अपनी इनटेक रिपोर्ट की समीक्षा करें"** स्क्रीन पर विवरण जाँचें।
+   * **"अस्पताल को भेजें"** बटन दबाएँ।
+6. **अपॉइंटमेंट बुकिंग (Booking):**
+   * उपलब्ध समय स्लॉट चुनें और **"अपॉइंटमेंट बुक करें"** पर क्लिक करें (या **"अभी नहीं"** चुनें)।
+   * संदर्भ संख्या (`APT-...`) वाली पुष्टि रसीद स्क्रीन देखें।
+
+---
+
 *Samvad HealthDesk AI — Demonstrating Safe, Governed, and Empathetic Pre-Visit Patient Intake.*
