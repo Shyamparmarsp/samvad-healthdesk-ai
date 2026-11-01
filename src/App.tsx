@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { I18nProvider } from './i18n';
 import { PatientShell } from './features/patient/PatientShell';
-import { DoctorShell } from './features/doctor/DoctorShell';
+
+const DoctorShell = lazy(() =>
+  import('./features/doctor/DoctorShell').then((m) => ({ default: m.DoctorShell }))
+);
 
 const AppNav: React.FC = () => {
   const location = useLocation();
@@ -60,7 +63,21 @@ export const App: React.FC = () => {
           <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6">
             <Routes>
               <Route path="/" element={<PatientShell />} />
-              <Route path="/doctor" element={<DoctorShell />} />
+              <Route
+                path="/doctor"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="flex items-center justify-center py-20 text-xs text-slate-500 gap-2">
+                        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping"></span>
+                        Loading Doctor Portal...
+                      </div>
+                    }
+                  >
+                    <DoctorShell />
+                  </Suspense>
+                }
+              />
               <Route
                 path="*"
                 element={
