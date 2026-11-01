@@ -1,0 +1,15 @@
+{
+  "session_id": "3f4b1c2d-1111-4222-8333-444455556666",
+  "session_status": "created",
+  "current_question": {
+    "id": "name",
+    "text": "What is your name?",
+    "text_hi": "आपका नाम क्या है?"
+  },
+  "messages": [],
+  "turn_count": 0,
+  "max_turns": 15,
+  "is_complete": false,
+  "is_cap_reached": false,
+  "can_submit": false
+}

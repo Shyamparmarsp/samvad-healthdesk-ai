@@ -1,0 +1,82 @@
+{
+  "id": "9a8b7c6d-2222-4333-8444-555566667777",
+  "session_id": "3f4b1c2d-1111-4222-8333-444455556666",
+  "status": "submitted",
+  "intake_reference": "SHD-20261102-GGGGGG",
+  "report": {
+    "schema_version": 1,
+    "patient": {
+      "name": {
+        "status": "provided",
+        "value": "Asha Test"
+      },
+      "age": {
+        "status": "provided",
+        "value": 34
+      },
+      "gender": {
+        "status": "declined",
+        "value": null
+      },
+      "language": "en"
+    },
+    "primary_concern": {
+      "status": "provided",
+      "value": "knee pain when walking"
+    },
+    "clinical_details": {
+      "duration": {
+        "status": "provided",
+        "value": "three weeks"
+      },
+      "severity": {
+        "status": "provided",
+        "value": "moderate"
+      },
+      "conditions": {
+        "status": "provided",
+        "value": []
+      },
+      "medications": {
+        "status": "declined",
+        "value": null
+      },
+      "allergies": {
+        "status": "unknown",
+        "value": null
+      },
+      "other_symptoms": {
+        "status": "provided",
+        "value": [
+          "mild swelling"
+        ]
+      }
+    },
+    "missing_information": [
+      "patient.gender",
+      "clinical_details.medications",
+      "clinical_details.allergies"
+    ],
+    "summary": {
+      "text": "Patient reports knee pain when walking for three weeks, described as moderate. Other symptoms reported: mild swelling.",
+      "source": "template",
+      "generated_from": [
+        "primary_concern",
+        "clinical_details.duration",
+        "clinical_details.severity",
+        "clinical_details.other_symptoms"
+      ]
+    },
+    "routing_snapshot": {
+      "department_key": "orthopedics",
+      "department_name": "Orthopedics",
+      "doctor_id": "00000000-0000-4000-8000-000000000001",
+      "doctor_name": "Dr. Kabir Mehta",
+      "is_fallback": false,
+      "preliminary": true
+    },
+    "emergency": null
+  },
+  "reviewed_at": null,
+  "reviewed_by": null
+}

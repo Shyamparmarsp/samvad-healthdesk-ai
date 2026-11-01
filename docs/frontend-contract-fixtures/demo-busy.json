@@ -1,0 +1,12 @@
+{
+  "session_id": "",
+  "session_status": "created",
+  "messages": [],
+  "turn_count": 0,
+  "max_turns": 15,
+  "is_complete": false,
+  "is_cap_reached": false,
+  "can_submit": false,
+  "demo_busy": true,
+  "error": "demo_busy"
+}

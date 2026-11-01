@@ -1,0 +1,9 @@
+{
+  "id": "GM-004",
+  "text": "Do you have a cough?",
+  "text_hi": "क्या आपको खांसी है?",
+  "options": [
+    "Yes",
+    "No"
+  ]
+}

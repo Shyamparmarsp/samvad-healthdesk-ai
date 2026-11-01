@@ -1,0 +1,72 @@
+{
+  "status": "urgent_partial",
+  "report": {
+    "schema_version": 1,
+    "patient": {
+      "name": {
+        "status": "provided",
+        "value": "Asha Test"
+      },
+      "age": {
+        "status": "provided",
+        "value": 34
+      },
+      "gender": {
+        "status": "declined",
+        "value": null
+      },
+      "language": "en"
+    },
+    "primary_concern": {
+      "status": "provided",
+      "value": "knee pain when walking"
+    },
+    "clinical_details": {
+      "duration": {
+        "status": "provided",
+        "value": "three weeks"
+      },
+      "severity": {
+        "status": "provided",
+        "value": "moderate"
+      },
+      "conditions": {
+        "status": "provided",
+        "value": []
+      },
+      "medications": {
+        "status": "declined",
+        "value": null
+      },
+      "allergies": {
+        "status": "unknown",
+        "value": null
+      },
+      "other_symptoms": {
+        "status": "provided",
+        "value": [
+          "mild swelling"
+        ]
+      }
+    },
+    "missing_information": [
+      "patient.gender",
+      "clinical_details.medications",
+      "clinical_details.allergies"
+    ],
+    "summary": null,
+    "routing_snapshot": {
+      "department_key": "emergency",
+      "department_name": "Emergency",
+      "doctor_id": "00000000-0000-4000-8000-000000000001",
+      "doctor_name": "Dr. Kabir Mehta",
+      "is_fallback": false,
+      "preliminary": true
+    },
+    "emergency": {
+      "rule_id": "breathing_emergency",
+      "patient_statement": "I cannot breathe",
+      "triggered_at": "2026-11-02T10:00:00.000Z"
+    }
+  }
+}

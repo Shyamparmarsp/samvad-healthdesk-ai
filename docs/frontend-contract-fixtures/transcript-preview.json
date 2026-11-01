@@ -1,0 +1,10 @@
+{
+  "session_id": "3f4b1c2d-1111-4222-8333-444455556666",
+  "session_status": "in_progress",
+  "turn_count": 3,
+  "transcript_preview": {
+    "state": "transcript_preview",
+    "text": "मुझे घुटने में दर्द है",
+    "question_id": "primary_concern"
+  }
+}

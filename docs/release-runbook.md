@@ -108,3 +108,30 @@ Then run the acceptance matrix from MILESTONES M4-S10 with a synthetic patient.
 5. Slots appear; booking returns a reference; second booking of the same slot is refused.
 6. Emergency phrase → 112 text, no slots.
 7. `/doctor` survives a refresh (SPA rewrite).
+
+## 12. CORS and `ALLOWED_ORIGINS` (M4-S14)
+
+CORS is an exact-origin allowlist in `supabase/functions/_shared/cors.ts`. It is applied to
+every response — success and error — and to preflight.
+
+| Situation | Behaviour |
+|---|---|
+| Local origins (`localhost:5173`, `127.0.0.1:5173`, `:4173`, `:3000`) | Always allowed for local development |
+| Production origin from `ALLOWED_ORIGINS` | Allowed; echoed back with `Vary: Origin` |
+| Unknown origin | No `Access-Control-Allow-Origin` header (the browser blocks it) |
+| `ALLOWED_ORIGINS` unset | Non-local origins are refused (fail closed); local origins still work |
+| `OPTIONS` preflight | `204` for an allowed origin, `403` for an unknown one |
+| Wildcard `*` in the configuration | Stripped and ignored |
+
+**Owner action (production):** set the secret/variable
+
+```bash
+npx supabase secrets set ALLOWED_ORIGINS="https://<project>.vercel.app"   # [owner]
+```
+
+Use the exact deployed origin, no trailing slash, no wildcard. Multiple origins may be
+comma-separated. Never add `*` to make a failing preflight “work” — that is a security
+regression, not a fix.
+
+CORS is not authentication: JWT verification, RLS and ownership checks are unchanged. A
+401 is a credential problem, not a CORS problem.

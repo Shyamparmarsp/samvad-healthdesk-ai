@@ -1,0 +1,6 @@
+{
+  "consent_version": "2026-11-01.v1",
+  "language": "en",
+  "consent_text": "I understand that Samvad HealthDesk AI is an AI intake assistant and not a doctor, and that it cannot diagnose or treat me. I agree that the health information I give will be processed to prepare a preliminary report, and that this report will be shared with the hospital's doctor only if I submit it. I can stop at any time.",
+  "session_status": "consented"
+}

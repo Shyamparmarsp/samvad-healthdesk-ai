@@ -16,6 +16,22 @@ add("Local API / database", (await reachable(`${BASE}/rest/v1/`)) ? "PASS" : "FA
 add("chat-turn function", (await reachable(`${BASE}/functions/v1/chat-turn`)) ? "PASS" : "FAIL", "401 expected without a JWT");
 add("speak function", (await reachable(`${BASE}/functions/v1/speak`)) ? "PASS" : "FAIL");
 add("Provider stub", (await reachable(`${STUB}/__stats`)) ? (Deno.env.get("PROVIDER_MODE") === "live" ? "NOT REQUIRED" : "PASS") : "FAIL", STUB);
+// Migration ledger and usage headroom (read-only).
+try {
+  const key = Deno.env.get("LOCAL_SERVICE_KEY") ?? "";
+  const headers = key ? { apikey: key, Authorization: `Bearer ${key}` } : undefined;
+  const limits = await (await fetch(`${BASE}/rest/v1/daily_usage_limits?select=counter_name,daily_limit`, { headers })).json();
+  const counters = await (await fetch(`${BASE}/rest/v1/daily_usage_counters?select=counter_name,used&counter_date=eq.${new Date().toISOString().slice(0, 10)}`, { headers })).json();
+  if (Array.isArray(limits) && limits.length === 4) {
+    const used = new Map((Array.isArray(counters) ? counters : []).map((r: { counter_name: string; used: number }) => [r.counter_name, r.used]));
+    const tight = limits.filter((l: { counter_name: string; daily_limit: number }) => (used.get(l.counter_name) ?? 0) >= l.daily_limit * 0.8);
+    add("Usage limits", tight.length === 0 ? "PASS" : "WARNING", tight.length === 0 ? "all counters have headroom" : `${tight.map((l: {counter_name: string}) => l.counter_name).join(", ")} above 80%`);
+  } else {
+    add("Usage limits", key ? "FAIL" : "WARNING", key ? "limits not seeded" : "service key absent; cannot read");
+  }
+} catch {
+  add("Usage limits", "WARNING", "could not read counters");
+}
 add("Question bank", validateBank().length === 0 && QUESTIONS.length === 150 ? "PASS" : "FAIL", `${QUESTIONS.length} questions`);
 add("Department distribution", DEPARTMENT_KEYS.every((d) => QUESTIONS.filter((q) => q.department === d).length === 30) ? "PASS" : "FAIL");
 add("Groq key", Deno.env.get("GROQ_API_KEY") ? "PASS" : "WARNING", "absent is expected in stub mode");
