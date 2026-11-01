@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../i18n';
 import {
   startSession,
+  resumeSession,
   recordConsent,
   chatTurn,
   correctDraftReport,
@@ -47,17 +48,62 @@ export const PatientShell: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [activeAppointment, setActiveAppointment] = useState<Appointment | undefined>(undefined);
   const [endReason, setEndReason] = useState<'dont_submit' | 'incomplete_cap'>('dont_submit');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Resume after interruption (sessionStorage check on mount)
+  useEffect(() => {
+    try {
+      const savedSessionId = sessionStorage.getItem('samvad_session_id');
+      if (!savedSessionId) return;
+
+      let cancelled = false;
+      (async () => {
+        try {
+          const res = await resumeSession(savedSessionId);
+          if (cancelled) return;
+          setSessionId(res.session_id);
+          setChatState(res);
+
+          if (res.emergency_triggered) {
+            setCurrentScreen('emergency');
+          } else if (res.is_complete || (res.is_cap_reached && res.draft_report)) {
+            setCurrentScreen('review');
+          } else if (res.session_status === 'declined') {
+            setCurrentScreen('consent_declined');
+          } else if (res.session_status === 'in_progress' || res.current_question) {
+            setCurrentScreen('conversation');
+          } else if (res.session_status === 'ended') {
+            sessionStorage.removeItem('samvad_session_id');
+            setCurrentScreen('welcome');
+          }
+        } catch {
+          sessionStorage.removeItem('samvad_session_id');
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    } catch {
+      // Ignore storage access restrictions if any
+    }
+  }, []);
 
   // 1. Start talking / typing from welcome screen
   const handleStartIntake = async () => {
     setIsProcessing(true);
+    setErrorMessage(null);
     try {
       const res = await startSession(language);
       setSessionId(res.session_id);
       setChatState(res);
+      try {
+        sessionStorage.setItem('samvad_session_id', res.session_id);
+      } catch {}
       setCurrentScreen('consent');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to start session', err);
+      setErrorMessage(err?.message || 'Failed to start session. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -67,12 +113,14 @@ export const PatientShell: React.FC = () => {
   const handleConsentAgree = async () => {
     if (!sessionId) return;
     setIsProcessing(true);
+    setErrorMessage(null);
     try {
       const res = await recordConsent(sessionId, true, language, CONSENT_VERSION);
       setChatState(res);
       setCurrentScreen('conversation');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to record consent', err);
+      setErrorMessage(err?.message || 'Failed to record consent. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -80,11 +128,16 @@ export const PatientShell: React.FC = () => {
 
   const handleConsentDecline = async () => {
     if (!sessionId) return;
+    setErrorMessage(null);
     try {
       await recordConsent(sessionId, false, language, CONSENT_VERSION);
+      try {
+        sessionStorage.removeItem('samvad_session_id');
+      } catch {}
       setCurrentScreen('consent_declined');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to decline consent', err);
+      setErrorMessage(err?.message || 'Failed to record consent decline.');
     }
   };
 
@@ -92,6 +145,7 @@ export const PatientShell: React.FC = () => {
   const handleSendAnswer = async (text: string) => {
     if (!sessionId || !chatState?.current_question) return;
     setIsProcessing(true);
+    setErrorMessage(null);
     try {
       const res = await chatTurn({
         action: 'submit_turn',
@@ -106,17 +160,19 @@ export const PatientShell: React.FC = () => {
       } else if (res.is_complete || (res.is_cap_reached && res.draft_report)) {
         setCurrentScreen('review');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error submitting turn', err);
+      setErrorMessage(err?.message || 'Failed to process answer. Please retry.');
     } finally {
       setIsProcessing(false);
     }
   };
 
   // 4. Voice turn request -> returns transcript_preview state per wire contract
-  const handleVoiceRecorded = async () => {
+  const handleVoiceRecorded = async (simulatedTranscript?: string) => {
     if (!sessionId || !chatState?.current_question) return;
     setIsProcessing(true);
+    setErrorMessage(null);
     try {
       const res = await chatTurn({
         action: 'submit_turn',
@@ -130,9 +186,13 @@ export const PatientShell: React.FC = () => {
       if (res.transcript_preview) {
         setPendingTranscript(res.transcript_preview.text);
         setCurrentScreen('what_we_heard');
+      } else if (simulatedTranscript) {
+        setPendingTranscript(simulatedTranscript);
+        setCurrentScreen('what_we_heard');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error submitting voice turn', err);
+      setErrorMessage(err?.message || 'Voice transcription failed. Please try typing instead.');
     } finally {
       setIsProcessing(false);
     }
@@ -149,6 +209,7 @@ export const PatientShell: React.FC = () => {
     patch: { value: any; status: 'provided' | 'declined' },
   ) => {
     if (!sessionId) return;
+    setErrorMessage(null);
     try {
       const res = await correctDraftReport({
         action: 'correct_draft_report',
@@ -157,8 +218,9 @@ export const PatientShell: React.FC = () => {
         updates: { [field]: patch },
       });
       setChatState(res);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to update field', err);
+      setErrorMessage(err?.message || 'Failed to update field correction.');
     }
   };
 
@@ -166,6 +228,7 @@ export const PatientShell: React.FC = () => {
   const handleSubmitReport = async () => {
     if (!sessionId) return;
     setIsProcessing(true);
+    setErrorMessage(null);
     try {
       const res = await submitReport({
         action: 'submit_report',
@@ -174,8 +237,9 @@ export const PatientShell: React.FC = () => {
       });
       setChatState(res);
       setCurrentScreen('booking');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to submit report', err);
+      setErrorMessage(err?.message || 'Failed to submit report to hospital.');
     } finally {
       setIsProcessing(false);
     }
@@ -183,12 +247,18 @@ export const PatientShell: React.FC = () => {
 
   // 7. "Don't submit" option
   const handleDontSubmit = () => {
+    try {
+      sessionStorage.removeItem('samvad_session_id');
+    } catch {}
     setEndReason('dont_submit');
     setCurrentScreen('session_ended');
   };
 
   // 8. Incomplete cap end action
   const handleEndSessionCap = () => {
+    try {
+      sessionStorage.removeItem('samvad_session_id');
+    } catch {}
     setEndReason('incomplete_cap');
     setCurrentScreen('session_ended');
   };
@@ -204,19 +274,29 @@ export const PatientShell: React.FC = () => {
       patient_name: chatState.submitted_report.report.patient.name.value || undefined,
     });
     setActiveAppointment(res.appointment);
+    try {
+      sessionStorage.removeItem('samvad_session_id');
+    } catch {}
     setCurrentScreen('confirmed_booking');
   };
 
   // 10. "Not now" booking path
   const handleNotNowBooking = () => {
+    try {
+      sessionStorage.removeItem('samvad_session_id');
+    } catch {}
     setCurrentScreen('confirmed_report_only');
   };
 
   // 11. Restart session
   const handleRestart = () => {
+    try {
+      sessionStorage.removeItem('samvad_session_id');
+    } catch {}
     setSessionId('');
     setChatState(null);
     setActiveAppointment(undefined);
+    setErrorMessage(null);
     setCurrentScreen('welcome');
   };
 
@@ -224,6 +304,27 @@ export const PatientShell: React.FC = () => {
     <div className="w-full flex justify-center py-4 sm:py-8">
       {/* Mobile Frame Container (390 x 844 viewport matching Figma V2) */}
       <div className="w-full max-w-[390px] h-[844px] bg-white rounded-[36px] shadow-2xl border-4 border-slate-700/10 overflow-hidden flex flex-col relative">
+        {/* Accessible Error / Network Alert Banner */}
+        {errorMessage && (
+          <div
+            role="alert"
+            className="absolute top-3 left-4 right-4 z-50 p-3 rounded-2xl bg-red-600 text-white text-xs font-semibold shadow-xl flex items-center justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span className="leading-tight">{errorMessage}</span>
+            </div>
+            <button
+              onClick={() => setErrorMessage(null)}
+              aria-label="Dismiss error notification"
+              className="ml-2 text-white/80 hover:text-white font-bold p-1 rounded-full hover:bg-white/20 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         {currentScreen === 'welcome' && (
           <WelcomeView
             onStartTalking={handleStartIntake}

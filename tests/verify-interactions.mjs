@@ -387,6 +387,214 @@ async function runVerification() {
     console.log('  ✓ Responsive containers (390x844 mobile, 1280x820 doctor) and zero overflow verified');
     verificationResults.push({ step: 'Responsive layout (390x844 & 1280x820 & no overflow)', status: 'PASS' });
 
+    // 11. Full End-to-End Patient Intake to Doctor Review Journey in Headless Chrome
+    console.log('[11/11] Testing Full End-to-End Patient Intake to Doctor Review Journey');
+    await cdp.navigate(`http://127.0.0.1:${PORT}/`);
+    await cdp.waitForText('Start Talking');
+
+    // Click "Type Instead"
+    await cdp.eval(`
+      (() => {
+        const btns = Array.from(document.querySelectorAll('button'));
+        const typeBtn = btns.find(b => b.innerText.includes('Type Instead'));
+        if (typeBtn) typeBtn.click();
+      })()
+    `);
+    await sleep(400);
+
+    // Agree to consent
+    await cdp.waitForText('Consent for AI Intake');
+    await cdp.eval(`
+      (() => {
+        const btns = Array.from(document.querySelectorAll('button'));
+        const agreeBtn = btns.find(b => b.innerText.includes('Yes, I agree') || b.innerText.includes('agree'));
+        if (agreeBtn) agreeBtn.click();
+      })()
+    `);
+    await sleep(500);
+
+    // Helper to send text in conversation
+    const sendAnswer = async (text) => {
+      await cdp.eval(`
+        (() => {
+          const typeBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.toLowerCase().includes('type'));
+          if (typeBtn) typeBtn.click();
+        })()
+      `);
+      await sleep(350);
+
+      await cdp.eval(`
+        (() => {
+          const input = document.querySelector('input[type="text"]');
+          if (input) {
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+            nativeInputValueSetter.call(input, ${JSON.stringify(text)});
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        })()
+      `);
+      await sleep(150);
+
+      await cdp.eval(`
+        (() => {
+          const form = document.querySelector('form');
+          if (form) {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn && !submitBtn.disabled) {
+              submitBtn.click();
+            }
+          }
+        })()
+      `);
+      await sleep(600);
+    };
+
+    // Helper to click option chip
+    const clickChip = async (chipPattern) => {
+      await cdp.eval(`
+        (() => {
+          const chips = Array.from(document.querySelectorAll('button'));
+          const target = chips.find(c => ${chipPattern.toString()}.test(c.innerText));
+          if (target) target.click();
+        })()
+      `);
+      await sleep(600);
+    };
+
+    // Answering questions
+    await cdp.waitForText(/name|नाम/i);
+    await sendAnswer('Pooja Verma');
+
+    await cdp.waitForText(/age|years|उम्र/i);
+    await sendAnswer('29');
+
+    await cdp.waitForText(/gender|लिंग/i);
+    await clickChip(/Female|महिला/i);
+
+    await cdp.waitForText(/concern|समस्या/i);
+    await sendAnswer('Persistent mild fever and general body fatigue');
+
+    await cdp.waitForText(/How long|कितने समय/i);
+    await sendAnswer('2 weeks');
+
+    await cdp.waitForText(/severity|तीव्रता/i);
+    await clickChip(/Moderate|मध्यम/i);
+
+    await cdp.waitForText(/conditions|बीमारी/i);
+    await clickChip(/None/i);
+
+    await cdp.waitForText(/medicines|दवा/i);
+    await clickChip(/None/i);
+
+    await cdp.waitForText(/allergies|एलर्जी/i);
+    await clickChip(/None/i);
+
+    await cdp.waitForText(/other symptoms|अन्य लक्षण/i);
+    await clickChip(/No other|कोई अन्य/i);
+
+    // Review Screen
+    const reviewText = await cdp.waitForText(/Review Your Intake Report/i);
+    assert.ok(reviewText.includes('Pooja Verma'), 'Patient name must be in review');
+    assert.ok(reviewText.includes('29 yrs'), 'Patient age must be in review');
+    assert.ok(reviewText.includes('Submit to Hospital'), 'Submit button must be present');
+
+    // Click "Submit to Hospital"
+    await cdp.eval(`
+      (() => {
+        const btns = Array.from(document.querySelectorAll('button'));
+        const submitBtn = btns.find(b => b.innerText.includes('Submit to Hospital'));
+        if (submitBtn) submitBtn.click();
+      })()
+    `);
+    await sleep(600);
+
+    // Booking Screen
+    const bookingText = await cdp.waitForText(/Schedule Consultation/i);
+    assert.ok(bookingText.includes('Book Appointment') || bookingText.includes('Not now'), 'Booking actions must be present');
+
+    // Click "Book Appointment"
+    await cdp.eval(`
+      (() => {
+        const btns = Array.from(document.querySelectorAll('button'));
+        const bookBtn = btns.find(b => b.innerText.includes('Book Appointment'));
+        if (bookBtn) bookBtn.click();
+      })()
+    `);
+    await sleep(600);
+
+    // Confirmation Screen
+    const confirmText = await cdp.waitForText(/Appointment Confirmed|Report Submitted/i);
+    assert.ok(confirmText.includes('APT-') || confirmText.includes('Reference'), 'Reference code must render');
+    console.log('  ✓ Full patient flow completed with confirmed booking');
+
+    // Doctor Portal via Client-Side SPA link
+    await cdp.eval(`
+      (() => {
+        const docLink = Array.from(document.querySelectorAll('header a')).find(a => a.innerText.includes('Doctor Portal'));
+        if (docLink) docLink.click();
+      })()
+    `);
+    await sleep(600);
+
+    // Check if already logged in or login form
+    const docPortalText = await cdp.waitForText(/Samvad|Clinical Desk/i);
+    if (/evaluator access/i.test(docPortalText)) {
+      await cdp.eval(`
+        (() => {
+          const form = document.querySelector('form');
+          if (form) {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.click();
+          }
+        })()
+      `);
+      // Wait for doctor dashboard to mount
+      await cdp.waitForText(/Dashboard Overview|Dr. Aditi Rao/i);
+    }
+
+    // Go to Reports
+    await cdp.eval(`
+      (() => {
+        const reportsTab = Array.from(document.querySelectorAll('button, a')).find(b => b.innerText.toLowerCase().includes('reports'));
+        if (reportsTab) reportsTab.click();
+      })()
+    `);
+    await sleep(500);
+
+    // Check report is in list
+    const repListText = await cdp.waitForText(/Patient Intake Reports/i);
+    assert.ok(repListText.includes('Pooja Verma') || repListText.includes('Submitted') || repListText.includes('Booked'), 'Patient report must be listed');
+
+    // Open detail and Mark Reviewed
+    await cdp.eval(`
+      (() => {
+        const trs = Array.from(document.querySelectorAll('tbody tr'));
+        const targetRow = trs.find(r => r.innerText.includes('Pooja Verma'));
+        if (targetRow) {
+          const firstTd = targetRow.querySelector('td');
+          if (firstTd) firstTd.click();
+          else targetRow.click();
+        }
+      })()
+    `);
+    await sleep(600);
+
+    await cdp.waitForText(/Clinical Intake Summary/i);
+    await cdp.eval(`
+      (() => {
+        const btns = Array.from(document.querySelectorAll('button'));
+        const reviewBtn = btns.find(b => b.innerText.includes('Mark Reviewed'));
+        if (reviewBtn) reviewBtn.click();
+      })()
+    `);
+    await sleep(600);
+
+    const detailText = await cdp.waitForText(/Reviewed/i);
+    assert.ok(detailText.includes('Reviewed'), 'Report marked reviewed successfully');
+    console.log('  ✓ Patient report opened and marked reviewed by doctor');
+    verificationResults.push({ step: 'Full end-to-end patient intake, submit, booking & doctor review journey', status: 'PASS' });
+
   } finally {
     await cdp.close();
     chrome.kill();
@@ -405,6 +613,7 @@ async function runVerification() {
     process.exit(1);
   }
   console.log('All headless Chrome interaction tests passed!\n');
+  process.exit(0);
 }
 
 runVerification().catch((err) => {

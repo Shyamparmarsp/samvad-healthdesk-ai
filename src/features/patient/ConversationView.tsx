@@ -4,6 +4,72 @@ import { ChatMessage, QuestionId } from '../../types/api';
 
 export type AnswerType = 'free_text' | 'yes_no' | 'single_choice';
 
+interface DisplayOption {
+  label: string;
+  value: string;
+}
+
+function getOptionsForQuestion(
+  question?: ConversationViewProps['currentQuestion'],
+  language: 'en' | 'hi' = 'en'
+): DisplayOption[] {
+  if (!question) return [];
+
+  // 1. Explicit emergency clarification is handled separately with dedicated prompt card
+  if (question.id === 'emergency_clarification' || question.is_ambiguous_emergency) {
+    return [];
+  }
+
+  // 2. Yes/No questions (either answer_type === 'yes_no' or options are Yes/No)
+  const isYesNo =
+    question.answer_type === 'yes_no' ||
+    (question.options &&
+      question.options.length === 2 &&
+      question.options.some((o) => o.toLowerCase() === 'yes') &&
+      question.options.some((o) => o.toLowerCase() === 'no'));
+
+  if (isYesNo) {
+    return [
+      {
+        label: language === 'hi' ? 'हाँ (Yes)' : 'Yes',
+        value: 'Yes',
+      },
+      {
+        label: language === 'hi' ? 'नहीं (No)' : 'No',
+        value: 'No',
+      },
+    ];
+  }
+
+  // 3. Gender question
+  if (question.id === 'gender' || question.id === 'patient.gender') {
+    if (language === 'hi') {
+      return [
+        { label: 'पुरुष (Male)', value: 'Male' },
+        { label: 'महिला (Female)', value: 'Female' },
+        { label: 'अन्य (Other)', value: 'Other' },
+        { label: 'बताना नहीं चाहते (Prefer not to say)', value: 'Prefer not to say' },
+      ];
+    }
+    return [
+      { label: 'Male', value: 'Male' },
+      { label: 'Female', value: 'Female' },
+      { label: 'Other', value: 'Other' },
+      { label: 'Prefer not to say', value: 'Prefer not to say' },
+    ];
+  }
+
+  // 4. General options array from backend or mock
+  if (question.options && question.options.length > 0) {
+    return question.options.map((opt) => ({
+      label: opt,
+      value: opt,
+    }));
+  }
+
+  return [];
+}
+
 interface ConversationViewProps {
   messages: ChatMessage[];
   currentQuestion?: {
@@ -64,13 +130,15 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     setCountdown(30);
   };
 
+  const optionsToRender = getOptionsForQuestion(currentQuestion, language);
+
   const handleStopListening = () => {
     setIsListening(false);
     // In mock mode: generate a synthetic voice answer matching current question
     let simulatedVoiceAnswer = 'I have mild pain since yesterday';
     if (currentQuestion?.id === 'name') simulatedVoiceAnswer = 'Pooja Verma';
     else if (currentQuestion?.id === 'age') simulatedVoiceAnswer = '29';
-    else if (currentQuestion?.id === 'gender') simulatedVoiceAnswer = 'Female';
+    else if (currentQuestion?.id === 'gender' || currentQuestion?.id === 'patient.gender') simulatedVoiceAnswer = 'Female';
     else if (currentQuestion?.id === 'primary_concern') simulatedVoiceAnswer = 'Sharp knee pain while walking';
     else if (currentQuestion?.id === 'duration') simulatedVoiceAnswer = 'About 2 weeks';
     else if (currentQuestion?.id === 'severity') simulatedVoiceAnswer = 'Moderate';
@@ -78,8 +146,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     else if (currentQuestion?.id === 'medications') simulatedVoiceAnswer = 'None';
     else if (currentQuestion?.id === 'allergies') simulatedVoiceAnswer = 'None known';
     else if (currentQuestion?.id === 'other_symptoms') simulatedVoiceAnswer = 'Mild swelling around the knee';
-    else if (currentQuestion?.options && currentQuestion.options.length > 0) {
-      simulatedVoiceAnswer = currentQuestion.options[0];
+    else if (optionsToRender.length > 0) {
+      simulatedVoiceAnswer = optionsToRender[0].value;
     } else {
       simulatedVoiceAnswer = 'No other issues to mention';
     }
@@ -117,7 +185,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           <button
             onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')}
             title={language === 'en' ? 'Switch to Hindi' : 'Switch to English'}
-            className="text-[11px] font-semibold px-2.5 py-1 rounded-full border border-slate-300 bg-white/70 hover:bg-white text-slate-700 shadow-sm transition-all"
+            aria-label={language === 'en' ? 'Switch interface language to Hindi' : 'Switch interface language to English'}
+            className="text-[11px] font-semibold px-2.5 py-1 rounded-full border border-slate-300 bg-white/70 hover:bg-white text-slate-700 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-brand-navy"
           >
             {language === 'en' ? 'हिन्दी' : 'English'}
           </button>
@@ -125,7 +194,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           <button
             onClick={onReplayAudio}
             title={t.chat.replayQuestion}
-            className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500 transition-colors"
+            aria-label={t.chat.replayQuestion}
+            className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-navy"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
@@ -136,14 +206,14 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 
       {/* Demo Busy Banner if Cap Reached (D9 copy) */}
       {demoBusy && (
-        <div className="mx-4 mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 shadow-sm">
+        <div role="status" aria-live="polite" className="mx-4 mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 shadow-sm">
           <p className="font-semibold">{t.chat.demoBusyTitle}</p>
           <p className="mt-0.5">{t.chat.demoBusyMessage}</p>
         </div>
       )}
 
       {/* Scrolling Chat Message Log */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      <div role="log" aria-live="polite" className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.map((msg) => {
           const isAssistant = msg.role === 'assistant';
           const displayedContent =
@@ -180,7 +250,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 
         {/* Processing Indicator */}
         {isProcessing && (
-          <div className="flex items-center gap-2 text-xs text-slate-500 py-2">
+          <div role="status" aria-live="polite" className="flex items-center gap-2 text-xs text-slate-500 py-2">
             <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping"></span>
             <span>{t.chat.processing}</span>
           </div>
@@ -189,17 +259,22 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Reply Option Chips (e.g. for Gender, Severity, Ambiguous Emergency) */}
-      {currentQuestion?.options && currentQuestion.options.length > 0 && !isListening && (
-        <div className="px-4 py-2 flex flex-wrap gap-2 border-t border-slate-100 bg-white/50 backdrop-blur-sm">
-          {currentQuestion.options.map((opt) => (
+      {/* Quick Reply Option Chips (e.g. for Gender, Severity, Yes/No, Adaptive questions) */}
+      {optionsToRender.length > 0 && !isListening && (
+        <div
+          role="group"
+          aria-label="Quick reply options"
+          className="px-4 py-2 flex flex-wrap gap-2 border-t border-slate-100 bg-white/50 backdrop-blur-sm"
+        >
+          {optionsToRender.map((opt) => (
             <button
-              key={opt}
-              onClick={() => handleChipClick(opt)}
+              key={opt.value}
+              onClick={() => handleChipClick(opt.value)}
               disabled={isProcessing}
-              className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-white border border-slate-300 text-brand-navy hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+              aria-label={opt.label}
+              className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white border border-slate-300 text-brand-navy hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-navy active:scale-95 disabled:opacity-50 transition-all shadow-sm"
             >
-              {opt}
+              {opt.label}
             </button>
           ))}
         </div>
@@ -215,14 +290,14 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
             <button
               onClick={() => handleChipClick('Yes')}
               disabled={isProcessing}
-              className="flex-1 py-2 rounded-lg bg-red-600 text-white font-semibold text-xs shadow hover:bg-red-700"
+              className="flex-1 py-2 rounded-lg bg-red-600 text-white font-semibold text-xs shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
             >
               {t.common.yes}
             </button>
             <button
               onClick={() => handleChipClick('No')}
               disabled={isProcessing}
-              className="flex-1 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 font-medium text-xs hover:bg-slate-50"
+              className="flex-1 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 font-medium text-xs hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400"
             >
               {t.common.no}
             </button>
@@ -263,7 +338,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
               <div className="flex items-center justify-between w-full">
                 <button
                   onClick={() => setInputMode('text')}
-                  className="text-xs font-medium text-slate-500 hover:text-brand-navy flex items-center gap-1 px-2 py-1"
+                  aria-label={t.chat.typeInstead}
+                  className="text-xs font-medium text-slate-500 hover:text-brand-navy flex items-center gap-1 px-2 py-1 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-navy"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -275,7 +351,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                 <button
                   onClick={handleStartListening}
                   disabled={isProcessing || demoBusy}
-                  className="w-[86px] h-[86px] rounded-full bg-brand-navy text-white shadow-lg hover:bg-brand-navy-light active:scale-95 disabled:opacity-50 transition-all flex flex-col items-center justify-center -mt-6 border-4 border-surface-mobile shadow-indigo-300"
+                  aria-label={t.chat.tapToSpeak}
+                  className="w-[86px] h-[86px] rounded-full bg-brand-navy text-white shadow-lg hover:bg-brand-navy-light active:scale-95 disabled:opacity-50 transition-all flex flex-col items-center justify-center -mt-6 border-4 border-surface-mobile shadow-indigo-300 focus:outline-none focus:ring-4 focus:ring-indigo-300"
                 >
                   <svg className="w-7 h-7 text-indigo-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
@@ -299,7 +376,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
               <button
                 type="button"
                 onClick={() => setInputMode('voice')}
-                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                aria-label={t.chat.useVoice}
+                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
@@ -314,6 +392,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                 value={typedText}
                 onChange={(e) => setTypedText(e.target.value)}
                 placeholder={t.chat.inputPlaceholder}
+                aria-label={t.chat.inputPlaceholder}
                 disabled={isProcessing || demoBusy}
                 autoFocus
                 className="flex-1 h-11 px-4 rounded-input border border-slate-300 bg-white text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-navy shadow-inner"
@@ -321,7 +400,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
               <button
                 type="submit"
                 disabled={!typedText.trim() || isProcessing || demoBusy}
-                className="h-11 px-5 rounded-input bg-brand-navy text-white text-sm font-semibold hover:bg-brand-navy-light disabled:opacity-50 transition-all flex items-center justify-center shadow-sm"
+                aria-label={t.chat.send}
+                className="h-11 px-5 rounded-input bg-brand-navy text-white text-sm font-semibold hover:bg-brand-navy-light disabled:opacity-50 transition-all flex items-center justify-center shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-navy"
               >
                 {t.chat.send}
               </button>
