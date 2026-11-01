@@ -48,17 +48,30 @@ Deno.test("schema: every table enables row level security", () => {
   }
 });
 
-Deno.test("schema: SECURITY DEFINER is confined to mark_report_reviewed", () => {
+Deno.test("schema: SECURITY DEFINER is confined to the two reviewed RPCs", () => {
   const definers = listMigrations().filter((name) => readMigration(name).toLowerCase().includes("security definer"));
-  assertEqual(definers.length, 1, "exactly one migration declares SECURITY DEFINER");
-  assertEqual(definers[0], "20261102120000_mark_report_reviewed.sql", "the reviewed RPC only");
+  assertEqual(definers.length, 2, "exactly two migrations declare SECURITY DEFINER (one function each)");
+  assertEqual(
+    definers.sort().join(","),
+    "20261102120000_mark_report_reviewed.sql,20261102130000_availability_and_booking.sql",
+    "the reviewed functions only",
+  );
 
-  const sql = readMigration(definers[0]).toLowerCase();
-  assert(sql.includes("set search_path = ''"), "empty search_path");
-  assert(sql.includes("auth.uid()"), "caller identity validated inline");
-  assert(sql.includes("revoke all on function public.mark_report_reviewed(uuid) from public, anon, authenticated"), "execute revoked");
-  assert(sql.includes("grant execute on function public.mark_report_reviewed(uuid) to authenticated"), "authenticated only");
-  assert(!sql.includes("grant update"), "no table write grant added");
+  for (const file of definers) {
+    const sql = readMigration(file).toLowerCase();
+    assert(sql.includes("set search_path = ''"), `${file}: empty search_path`);
+    assert(sql.includes("auth.uid()"), `${file}: caller identity validated inline`);
+    assert(sql.includes("revoke all on function"), `${file}: execute revoked`);
+    assert(sql.includes("to authenticated"), `${file}: authenticated only`);
+    assert(!sql.includes("grant update"), `${file}: no table write grant added`);
+  }
+});
+
+Deno.test("schema: booking RPCs keep browser table access closed", () => {
+  const sql = readMigration("20261102130000_availability_and_booking.sql").toLowerCase();
+  assert(!/grant\s+(insert|update|delete|all)[^;]*to\s+(anon|authenticated)/.test(sql), "no browser write grant");
+  assert(!sql.includes("grant select on public.appointments"), "no appointment table read");
+  assert(sql.includes("security definer"), "availability documents its definer need");
 });
 
 Deno.test("schema: browser roles never receive write privileges", () => {

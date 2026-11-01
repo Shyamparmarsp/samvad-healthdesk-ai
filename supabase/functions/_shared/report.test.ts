@@ -58,6 +58,21 @@ Deno.test("report: gender declined is a handled answer and never blocks completi
   assertEqual(doc.patient.gender.value, null, "no value with declined");
 });
 
+Deno.test("report: 'declined' is rejected as a gender value, accepted as a status", () => {
+  assertEqual(normalizeFieldValue("patient.gender", "declined"), null, "declined is not a value");
+  assertEqual(normalizeFieldValue("patient.gender", "male"), "male", "a real value passes");
+
+  const asValue = applyCorrections(completeFields(), {
+    "patient.gender": { value: "declined", status: "provided" },
+  } as never);
+  assert(!asValue.ok, "value 'declined' with status provided is rejected");
+
+  const asStatus = applyCorrections(completeFields(), {
+    "patient.gender": { value: null, status: "declined" },
+  } as never);
+  assert(asStatus.ok, "status declined is accepted");
+});
+
 Deno.test("report: optional fields count as handled when declined or unknown", () => {
   const fields = completeFields();
   fields["clinical_details.conditions"] = { status: "declined", value: null };

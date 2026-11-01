@@ -47,7 +47,7 @@ export const MAX_LIST_ITEMS = 20;
 export const MIN_AGE = 0;
 export const MAX_AGE = 120;
 
-const GENDERS: readonly GenderValue[] = ["male", "female", "other", "declined"];
+const GENDERS: readonly GenderValue[] = ["male", "female", "other"];
 
 export type FieldMap = Record<CorrectableField, FieldValue<unknown>>;
 

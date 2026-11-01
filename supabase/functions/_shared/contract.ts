@@ -39,7 +39,12 @@ export interface FieldValue<T> {
   value: T | null;
 }
 
-export type GenderValue = "male" | "female" | "other" | "declined";
+/**
+ * Gender values that can be stored. "Prefer not to say" is NOT a value: it is recorded
+ * as { status: "declined", value: null } (report v1.2). The literal "declined" is
+ * deliberately absent so it cannot be emitted or accepted as a value.
+ */
+export type GenderValue = "male" | "female" | "other";
 
 export type DepartmentKey =
   | "general_medicine"

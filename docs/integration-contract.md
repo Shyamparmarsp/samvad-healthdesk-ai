@@ -194,7 +194,40 @@ Frontend usage: call it, then re-read the report; do not update local state opti
 
 ---
 
-## 11. Open decisions that affect the UI
+## 11. Availability and booking RPCs (implemented, `20261102130000_availability_and_booking.sql`)
+
+```
+POST /rest/v1/rpc/get_available_slots
+{ "p_report_id": "<uuid>", "p_days": 14 }
+200 → [ { "slot_start": "2026-11-03T09:00:00+05:30", "slot_end": "..." } ]
+
+POST /rest/v1/rpc/book_appointment
+{ "p_report_id": "<uuid>", "p_slot_start": "2026-11-03T09:00:00+05:30" }
+200 → [ { "appointment_id", "reference_code", "slot_start", "slot_end", "doctor_id", "already_booked": false } ]
+```
+
+**The client never supplies a doctor, department or patient id.** Doctor and department are derived from the report server-side; ownership comes from `auth.uid()`.
+
+| Rule | Behaviour |
+|---|---|
+| Caller | Authenticated patient, owns the report and session |
+| Report status | `submitted` only. Draft and `urgent_partial` are refused |
+| Department | Must be bookable and not Emergency |
+| Review hold | If `possible_urgent` or `needs_human_review`, `reviewed_at` must be set (Mark Reviewed releases the hold) |
+| Horizon | Next **14** days in `Asia/Kolkata`, weekdays only, 09:00–17:00, 30-minute slots, lunch 13:00–14:00 excluded, last start 16:30 |
+| Past / occupied | Excluded |
+| Booking | Slot is revalidated inside the same transaction; concurrent losers get a conflict |
+| Repeat | Same report + same slot returns the existing appointment with `already_booked: true`; a different slot is rejected |
+
+Errors (PostgREST): `P0002` not found / not owned, `22023` not eligible (draft, urgent, emergency, bad horizon), `42501` held pending review, `23505` slot taken or already booked.
+
+**Frontend mapping note:** `BookAppointmentRequest.slot_id` and `.doctor_id` are presentation data. Send `p_slot_start` from `slot_id` (ISO start) and ignore `doctor_id`; the server derives it.
+
+**Documented deviation:** `get_available_slots` is `SECURITY DEFINER`, not invoker, because `reports` deliberately has no browser read policy, so an invoker function cannot validate ownership. It keeps an empty `search_path`, checks `auth.uid()`, and grants EXECUTE to `authenticated` only. No table access was added.
+
+---
+
+## 12. Open decisions that affect the UI
 
 | ID | Question | Current backend behaviour |
 |---|---|---|
@@ -202,7 +235,7 @@ Frontend usage: call it, then re-read the report; do not update local state opti
 | OD-09 | Does a later clear "No" clear an earlier `needs_human_review`? | **No.** The flag is conservative and stays set until the owner decides. |
 | OD-03 | May a General Medicine doctor mark an Emergency report reviewed? | **No (interim).** Read cross-visibility does not grant review authority. The Emergency doctor may review; General Medicine is denied until the owner decides. |
 
-## 12. Frontend adoption status (verified 2 November 2026)
+## 13. Frontend adoption status (verified 2 November 2026)
 
 Read-only check of the frontend worktree — both previously open items are **adopted**:
 

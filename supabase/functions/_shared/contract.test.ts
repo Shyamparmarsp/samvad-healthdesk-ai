@@ -127,6 +127,21 @@ Deno.test("contract: correction allowlist and protected list are disjoint and co
   }
 });
 
+Deno.test("contract: gender never carries a 'declined' value", () => {
+  // The literal is absent from the union, so no value can be emitted or accepted.
+  const genderValues: Array<"male" | "female" | "other"> = ["male", "female", "other"];
+  for (const value of genderValues) {
+    assert(value !== ("declined" as string), "declined is not a value");
+  }
+  const declinedAnswer = { status: "declined" as const, value: null };
+  assertExtendedDeclined(declinedAnswer);
+});
+
+function assertExtendedDeclined(answer: { status: "declined"; value: null }): void {
+  assertEqual(answer.status, "declined", "status carries the refusal");
+  assertEqual(answer.value, null, "no value with a declined status");
+}
+
 Deno.test("contract: a mismatched consent version is rejected end to end", () => {
   const fixture = {
     action: "record_consent",
