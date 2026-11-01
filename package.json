@@ -14,10 +14,11 @@
     "test:api:journey": "tsx --test tests/api/patient-journey.test.ts",
     "test:api:safety": "tsx --test tests/api/safety-and-adaptive.test.ts",
     "test:api:contract": "tsx --test tests/api/contract-and-authorisation.test.ts",
-    "test:e2e": "node tests/verify-interactions.mjs",
+    "test:e2e": "npm run build:mock && node tests/verify-interactions.mjs",
     "test:visual": "node tests/visual-qa.mjs",
     "test:api:browser": "node tests/api/browser/supabase-journey.mjs",
-    "test:api:browser:extras": "node tests/api/browser/supabase-extras.mjs"
+    "test:api:browser:extras": "node tests/api/browser/supabase-extras.mjs",
+    "build:mock": "tsc && VITE_SUPABASE_URL= VITE_SUPABASE_KEY= vite build"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
