@@ -415,14 +415,15 @@ async function runVisualQA() {
     await cdp.waitForText(/Patient Intake Reports/i);
     await cdp.captureScreenshot('doctor-reports-1280x820.png');
 
-    // Click into first report detail to capture informational note
+    // Click into the seeded General Medicine report (it carries a bank-v2 answer).
     await cdp.eval(`
       (() => {
         const trs = Array.from(document.querySelectorAll('tbody tr'));
-        if (trs.length > 0) {
-          const firstTd = trs[0].querySelector('td');
+        const targetRow = trs.find(r => r.innerText.includes('Rohan Deshmukh')) || trs[0];
+        if (targetRow) {
+          const firstTd = targetRow.querySelector('td');
           if (firstTd) firstTd.click();
-          else trs[0].click();
+          else targetRow.click();
         }
       })()
     `);
@@ -431,16 +432,23 @@ async function runVisualQA() {
     await cdp.captureScreenshot('doctor-report-detail-1280x820.png');
     console.log('  ✓ Captured doctor-report-detail-1280x820.png showing compact conversation history note');
 
-    // Expand verbatim conversation history
+    // Expand stored patient responses
     await cdp.eval(`
       (() => {
-        const expandBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Expand Conversation') || b.innerText.includes('Verbatim Intake Conversation'));
+        const expandBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Patient responses') || b.innerText.includes('Show full conversation'));
         if (expandBtn) expandBtn.click();
       })()
     `);
-    await sleep(400);
+    await sleep(600);
+    await cdp.waitForText(/Answer 1|No patient responses were recorded/i);
+    await cdp.waitForText(/GM-002/);
+    await cdp.waitForText(/Voice transcript/i);
+    const conversationText = await cdp.eval('document.body.innerText');
+    assert.ok(conversationText.includes('GM-002'), 'conversation-level bank answer id must be visible');
+    assert.ok(conversationText.includes('evening fever and body ache for five days'), 'raw voice transcript must be shown');
+    assert.ok(conversationText.includes('Low grade recurring evening fever and body ache'), 'confirmed answer must be shown');
     await cdp.captureScreenshot('doctor-conversation-history-1280x820.png');
-    console.log('  ✓ Captured doctor-conversation-history-1280x820.png showing expanded verbatim conversation history');
+    console.log('  ✓ Captured doctor-conversation-history-1280x820.png showing stored patient responses including GM-002 and a voice transcript');
 
     // Urgent Triage Queue
     await cdp.eval(`
@@ -450,7 +458,7 @@ async function runVisualQA() {
       })()
     `);
     await sleep(500);
-    await cdp.waitForText(/Emergency Triage Queue|Urgent/i);
+    await cdp.waitForText(/Emergency Triage Queue/i);
     await cdp.captureScreenshot('doctor-urgent-1280x820.png');
 
     // Appointments tab
@@ -461,7 +469,7 @@ async function runVisualQA() {
       })()
     `);
     await sleep(500);
-    await cdp.waitForText(/Clinical Appointments/i);
+    await cdp.waitForText(/Patient consultations scheduled/i);
     await cdp.captureScreenshot('doctor-appointments-1280x820.png');
 
     // 6. Doctor dashboard on mobile (390x844)
@@ -485,7 +493,6 @@ async function runVisualQA() {
     await cdp.close();
     chrome.kill();
     server.kill();
-    process.exit(0);
   }
 }
 

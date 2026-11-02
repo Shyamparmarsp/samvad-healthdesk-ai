@@ -2,7 +2,7 @@
 
 Two things live here:
 
-1. The audit of all 20 exported functions in `src/lib/api.ts` against the backend contract
+1. The audit of all 21 exported functions in `src/lib/api.ts` against the backend contract
    (`supabase/functions/_shared/contract.ts`, `validation.ts`, `errors.ts`, and
    `docs/integration-contract.md`).
 2. The independent test suite that exercises those functions against the **real local
@@ -58,7 +58,7 @@ It is kept intact as a contract regression, but it proves nothing about the real
 
 ---
 
-## 2. Audit of the 20 exported functions
+## 2. Audit of the 21 exported functions
 
 Legend: **Real** = the Supabase-mode path, **Mock** = the in-memory demo path.
 "Fixed" means the behaviour was changed in this milestone.
@@ -85,6 +85,7 @@ Legend: **Real** = the Supabase-mode path, **Mock** = the in-memory demo path.
 | 18 | `getDoctorReportDetail` | PostgREST `reports` | real, `maybeSingle` | local map | same policy | same | `patient-journey`, `safety`, `contract` | — |
 | 19 | `getDoctorAppointments` | RPC `get_doctor_appointments()` | real RPC returning derived rows | local filter | `SECURITY DEFINER` read RPC scoped to the caller's own `doctor_profiles` row; a non-doctor gets an empty set, never a 403 | **Fixed**: throws instead of returning `[]`, which previously made a denied read look like "nothing booked" | `patient-journey`, `contract` | **Fixed (blocking)**: `appointments` has no browser grant or policy, so the real dashboard could never show a booking — "Booked" was always 0 and the Today/Upcoming/Past tabs were always empty. Migration `20261102160000_doctor_appointment_reads.sql` adds one read-only function; the table stays closed. It also supplies `doctor_name`, `department_name` and `patient_name`, which the old table read never returned. |
 | 20 | `getDoctorDashboardStats` | derived from #17 + #19 | client-side count over the doctor's visible rows | same | inherits both reads | inherits | `patient-journey` | definition follows `docs/report-design.md` §15; it now inherits the corrected appointment read instead of silently counting everything as "Not booked" |
+| 21 | `getDoctorMessages` | PostgREST `reports` then `messages` | RLS-scoped read of stored patient answers; generic `not_found` for draft/foreign/missing | maps session patient rows and seeded fixtures | report lookup + `messages_doctor_read` (read-only) | `not_found`; generic failure without patient content | `patient-journey`, `contract`, `doctor-flow` (mock) | no assistant question text is stored; UI shows core labels and bank ids |
 
 ### Cross-cutting contract checks confirmed
 

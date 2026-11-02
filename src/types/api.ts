@@ -163,3 +163,21 @@ export interface DoctorLoginResponse {
   doctor: DoctorProfile;
   token: string;
 }
+
+/**
+ * One stored patient-answer row from the intake conversation.
+ *
+ * The backend currently stores patient rows only; it does not store the assistant's
+ * question text. `question_id` is therefore the only stable reference to what was asked
+ * (core id or adaptive bank id), and `original_text` is present only for voice answers.
+ */
+export interface DoctorConversationMessage {
+  id: string;
+  role: 'assistant' | 'patient';
+  question_id: string | null;
+  original_text: string | null;
+  final_text: string | null;
+  input_mode: 'voice' | 'text' | null;
+  turn_index: number | null;
+  created_at: string;
+}
