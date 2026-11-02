@@ -165,7 +165,7 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
           </div>
           {!isReadOnly && (
             <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold uppercase tracking-wider flex-shrink-0 mt-1">
-              Draft Preview
+              {t.review.draftBadge}
             </span>
           )}
         </div>

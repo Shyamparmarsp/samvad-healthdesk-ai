@@ -35,7 +35,7 @@ export const SessionEndedView: React.FC<SessionEndedViewProps> = ({
           </div>
 
           <h1 className="text-[21px] font-bold text-[#1d2433] tracking-tight">
-            Session Ended Privately
+            {t.sessionEnded.title}
           </h1>
 
           <p className="text-[13px] text-[#4a5470] mt-2 max-w-[280px] leading-relaxed">
@@ -45,10 +45,8 @@ export const SessionEndedView: React.FC<SessionEndedViewProps> = ({
           </p>
 
           <div className="mt-4 p-3.5 rounded-[16px] backdrop-blur-[9px] bg-[rgba(255,255,255,0.65)] border border-white text-[11px] text-[#4a5470] max-w-xs text-left shadow-sm">
-            <p className="font-semibold text-[#1d2433]">Privacy Status:</p>
-            <p className="mt-0.5">
-              Your draft intake was not sent to the hospital and will not appear on any doctor dashboard.
-            </p>
+            <p className="font-semibold text-[#1d2433]">{t.sessionEnded.privacyLabel}</p>
+            <p className="mt-0.5">{t.sessionEnded.privacyBody}</p>
           </div>
         </div>
 

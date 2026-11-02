@@ -19,6 +19,7 @@ export const hi: typeof en = {
     save: 'सहेजें',
     or: 'या',
     retry: 'फिर से प्रयास करें',
+    backToStart: 'शुरुआत पर लौटें',
     emergencyNumber: '112',
   },
   welcome: {
@@ -112,6 +113,7 @@ export const hi: typeof en = {
     statusUnclear: 'अस्पष्ट',
     statusNotAsked: 'नहीं पूछा गया',
     unavailable: 'उपलब्ध नहीं',
+    draftBadge: 'प्रारूप पूर्वावलोकन',
     submittedTitle: 'रिपोर्ट जमा हो गई',
     submittedNote: 'यह रिपोर्ट अस्पताल को भेजी जा चुकी है और अब इसमें बदलाव नहीं किया जा सकता।',
     viewBooking: 'अपॉइंटमेंट विकल्प देखें',
@@ -150,6 +152,11 @@ export const hi: typeof en = {
     instructions: 'कृपया अपने निर्धारित समय से 15 मिनट पहले पहुँचें। यदि पिछले मेडिकल रिकॉर्ड उपलब्ध हों तो साथ लाएँ।',
     reportOnlyNotice: 'आपकी रिपोर्ट डॉक्टर के पास सुरक्षित उपलब्ध है। आप अस्पताल पहुँचकर काउंटर पर स्लॉट ले सकते हैं।',
     returnHome: 'मुख्य पृष्ठ पर लौटें',
+  },
+  sessionEnded: {
+    title: 'सत्र निजी रूप से समाप्त हुआ',
+    privacyLabel: 'गोपनीयता स्थिति:',
+    privacyBody: 'आपका प्रारूप इनटेक अस्पताल को नहीं भेजा गया और किसी भी डॉक्टर के डैशबोर्ड पर नहीं दिखेगा।',
   },
   emergency: {
     title: 'यह स्थिति गंभीर हो सकती है',

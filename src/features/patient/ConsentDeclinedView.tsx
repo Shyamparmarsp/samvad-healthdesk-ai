@@ -27,7 +27,7 @@ export const ConsentDeclinedView: React.FC<ConsentDeclinedViewProps> = ({ onRest
           <h1 className="sr-only">{t.consent.declinedTitle}</h1>
 
           <p className="text-[16px] font-semibold text-[#1d2433] leading-relaxed my-2">
-            No problem. We have not saved any health information.
+            {t.consent.declinedMessage}
           </p>
         </div>
 
@@ -39,7 +39,7 @@ export const ConsentDeclinedView: React.FC<ConsentDeclinedViewProps> = ({ onRest
             aria-label={t.consent.restart}
             className="w-full h-[54px] rounded-[27px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
           >
-            <span>Back to start</span>
+            <span>{t.common.backToStart}</span>
             <span className="sr-only"> · {t.consent.restart}</span>
           </button>
 
