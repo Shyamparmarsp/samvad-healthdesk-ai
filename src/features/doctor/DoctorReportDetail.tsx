@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ReportRow } from '../../types/report';
-import { markReportReviewed } from '../../lib/api';
+import { DoctorConversationMessage } from '../../types/api';
+import { getDoctorMessages, markReportReviewed } from '../../lib/api';
 
 interface DoctorReportDetailProps {
   report: ReportRow;
@@ -17,6 +18,27 @@ function getInitials(name?: string): string {
   return parts[0].slice(0, 2).toUpperCase();
 }
 
+/** Accurate labels for core questions; adaptive questions are shown by their stable id. */
+const QUESTION_LABELS: Record<string, string> = {
+  greeting: 'Greeting',
+  name: 'Name',
+  age: 'Age',
+  gender: 'Gender',
+  primary_concern: 'Primary concern',
+  duration: 'Duration',
+  severity: 'Severity',
+  conditions: 'Existing conditions',
+  medications: 'Medications',
+  allergies: 'Allergies',
+  other_symptoms: 'Other symptoms',
+  emergency_clarification: 'Emergency clarification',
+};
+
+function questionLabel(questionId: string | null): string {
+  if (!questionId) return 'Question';
+  return QUESTION_LABELS[questionId] ?? `Adaptive question ${questionId}`;
+}
+
 export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
   report,
   onBack,
@@ -25,6 +47,45 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
   const [isMarking, setIsMarking] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [isConversationExpanded, setIsConversationExpanded] = useState(false);
+  const [conversation, setConversation] = useState<DoctorConversationMessage[]>([]);
+  const [conversationStatus, setConversationStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [conversationError, setConversationError] = useState<string | null>(null);
+  const [conversationAttempt, setConversationAttempt] = useState(0);
+
+  useEffect(() => {
+    // A different report must never show the previous patient's answers.
+    setIsConversationExpanded(false);
+    setConversation([]);
+    setConversationStatus('idle');
+    setConversationError(null);
+    setConversationAttempt(0);
+  }, [report.id]);
+
+  useEffect(() => {
+    if (!isConversationExpanded) return;
+    let cancelled = false;
+    setConversationStatus('loading');
+    setConversationError(null);
+
+    getDoctorMessages(report.id)
+      .then((rows) => {
+        if (cancelled) return;
+        setConversation(rows);
+        setConversationStatus('ready');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setConversation([]);
+        setConversationStatus('error');
+        setConversationError('Patient responses could not be loaded.');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isConversationExpanded, report.id, conversationAttempt]);
+
+  const patientAnswers = conversation.filter((message) => message.role === 'patient');
 
   const isReviewed = Boolean(report.reviewed_at);
 
@@ -266,49 +327,99 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
               </p>
             </div>
 
-            {/* Conversation card / collapsible drawer */}
+            {/* Stored patient answers from the intake conversation */}
             <div className="rounded-[16px] bg-[rgba(255,255,255,0.65)] backdrop-blur-[6px] border border-white p-4 shadow-sm">
               <button
                 type="button"
-                onClick={() => setIsConversationExpanded(!isConversationExpanded)}
+                onClick={() => setIsConversationExpanded((expanded) => !expanded)}
+                aria-expanded={isConversationExpanded}
                 className="w-full flex items-center justify-between text-left focus:outline-none"
               >
                 <span className="text-[13px] font-bold text-[#1d2433]">
-                  Show full conversation
+                  Patient responses
                 </span>
                 <span className="text-[11px] font-semibold text-[#1f2a44]">
-                  {isConversationExpanded ? 'Collapse ▲' : 'Expand ▼'}
+                  {isConversationExpanded
+                    ? 'Collapse ▲'
+                    : `${conversationStatus === 'ready' ? `${patientAnswers.length} recorded · ` : ''}Expand ▼`}
                 </span>
               </button>
 
               {isConversationExpanded && (
-                <div className="mt-3 pt-3 border-t border-[#dde3ee] space-y-2 text-[11px] text-[#4a5470]">
-                  <p>
-                    <strong className="text-[#1d2433]">AI:</strong> What health concern brings you here today?
-                  </p>
-                  <p>
-                    <strong className="text-[#1d2433]">Patient:</strong> {report.report.primary_concern.value}
-                  </p>
-                  {clinical.duration.value && (
-                    <>
-                      <p>
-                        <strong className="text-[#1d2433]">AI:</strong> How long have you had this concern?
-                      </p>
-                      <p>
-                        <strong className="text-[#1d2433]">Patient:</strong> {clinical.duration.value}
-                      </p>
-                    </>
+                <div className="mt-3 pt-3 border-t border-[#dde3ee] space-y-2.5 text-[11px] text-[#4a5470]">
+                  {(conversationStatus === 'loading' || conversationStatus === 'idle') && (
+                    <div role="status" aria-live="polite" className="flex items-center gap-2 py-2">
+                      <span className="w-2 h-2 rounded-full bg-[#284c91] animate-ping" />
+                      <span>Loading patient responses…</span>
+                    </div>
                   )}
-                  {clinical.severity.value && (
-                    <>
-                      <p>
-                        <strong className="text-[#1d2433]">AI:</strong> How severe would you rate your symptoms?
-                      </p>
-                      <p>
-                        <strong className="text-[#1d2433]">Patient:</strong> {clinical.severity.value}
-                      </p>
-                    </>
+
+                  {conversationStatus === 'error' && (
+                    <div role="alert" className="rounded-[12px] bg-red-50 border border-red-200 p-3 text-red-900">
+                      <p>{conversationError}</p>
+                      <button
+                        type="button"
+                        onClick={() => setConversationAttempt((attempt) => attempt + 1)}
+                        className="mt-2 text-[11px] font-semibold underline focus:outline-none"
+                      >
+                        Retry
+                      </button>
+                    </div>
                   )}
+
+                  {conversationStatus === 'ready' && patientAnswers.length === 0 && (
+                    <p className="py-2">No patient responses were recorded for this intake.</p>
+                  )}
+
+                  {conversationStatus === 'ready' &&
+                    patientAnswers.map((answer, index) => {
+                      const finalText = answer.final_text?.trim() ?? '';
+                      const originalText = answer.original_text?.trim() ?? '';
+                      const showsOriginal = originalText.length > 0 && originalText !== finalText;
+                      const answerNumber = answer.turn_index ?? index + 1;
+
+                      return (
+                        <div
+                          key={answer.id}
+                          className="rounded-[12px] bg-white/70 border border-[#dde3ee]/70 p-3"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#284c91]">
+                              {questionLabel(answer.question_id)}
+                            </span>
+                            <span className="flex items-center gap-2 text-[10px] text-[#6b7590]">
+                              {answer.input_mode === 'voice' && (
+                                <span className="px-2 py-0.5 rounded-full bg-[#e1ebfd] text-[#284c91] font-semibold">
+                                  Voice
+                                </span>
+                              )}
+                              <span>Answer {answerNumber}</span>
+                            </span>
+                          </div>
+
+                          {showsOriginal ? (
+                            <>
+                              <p className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-[#6b7590]">
+                                Voice transcript
+                              </p>
+                              <p className="mt-0.5 text-[11px] italic text-[#4a5470]">
+                                “{originalText}”
+                              </p>
+                              <p className="mt-2 text-[10px] font-semibold uppercase tracking-wide text-[#6b7590]">
+                                Confirmed answer
+                              </p>
+                              <p className="mt-0.5 text-[12px] text-[#1d2433]">
+                                {finalText || 'Not recorded'}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="mt-1 text-[12px] text-[#1d2433]">
+                              {finalText || 'Not recorded'}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
                 </div>
               )}
             </div>

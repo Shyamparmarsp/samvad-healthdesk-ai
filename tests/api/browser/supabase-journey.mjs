@@ -341,12 +341,16 @@ async function run() {
     await step('14. doctor opens the report detail and marks it reviewed', async () => {
       await session.click('Asha Browser Test');
       await session.waitForText(/Primary Concern|Review/i, 20_000);
+      // Read the real stored patient answers through the on-screen reader.
+      await session.click(/Patient responses/i);
+      const conversation = await session.waitForText(/Answer 1/, 20_000);
+      assert.match(conversation, /Name/i);
       await session.click(/Mark Reviewed|Mark as Reviewed/i);
       // While the RPC is in flight the button reads "Marking..."; the stored state adds
       // a "Reviewed" label. Wait for that state rather than for the label to vanish.
       const text = await session.waitForText(/Reviewed/, 30_000);
       assert.doesNotMatch(text, /Marking\.\.\./);
-      return 'review recorded in the UI';
+      return 'stored patient responses rendered; review recorded in the UI';
     });
 
     await step('15. review is persisted for the assigned doctor', async () => {

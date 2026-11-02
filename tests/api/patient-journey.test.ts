@@ -309,6 +309,89 @@ describe('M4 frontend integration — patient journey (local Supabase)', () => {
     assert.ok(login.token.length > 0);
   });
 
+  it('the assigned doctor reads stored patient answers in chronological order', async () => {
+    const messages = await api.getDoctorMessages(state.submittedReportId);
+
+    assert.ok(messages.length >= 10, 'every accepted answer must be readable');
+    assert.ok(messages.every((message) => message.role === 'patient'), 'the table stores patient rows');
+    assert.deepEqual(
+      messages.slice(0, 3).map((message) => message.question_id),
+      ['name', 'age', 'gender'],
+      'answers are chronological and retain their question ids'
+    );
+    assert.equal(messages[0].final_text, COMPLETE_ANSWERS.name);
+    assert.equal(messages[0].input_mode, 'text');
+    assert.equal(messages[0].original_text, null);
+  });
+
+  it('returns conversation-level bank-v2 answer ids such as GM-002', async () => {
+    // Test fixture: add one conversation-level answer to the already-submitted report.
+    // This is exactly the row shape chat-turn writes for a bank question whose field is
+    // outside report v1.2; the read API must not drop it.
+    await stack.rest('messages', {
+      method: 'POST',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify({
+        session_id: state.sessionId,
+        role: 'patient',
+        question_id: 'GM-002',
+        turn_index: 11,
+        original_text: null,
+        final_text: 'It comes and goes, mostly in the evening',
+        input_mode: 'text',
+      }),
+    });
+
+    const messages = await api.getDoctorMessages(state.submittedReportId);
+    const bankAnswer = messages.find((message) => message.question_id === 'GM-002');
+
+    assert.ok(bankAnswer, 'bank-v2 answer must be returned');
+    assert.equal(bankAnswer!.final_text, 'It comes and goes, mostly in the evening');
+    assert.equal(bankAnswer!.turn_index, 11);
+  });
+
+  it('voice answers expose original_text and input_mode', async () => {
+    const patient = await stack.createPatient();
+    setSupabaseClient(patient.client);
+    const started = await api.startSession('en');
+    await api.recordConsent(started.session_id, true, 'en', CONSENT_VERSION);
+
+    const preview = await api.chatTurn({
+      action: 'submit_turn',
+      session_id: started.session_id,
+      question_id: 'name',
+      audio_base64: Buffer.from('RIFF0000WAVEfmt ').toString('base64'),
+      audio_format: 'audio/wav',
+    });
+    assert.ok(preview.transcript_preview, 'audio turn must produce a preview');
+    const heard = preview.transcript_preview!.text;
+
+    await api.chatTurn({
+      action: 'submit_turn',
+      session_id: started.session_id,
+      question_id: 'name',
+      text: heard,
+    });
+
+    const { response } = await driveIntake(api, started.session_id, COMPLETE_ANSWERS);
+    assert.equal(response.is_complete, true);
+    const submitted = await api.submitReport({
+      action: 'submit_report',
+      session_id: started.session_id,
+    });
+
+    setSupabaseClient(state.doctor!.client);
+    const messages = await api.getDoctorMessages(submitted.submitted_report!.id);
+    const nameAnswer = messages.find((message) => message.question_id === 'name');
+
+    assert.ok(nameAnswer, 'voice answer must be readable');
+    assert.equal(nameAnswer!.input_mode, 'voice');
+    assert.equal(nameAnswer!.original_text, heard);
+    assert.equal(nameAnswer!.final_text, heard);
+
+    setSupabaseClient(state.patient!.client);
+  });
+
   it('doctorLogin refuses an Auth user with no doctor_profiles row', async () => {
     const patient = await stack.createPatient();
     setSupabaseClient(patient.client);

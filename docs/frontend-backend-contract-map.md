@@ -242,6 +242,7 @@ object URL from the audio bytes or `{ text }` and never claims audio when there 
 | 18 | `getDoctorReportDetail` | PostgREST `reports` | `eq('id')`, `maybeSingle` | local map |
 | 19 | `getDoctorAppointments` | RPC `get_doctor_appointments` | caller-scoped derived rows | local filter |
 | 20 | `getDoctorDashboardStats` | derived from #17 + #19 | client-side counts | same |
+| 21 | `getDoctorMessages` | PostgREST `reports` + `messages` | RLS-scoped read of stored patient answers | seeded/session fixture rows |
 
 Also exported: `FICTIONAL_DOCTORS` (mock display data) and `ApiError` (code/status).
 
@@ -479,20 +480,22 @@ doctorLogin(email, password)
 | Report detail | `from('reports').select('*').eq('id', reportId).maybeSingle()` | Returns null on RLS denial |
 | Appointments | `rpc('get_doctor_appointments')` | `SECURITY DEFINER`, scoped to the caller's `doctor_profiles.doctor_id`; returns derived names and no `user_id` |
 | Stats | derived from reports + appointments | `urgent`, `new_reports`, `booked`, `not_booked` |
+| Patient responses | `getDoctorMessages(reportId)` → RLS-scoped `reports` then `messages` | read-only; generic `not_found` for draft/foreign/missing; patient rows only |
 | Mark reviewed | `rpc('mark_report_reviewed', { p_report_id })` | see §14 |
 
 **ReportRow** includes `user_id` (the anonymous patient identity). It is needed by policy
 internals, not by the UI; do not render it.
 
-**Conversation history:** the backend grants doctors `SELECT` on `messages` under RLS for
-reports they may see, but **`src/lib/api.ts` exposes no function to read messages**. The
-doctor detail panel labelled "Verbatim Intake Conversation" currently renders three
-structured report fields (concern, duration, severity), not the message rows. Adding a real
-message reader would be a new API surface (for example a `getDoctorMessages(reportId)`
-wrapper around an RLS-scoped `messages` select). It does not require a schema change, but it
-is **not part of this freeze**; do not add direct `.from('messages')` calls inside a
-component. Keep the existing panel wording or label it as a structured summary until that
-API is approved.
+**Conversation history (updated on `feat/doctor-conversation-reader`):**
+`src/lib/api.ts` now exposes `getDoctorMessages(reportId)`. It resolves the report's
+`session_id` through the doctor's RLS-scoped report read, then selects the stored patient
+answer rows from `messages` (existing `SELECT` grant + `messages_doctor_read`). Draft,
+foreign and missing reports produce the same generic `not_found`; no schema, RPC, Edge
+Function or write permission was added. The rows contain patient answers only — no assistant
+question text — so the UI labels core questions accurately and shows adaptive questions by
+their stable id (`GM-002`) rather than inventing question wording. Voice answers expose
+`original_text` and `input_mode`, and the UI distinguishes the raw transcript from the
+confirmed answer.
 
 **Emergency reports:** General Medicine and Emergency doctors may read Emergency-department
 reports (read-only cross-visibility). Only the Emergency doctor may mark an
@@ -650,7 +653,9 @@ Devanagari translation, not a transliteration.
 **Known gaps (do not silently "fix" during styling)**
 
 1. Cached opening audio assets are absent; scripted replay is silent.
-2. No doctor conversation-message reader exists; the panel is a structured summary.
+2. ~~No doctor conversation-message reader exists; the panel is a structured summary.~~
+   Resolved on `feat/doctor-conversation-reader`: `getDoctorMessages(reportId)` reads the
+   stored patient rows through existing RLS; no schema or backend change.
 3. `ConversationView` passes a simulated transcript that the parent ignores.
 4. The UI listening countdown is not an active recording.
 5. `CurrentQuestion.answer_type` is not sent by the backend.
@@ -708,8 +713,8 @@ bank or Edge Functions as part of a visual rebuild.
 | Backend Deno tests | **181 passed / 0 failed** |
 | Backend entry-point type check | **pass** (`chat-turn`, `speak`) |
 | Contract fixtures | **17 valid** |
-| Frontend mock/contract suites | **31 passed / 0 failed** |
-| Frontend real-stack API suite | **51 passed / 0 failed** (local Supabase, real Auth, PostgREST, RPCs, Edge Function HTTP) |
+| Frontend mock/contract suites | **32 passed / 0 failed** |
+| Frontend real-stack API suite | **55 passed / 0 failed** (local Supabase, real Auth, PostgREST, RPCs, Edge Function HTTP) |
 | Frontend production build | **pass** (`tsc && vite build`) |
 | Branch merges | **none** |
 | Database/schema/question-bank changes | **none** |

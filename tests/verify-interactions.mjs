@@ -591,6 +591,23 @@ async function runVerification() {
       'Compact informational note must be rendered above conversation history in doctor report detail'
     );
 
+    // Expand stored patient responses (not a fabricated transcript).
+    await cdp.eval(`
+      (() => {
+        const btn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Patient responses') || b.innerText.includes('Show full conversation'));
+        if (btn) btn.click();
+      })()
+    `);
+    const conversationText = await cdp.waitForText(/Answer 1|No patient responses were recorded/i);
+    assert.ok(
+      conversationText.includes('Answer 1') || conversationText.includes('No patient responses were recorded'),
+      'Doctor detail must render stored patient answers or an honest empty state'
+    );
+    assert.ok(
+      !conversationText.includes('AI: What health concern brings you here today?'),
+      'Doctor detail must not fabricate an assistant transcript'
+    );
+
     await cdp.eval(`
       (() => {
         const btns = Array.from(document.querySelectorAll('button'));

@@ -10,7 +10,9 @@ import {
   getDoctorReports,
   getDoctorAppointments,
   getDoctorDashboardStats,
+  getDoctorMessages,
   markReportReviewed,
+  setAppMode,
   FICTIONAL_DOCTORS,
 } from '../src/lib/api';
 import { filterReportsByTab } from '../src/features/doctor/DoctorReportsList';
@@ -390,5 +392,65 @@ describe('Doctor Dashboard Journeys', () => {
       'Some intake responses may be available only in the conversation history and may not appear in the structured report.';
     assert.ok(expectedNote.includes('conversation history'), 'Note clarifies responses may appear in conversation history');
     assert.ok(expectedNote.includes('structured report'), 'Note clarifies responses may not appear in structured report');
+  });
+
+  it('Test 11: Stored patient answers are returned read-only and in order (mock mode)', async () => {
+    setAppMode('mock');
+    const s = await startSession('en');
+    await recordConsent(s.session_id, true, 'en', CONSENT_VERSION);
+    const answers = [
+      { q: 'name', a: 'Conversation Reader' },
+      { q: 'age', a: '41' },
+      { q: 'gender', a: 'Female' },
+      { q: 'primary_concern', a: 'Persistent cough for one week' },
+      { q: 'duration', a: '7 days' },
+      { q: 'severity', a: 'Moderate' },
+      { q: 'conditions', a: 'None' },
+      { q: 'medications', a: 'None' },
+      { q: 'allergies', a: 'None' },
+      { q: 'other_symptoms', a: 'Mild sore throat' },
+    ];
+    for (const answer of answers) {
+      await chatTurn({
+        action: 'submit_turn',
+        session_id: s.session_id,
+        question_id: answer.q as any,
+        text: answer.a,
+      });
+    }
+
+    const submitted = await submitReport({
+      action: 'submit_report',
+      session_id: s.session_id,
+      report_id: 'draft',
+    });
+    const messages = await getDoctorMessages(submitted.submitted_report!.id);
+
+    assert.equal(messages.length, answers.length, 'one stored patient row per accepted answer');
+    assert.ok(messages.every((message) => message.role === 'patient'), 'only patient rows are returned');
+    assert.deepEqual(
+      messages.map((message) => message.question_id),
+      answers.map((answer) => answer.q),
+      'answers are chronological and retain their question ids'
+    );
+    assert.equal(messages[0].final_text, 'Conversation Reader');
+    assert.equal(messages[0].turn_index, 1);
+
+    // The demo fixture carries a conversation-level bank answer.
+    const seeded = await getDoctorMessages('rep-gen-seeded-02');
+    assert.ok(seeded.some((message) => message.question_id === 'GM-002'), 'bank id is preserved');
+    assert.ok(seeded.every((message) => message.role === 'patient'));
+
+    // A seeded voice answer keeps the raw transcript and the confirmed wording separate.
+    const voiceMessages = await getDoctorMessages('rep-ortho-seeded-01');
+    const voiceConcern = voiceMessages.find((message) => message.question_id === 'primary_concern');
+    assert.ok(voiceConcern, 'voice answer must be present');
+    assert.equal(voiceConcern!.input_mode, 'voice');
+    assert.notEqual(voiceConcern!.original_text, voiceConcern!.final_text);
+
+    await assert.rejects(
+      () => getDoctorMessages('rep-does-not-exist'),
+      (error: unknown) => (error as { code?: string }).code === 'not_found'
+    );
   });
 });

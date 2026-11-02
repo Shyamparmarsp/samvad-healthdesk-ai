@@ -228,6 +228,46 @@ describe('M4 frontend integration — contract and authorisation (local Supabase
     setSupabaseClient(fx.patient.client);
   });
 
+  it('[RLS] doctor conversation reads follow report visibility', async () => {
+    const gm = await stack.signInDoctor('general_medicine');
+    setSupabaseClient(gm.client);
+
+    const submittedMessages = await api.getDoctorMessages(fx.reportId);
+    assert.ok(submittedMessages.length > 0, 'assigned doctor can read the submitted report conversation');
+    assert.ok(
+      submittedMessages.every((message) => message.role === 'patient'),
+      'only stored patient answers are exposed'
+    );
+
+    const emergencyMessages = await api.getDoctorMessages(fx.emergencyReportId);
+    assert.ok(emergencyMessages.length > 0, 'GM has the documented read-only emergency cross-visibility');
+
+    await assert.rejects(
+      () => api.getDoctorMessages(fx.draftReportId),
+      (error: unknown) => (error as { code?: string }).code === 'not_found',
+      'a draft report conversation must not be disclosed'
+    );
+
+    setSupabaseClient(fx.patient.client);
+    await assert.rejects(
+      () => api.getDoctorMessages(fx.reportId),
+      (error: unknown) => (error as { code?: string }).code === 'not_found',
+      'a patient must not read the doctor-facing conversation'
+    );
+
+    const emergencyDoctor = await stack.signInDoctor('emergency');
+    setSupabaseClient(emergencyDoctor.client);
+    await assert.rejects(
+      () => api.getDoctorMessages(fx.reportId),
+      (error: unknown) => (error as { code?: string }).code === 'not_found',
+      'the Emergency doctor cannot read an unrelated general-medicine conversation'
+    );
+    const emergencyOwn = await api.getDoctorMessages(fx.emergencyReportId);
+    assert.ok(emergencyOwn.length > 0, 'the Emergency doctor can read the emergency conversation');
+
+    setSupabaseClient(fx.patient.client);
+  });
+
   it('[RLS] the Emergency doctor cannot read an unrelated general-medicine report', async () => {
     const emergencyDoctor = await stack.signInDoctor('emergency');
     setSupabaseClient(emergencyDoctor.client);

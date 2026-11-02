@@ -15,6 +15,7 @@ import {
   BookAppointmentResponse,
   MarkReportReviewedResponse,
   DoctorLoginResponse,
+  DoctorConversationMessage,
 } from '../types/api';
 
 import {
@@ -394,6 +395,11 @@ interface SessionState {
 const mockSessions = new Map<string, SessionState>();
 const mockReports = new Map<string, ReportRow>();
 const mockAppointments = new Map<string, Appointment>();
+/**
+ * Conversation fixtures for the pre-seeded demo reports. Their sessions are synthetic and
+ * are not present in `mockSessions`; real mock-mode intakes use the session messages below.
+ */
+const mockSeededMessages = new Map<string, DoctorConversationMessage[]>();
 
 // Pre-seed some synthetic doctor reports so dashboard has rich initial state
 function initSeedReports() {
@@ -589,6 +595,36 @@ function initSeedReports() {
     },
   };
   mockReports.set(rep3Id, rep3);
+
+  // Stored patient answers for the demo fixtures. These are conversation-level rows,
+  // not generated from the report fields at render time.
+  const seededAt = pastIso2;
+  mockSeededMessages.set(rep1Id, [
+    { id: 'msg-seeded-01-1', role: 'patient', question_id: 'name', original_text: 'Asha Sharma', final_text: 'Asha Sharma', input_mode: 'voice', turn_index: 1, created_at: seededAt },
+    { id: 'msg-seeded-01-2', role: 'patient', question_id: 'age', original_text: null, final_text: '38', input_mode: 'text', turn_index: 2, created_at: seededAt },
+    { id: 'msg-seeded-01-3', role: 'patient', question_id: 'gender', original_text: null, final_text: 'Female', input_mode: 'text', turn_index: 3, created_at: seededAt },
+    { id: 'msg-seeded-01-4', role: 'patient', question_id: 'primary_concern', original_text: 'sharp pain in right knee when climbing stairs', final_text: 'Persistent sharp pain in right knee when climbing stairs', input_mode: 'voice', turn_index: 4, created_at: seededAt },
+    { id: 'msg-seeded-01-5', role: 'patient', question_id: 'duration', original_text: null, final_text: '3 weeks', input_mode: 'text', turn_index: 5, created_at: seededAt },
+    { id: 'msg-seeded-01-6', role: 'patient', question_id: 'severity', original_text: null, final_text: 'Moderate, worse in the evening', input_mode: 'text', turn_index: 6, created_at: seededAt },
+    { id: 'msg-seeded-01-7', role: 'patient', question_id: 'conditions', original_text: null, final_text: 'High blood pressure', input_mode: 'text', turn_index: 7, created_at: seededAt },
+    { id: 'msg-seeded-01-8', role: 'patient', question_id: 'other_symptoms', original_text: null, final_text: 'Mild local swelling around knee cap', input_mode: 'text', turn_index: 8, created_at: seededAt },
+  ]);
+  mockSeededMessages.set(rep2Id, [
+    { id: 'msg-seeded-02-1', role: 'patient', question_id: 'name', original_text: null, final_text: 'Rohan Deshmukh', input_mode: 'text', turn_index: 1, created_at: seededAt },
+    { id: 'msg-seeded-02-2', role: 'patient', question_id: 'age', original_text: null, final_text: '45', input_mode: 'text', turn_index: 2, created_at: seededAt },
+    { id: 'msg-seeded-02-3', role: 'patient', question_id: 'gender', original_text: null, final_text: 'Male', input_mode: 'text', turn_index: 3, created_at: seededAt },
+    { id: 'msg-seeded-02-4', role: 'patient', question_id: 'primary_concern', original_text: 'evening fever and body ache for five days', final_text: 'Low grade recurring evening fever and body ache', input_mode: 'voice', turn_index: 4, created_at: seededAt },
+    { id: 'msg-seeded-02-5', role: 'patient', question_id: 'duration', original_text: null, final_text: '5 days', input_mode: 'text', turn_index: 5, created_at: seededAt },
+    { id: 'msg-seeded-02-6', role: 'patient', question_id: 'severity', original_text: null, final_text: 'Mild', input_mode: 'text', turn_index: 6, created_at: seededAt },
+    { id: 'msg-seeded-02-7', role: 'patient', question_id: 'GM-002', original_text: null, final_text: 'It comes and goes, mostly in the evening', input_mode: 'text', turn_index: 7, created_at: seededAt },
+    { id: 'msg-seeded-02-8', role: 'patient', question_id: 'medications', original_text: null, final_text: 'Paracetamol as needed', input_mode: 'text', turn_index: 8, created_at: seededAt },
+    { id: 'msg-seeded-02-9', role: 'patient', question_id: 'other_symptoms', original_text: null, final_text: 'Fatigue and mild headache', input_mode: 'text', turn_index: 9, created_at: seededAt },
+  ]);
+  mockSeededMessages.set(rep3Id, [
+    { id: 'msg-seeded-03-1', role: 'patient', question_id: 'name', original_text: null, final_text: 'Vikas Malhotra', input_mode: 'text', turn_index: 1, created_at: seededAt },
+    { id: 'msg-seeded-03-2', role: 'patient', question_id: 'age', original_text: null, final_text: '52', input_mode: 'text', turn_index: 2, created_at: seededAt },
+    { id: 'msg-seeded-03-3', role: 'patient', question_id: 'gender', original_text: null, final_text: 'Male', input_mode: 'text', turn_index: 3, created_at: seededAt },
+  ]);
 }
 
 initSeedReports();
@@ -2020,6 +2056,90 @@ export async function getDoctorReportDetail(reportId: string): Promise<ReportRow
   }
 
   return mockReports.get(reportId) || null;
+}
+
+function sortConversation(rows: DoctorConversationMessage[]): DoctorConversationMessage[] {
+  return [...rows].sort((a, b) => {
+    const byTime = a.created_at.localeCompare(b.created_at);
+    if (byTime !== 0) return byTime;
+    return (a.turn_index ?? 0) - (b.turn_index ?? 0);
+  });
+}
+
+/**
+ * Read-only patient answers for a report the authenticated doctor may already read.
+ *
+ * Authorisation is entirely the existing report/messages RLS:
+ *   - the report lookup returns null for a draft, a foreign report or a missing id;
+ *   - the messages policy only exposes rows whose session has a report the caller may read.
+ *
+ * The table stores patient answer rows only. It does not store the assistant question
+ * text, so callers must render `question_id` (or an accurate label) rather than inventing
+ * a full transcript.
+ */
+export async function getDoctorMessages(reportId: string): Promise<DoctorConversationMessage[]> {
+  if (currentAppMode === 'supabase') {
+    if (!isUuid(reportId)) {
+      // Same generic result as a foreign or draft report: no existence disclosure.
+      throw new ApiError('Report not found.', 'not_found', 404);
+    }
+
+    const client = getSupabaseClient();
+
+    // RLS-scoped: a draft, foreign or missing report is indistinguishable here.
+    const { data: report, error: reportError } = await client
+      .from('reports')
+      .select('session_id')
+      .eq('id', reportId)
+      .maybeSingle();
+
+    if (reportError) {
+      throw new ApiError('Failed to fetch patient responses', reportError.code, 400);
+    }
+    if (!report) {
+      throw new ApiError('Report not found.', 'not_found', 404);
+    }
+
+    // Messages RLS re-checks report visibility for this session.
+    const { data, error } = await client
+      .from('messages')
+      .select('id, role, question_id, original_text, final_text, input_mode, turn_index, created_at')
+      .eq('session_id', report.session_id)
+      .order('created_at', { ascending: true })
+      .order('turn_index', { ascending: true });
+
+    if (error) {
+      throw new ApiError('Failed to fetch patient responses', error.code, 400);
+    }
+
+    return sortConversation((data || []) as DoctorConversationMessage[]);
+  }
+
+  const report = mockReports.get(reportId);
+  if (!report) {
+    throw new ApiError('Report not found.', 'not_found', 404);
+  }
+
+  const session = mockSessions.get(report.session_id);
+  if (session) {
+    // The real table contains patient rows only; mirror that here instead of returning
+    // the mock's assistant chat bubbles.
+    const rows: DoctorConversationMessage[] = session.messages
+      .filter((message) => message.role === 'patient')
+      .map((message) => ({
+        id: message.id,
+        role: 'patient' as const,
+        question_id: message.question_id ?? null,
+        original_text: null,
+        final_text: message.content,
+        input_mode: null,
+        turn_index: message.turn_index || null,
+        created_at: message.created_at,
+      }));
+    return sortConversation(rows);
+  }
+
+  return sortConversation(mockSeededMessages.get(reportId) ?? []);
 }
 
 export async function getDoctorAppointments(doctorId?: string): Promise<Appointment[]> {
