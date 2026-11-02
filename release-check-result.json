@@ -1,19 +1,19 @@
 {
-  "generatedAt": "2026-11-02T13:40:12.932Z",
+  "generatedAt": "2026-11-02T21:10:49.475Z",
   "prerequisites": {
     "apiUp": true,
     "functionsUp": true,
     "stubUp": true,
     "dbUp": true,
     "skipSmoke": false,
-    "frontend": false
+    "frontend": true
   },
   "summary": {
-    "total": 22,
-    "pass": 21,
+    "total": 30,
+    "pass": 30,
     "fail": 0,
     "blocked": 0,
-    "notTested": 1
+    "notTested": 0
   },
   "steps": [
     {
@@ -22,15 +22,15 @@
       "status": "PASS",
       "required": true,
       "detail": "type check clean",
-      "ms": 572
+      "ms": 18
     },
     {
       "group": "static",
       "name": "deno unit tests",
       "status": "PASS",
       "required": true,
-      "detail": "219 passed, 0 failed",
-      "ms": 1368
+      "detail": "232 passed, 0 failed",
+      "ms": 1177
     },
     {
       "group": "static",
@@ -38,7 +38,15 @@
       "status": "PASS",
       "required": true,
       "detail": "150 questions valid",
-      "ms": 21
+      "ms": 20
+    },
+    {
+      "group": "static",
+      "name": "question bank source integrity (CSV ↔ bank)",
+      "status": "PASS",
+      "required": true,
+      "detail": "150 CSV rows match the active bank",
+      "ms": 24
     },
     {
       "group": "static",
@@ -46,7 +54,15 @@
       "status": "PASS",
       "required": true,
       "detail": "CSV ids match the bank",
-      "ms": 26
+      "ms": 23
+    },
+    {
+      "group": "static",
+      "name": "demo lifecycle safeguards",
+      "status": "PASS",
+      "required": true,
+      "detail": "12 passed, 0 failed",
+      "ms": 386
     },
     {
       "group": "static",
@@ -54,7 +70,7 @@
       "status": "PASS",
       "required": true,
       "detail": "17 fixtures valid",
-      "ms": 39
+      "ms": 34
     },
     {
       "group": "static",
@@ -62,7 +78,7 @@
       "status": "PASS",
       "required": true,
       "detail": "no key-shaped strings in tracked files",
-      "ms": 40
+      "ms": 395
     },
     {
       "group": "providers",
@@ -70,7 +86,7 @@
       "status": "PASS",
       "required": true,
       "detail": "no --allow-net; report mode=non-live requests=0",
-      "ms": 21
+      "ms": 20
     },
     {
       "group": "providers",
@@ -78,7 +94,39 @@
       "status": "PASS",
       "required": true,
       "detail": "refused before any request (exit 2)",
-      "ms": 19
+      "ms": 16
+    },
+    {
+      "group": "providers",
+      "name": "provider smoke harness default mode makes no request",
+      "status": "PASS",
+      "required": true,
+      "detail": "non-live, zero requests, no files",
+      "ms": 18
+    },
+    {
+      "group": "providers",
+      "name": "provider smoke failure-path tests",
+      "status": "PASS",
+      "required": true,
+      "detail": "17 passed, 0 failed",
+      "ms": 403
+    },
+    {
+      "group": "providers",
+      "name": "speech round-trip default mode makes no request",
+      "status": "PASS",
+      "required": true,
+      "detail": "non-live, 4-request plan, zero requests",
+      "ms": 20
+    },
+    {
+      "group": "providers",
+      "name": "speech round-trip failure-path tests",
+      "status": "PASS",
+      "required": true,
+      "detail": "25 passed, 0 failed",
+      "ms": 454
     },
     {
       "group": "database",
@@ -86,7 +134,7 @@
       "status": "PASS",
       "required": true,
       "detail": "29/29 pass, 0 fail, 0 blocked",
-      "ms": 1341
+      "ms": 1296
     },
     {
       "group": "database",
@@ -94,7 +142,7 @@
       "status": "PASS",
       "required": true,
       "detail": "5 assertions passed",
-      "ms": 135
+      "ms": 120
     },
     {
       "group": "database",
@@ -102,7 +150,7 @@
       "status": "PASS",
       "required": true,
       "detail": "4 assertions passed",
-      "ms": 116
+      "ms": 110
     },
     {
       "group": "database",
@@ -110,7 +158,7 @@
       "status": "PASS",
       "required": true,
       "detail": "10 assertions passed",
-      "ms": 178
+      "ms": 176
     },
     {
       "group": "database",
@@ -118,7 +166,7 @@
       "status": "PASS",
       "required": true,
       "detail": "4 assertions passed",
-      "ms": 124
+      "ms": 127
     },
     {
       "group": "database",
@@ -126,7 +174,7 @@
       "status": "PASS",
       "required": true,
       "detail": "4 assertions passed",
-      "ms": 116
+      "ms": 106
     },
     {
       "group": "database",
@@ -134,7 +182,7 @@
       "status": "PASS",
       "required": true,
       "detail": "5 assertions passed",
-      "ms": 125
+      "ms": 114
     },
     {
       "group": "database",
@@ -142,7 +190,7 @@
       "status": "PASS",
       "required": true,
       "detail": "5 assertions passed",
-      "ms": 124
+      "ms": 111
     },
     {
       "group": "operations",
@@ -150,7 +198,7 @@
       "status": "PASS",
       "required": true,
       "detail": "29/29 rehearsal checks; 11 migrations applied",
-      "ms": 3123
+      "ms": 2477
     },
     {
       "group": "operations",
@@ -158,7 +206,7 @@
       "status": "PASS",
       "required": true,
       "detail": "17/22 pass, 0 fail, 5 owner-blocked",
-      "ms": 201
+      "ms": 186
     },
     {
       "group": "operations",
@@ -166,7 +214,7 @@
       "status": "PASS",
       "required": true,
       "detail": "16/16 checks",
-      "ms": 247
+      "ms": 284
     },
     {
       "group": "operations",
@@ -181,16 +229,32 @@
       "name": "demo smoke (integration + adaptive)",
       "status": "PASS",
       "required": true,
-      "detail": "integration 52/52, adaptive 29/29; identities created=20 deleted=20",
-      "ms": 6047
+      "detail": "integration 52/52, adaptive 33/33; identities created=21 deleted=21",
+      "ms": 4491
     },
     {
       "group": "frontend",
-      "name": "typescript + tests + build",
-      "status": "NOT TESTED",
-      "required": false,
-      "detail": "not requested; run with --frontend",
-      "ms": 0
+      "name": "typescript",
+      "status": "PASS",
+      "required": true,
+      "detail": "clean",
+      "ms": 2238
+    },
+    {
+      "group": "frontend",
+      "name": "unit + api suites",
+      "status": "PASS",
+      "required": true,
+      "detail": "pass=121+7+55 fail=0+0+0",
+      "ms": 14200
+    },
+    {
+      "group": "frontend",
+      "name": "production build",
+      "status": "PASS",
+      "required": true,
+      "detail": "build succeeded",
+      "ms": 3159
     }
   ],
   "ok": true,

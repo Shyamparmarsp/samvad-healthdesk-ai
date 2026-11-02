@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-02T06:38:37.246Z",
+  "generatedAt": "2026-11-02T20:58:50.853Z",
   "mode": "dry-run",
   "readOnly": true,
   "target": "127.0.0.1",
@@ -20,25 +20,25 @@
     {
       "table": "reports",
       "description": "draft, submitted and urgent_partial reports",
-      "count": 0
+      "count": 10
     },
     {
       "table": "messages",
       "description": "patient answers and assistant questions",
-      "count": 0
+      "count": 170
     },
     {
       "table": "consent_records",
       "description": "consent decisions and wording version",
-      "count": 0
+      "count": 20
     },
     {
       "table": "sessions",
       "description": "intake session state",
-      "count": 10
+      "count": 22
     }
   ],
-  "anonymousPatientIdentities": 163,
+  "anonymousPatientIdentities": 27,
   "preserved": [
     {
       "table": "departments",

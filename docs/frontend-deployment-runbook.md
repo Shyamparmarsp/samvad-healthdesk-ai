@@ -59,7 +59,7 @@ The client application requires only **two** public environment variables:
 | Variable Name | Required | Description | Example / Allowed Values |
 |---|---|---|---|
 | `VITE_SUPABASE_URL` | **Yes** (Production) | The public HTTPS endpoint of the hosted Supabase project. | `https://xyzproject.supabase.co` |
-| `VITE_SUPABASE_KEY` | **Yes** (Production) | The public client key (publishable or legacy `anon` key). | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...` |
+| `VITE_SUPABASE_KEY` | **Yes** (Production) | The public client key (publishable or legacy `anon` key) copied from the Supabase Dashboard. Never a secret key. | the Dashboard value, e.g. `sb_publishable_…` |
 
 ### Strict Security Invariants
 - **NEVER EXPOSE SECRETS IN VERCEL:**
