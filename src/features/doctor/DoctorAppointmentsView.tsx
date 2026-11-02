@@ -38,30 +38,6 @@ export function filterAppointmentsByTab(
   });
 }
 
-function getAgeGenderForAppointment(apt: Appointment): string {
-  if (apt.patient_age && apt.patient_gender) {
-    return `${apt.patient_age} · ${apt.patient_gender}`;
-  }
-  const name = (apt.patient_name || '').toLowerCase();
-  if (name.includes('aarav')) return '28 · Male';
-  if (name.includes('sana')) return '34 · Female';
-  if (name.includes('vikram')) return '45 · Male';
-  if (name.includes('asha')) return '52 · Female';
-  if (name.includes('rohan')) return '32 · Male';
-  if (name.includes('priya')) return '29 · Female';
-  return '28 · Male';
-}
-
-function getConcernForAppointment(apt: Appointment): string {
-  if (apt.primary_concern) return apt.primary_concern;
-  const name = (apt.patient_name || '').toLowerCase();
-  if (name.includes('aarav')) return 'Headache for 3 days';
-  if (name.includes('sana')) return 'Persistent dry cough';
-  if (name.includes('vikram')) return 'Chest pain / emergency';
-  if (name.includes('asha')) return 'Right knee stiffness';
-  return 'Health consultation';
-}
-
 export const DoctorAppointmentsView: React.FC<DoctorAppointmentsViewProps> = ({
   appointments,
   onSelectReport,
@@ -72,7 +48,6 @@ export const DoctorAppointmentsView: React.FC<DoctorAppointmentsViewProps> = ({
 
   // Derive Today, Upcoming, Past based on slot_start in Asia/Kolkata
   const filteredAppointments = filterAppointmentsByTab(appointments, activeTab, now);
-  const displayAppointments = filteredAppointments.length > 0 ? filteredAppointments : appointments;
 
   const tabs: { key: DoctorAppointmentsTab; label: string }[] = [
     { key: 'today', label: 'Today' },
@@ -158,10 +133,10 @@ export const DoctorAppointmentsView: React.FC<DoctorAppointmentsViewProps> = ({
                         {apt.patient_name}
                       </td>
                       <td className="py-3.5 px-4 text-[10px] text-[#4a5470]">
-                        {getAgeGenderForAppointment(apt)}
+                        {apt.department_name}
                       </td>
                       <td className="py-3.5 px-4 text-[10px] text-[#4a5470] max-w-xs truncate">
-                        {getConcernForAppointment(apt)}
+                        Ref: <span className="font-mono">{apt.reference_code}</span>
                       </td>
                       <td className="py-3.5 px-4">
                         {isCompleted ? (
@@ -191,6 +166,7 @@ export const DoctorAppointmentsView: React.FC<DoctorAppointmentsViewProps> = ({
               </tbody>
             </table>
           </div>
+        )}
       </div>
     </div>
   );

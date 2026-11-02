@@ -71,18 +71,6 @@ export const BookingView: React.FC<BookingViewProps> = ({
     }
   };
 
-  const handleTryAnotherDate = () => {
-    if (!dates.length) return;
-    try {
-      sessionStorage.removeItem('FIGMA_PARITY_NO_SLOTS');
-    } catch {}
-    const currentIdx = dates.findIndex((d) => d.dateStr === selectedDate);
-    const nextIdx = (currentIdx + 1) % dates.length;
-    const nextDate = dates[nextIdx].dateStr;
-    setSelectedDate(nextDate);
-    void loadSlots(nextDate);
-  };
-
   const handleBook = async () => {
     if (!selectedSlot || isBooking) return;
     setIsBooking(true);
