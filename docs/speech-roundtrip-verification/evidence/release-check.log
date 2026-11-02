@@ -1,0 +1,38 @@
+Release check — prerequisites
+  local API      up (http://127.0.0.1:54321)
+  edge functions up
+  provider stub  up (http://127.0.0.1:8787)
+  database       up (supabase_db_samvad-backend)
+
+PASS       deno check chat-turn + speak — type check clean (22 ms)
+PASS       deno unit tests — 181 passed, 0 failed (1476 ms)
+PASS       question bank validation (150, bilingual) — 150 questions valid (27 ms)
+PASS       question bank reviewer dashboard — CSV ids match the bank (32 ms)
+PASS       contract fixtures (17 canonical) — 17 fixtures valid (43 ms)
+PASS       secret scan (tracked files) — no key-shaped strings in tracked files (54 ms)
+PASS       provider harness default mode makes no request — no --allow-net; report mode=non-live requests=0 (28 ms)
+PASS       provider harness live mode fails closed without keys — refused before any request (exit 2) (24 ms)
+PASS       provider smoke harness default mode makes no request — non-live, zero requests, no files (25 ms)
+PASS       provider smoke failure-path tests — 17 passed, 0 failed (631 ms)
+PASS       speech round-trip default mode makes no request — non-live, 4-request plan, zero requests (29 ms)
+PASS       speech round-trip failure-path tests — 25 passed, 0 failed (646 ms)
+PASS       database release verification (read-only) — 29/29 pass, 0 fail, 0 blocked (1604 ms)
+PASS       sql suite: rls — 5 assertions passed (159 ms)
+PASS       sql suite: constraints — 4 assertions passed (155 ms)
+PASS       sql suite: mark_reviewed — 10 assertions passed (215 ms)
+PASS       sql suite: booking — 4 assertions passed (149 ms)
+PASS       sql suite: ist_boundary — 4 assertions passed (173 ms)
+PASS       sql suite: doctor_appointments — 5 assertions passed (156 ms)
+PASS       sql suite: report_immutability — 5 assertions passed (200 ms)
+PASS       clean-room migration rehearsal — 29/29 rehearsal checks; 11 migrations applied (3696 ms)
+PASS       deployment configuration preflight — 17/22 pass, 0 fail, 5 owner-blocked (252 ms)
+PASS       demo preflight — 16/16 checks (301 ms)
+PASS       reset safety self-test — 5 refusal cases passed (23 ms)
+PASS       demo smoke (integration + adaptive) — integration 52/52, adaptive 29/29; identities created=20 deleted=20 (5860 ms)
+NOT TESTED typescript + tests + build — not requested; run with --frontend (0 ms)
+
+Summary: 25 PASS, 0 FAIL, 0 BLOCKED, 1 NOT TESTED
+Required checks failing: 0
+Live providers: NOT TESTED (no live call is made).
+Wrote release-check-result.json
+exit=0

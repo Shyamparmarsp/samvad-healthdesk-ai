@@ -18,5 +18,8 @@ node_modules/
 supabase/.branches/
 supabase/.temp/
 
+# Local provider smoke audio (synthetic clips for manual listening; never commit)
+.provider-audio/
+
 # Editor
 .vscode/

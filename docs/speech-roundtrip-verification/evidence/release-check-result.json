@@ -1,0 +1,230 @@
+{
+  "generatedAt": "2026-11-02T11:50:00.499Z",
+  "prerequisites": {
+    "apiUp": true,
+    "functionsUp": true,
+    "stubUp": true,
+    "dbUp": true,
+    "skipSmoke": false,
+    "frontend": false
+  },
+  "summary": {
+    "total": 26,
+    "pass": 25,
+    "fail": 0,
+    "blocked": 0,
+    "notTested": 1
+  },
+  "steps": [
+    {
+      "group": "static",
+      "name": "deno check chat-turn + speak",
+      "status": "PASS",
+      "required": true,
+      "detail": "type check clean",
+      "ms": 22
+    },
+    {
+      "group": "static",
+      "name": "deno unit tests",
+      "status": "PASS",
+      "required": true,
+      "detail": "181 passed, 0 failed",
+      "ms": 1476
+    },
+    {
+      "group": "static",
+      "name": "question bank validation (150, bilingual)",
+      "status": "PASS",
+      "required": true,
+      "detail": "150 questions valid",
+      "ms": 27
+    },
+    {
+      "group": "static",
+      "name": "question bank reviewer dashboard",
+      "status": "PASS",
+      "required": true,
+      "detail": "CSV ids match the bank",
+      "ms": 32
+    },
+    {
+      "group": "static",
+      "name": "contract fixtures (17 canonical)",
+      "status": "PASS",
+      "required": true,
+      "detail": "17 fixtures valid",
+      "ms": 43
+    },
+    {
+      "group": "static",
+      "name": "secret scan (tracked files)",
+      "status": "PASS",
+      "required": true,
+      "detail": "no key-shaped strings in tracked files",
+      "ms": 54
+    },
+    {
+      "group": "providers",
+      "name": "provider harness default mode makes no request",
+      "status": "PASS",
+      "required": true,
+      "detail": "no --allow-net; report mode=non-live requests=0",
+      "ms": 28
+    },
+    {
+      "group": "providers",
+      "name": "provider harness live mode fails closed without keys",
+      "status": "PASS",
+      "required": true,
+      "detail": "refused before any request (exit 2)",
+      "ms": 24
+    },
+    {
+      "group": "providers",
+      "name": "provider smoke harness default mode makes no request",
+      "status": "PASS",
+      "required": true,
+      "detail": "non-live, zero requests, no files",
+      "ms": 25
+    },
+    {
+      "group": "providers",
+      "name": "provider smoke failure-path tests",
+      "status": "PASS",
+      "required": true,
+      "detail": "17 passed, 0 failed",
+      "ms": 631
+    },
+    {
+      "group": "providers",
+      "name": "speech round-trip default mode makes no request",
+      "status": "PASS",
+      "required": true,
+      "detail": "non-live, 4-request plan, zero requests",
+      "ms": 29
+    },
+    {
+      "group": "providers",
+      "name": "speech round-trip failure-path tests",
+      "status": "PASS",
+      "required": true,
+      "detail": "25 passed, 0 failed",
+      "ms": 646
+    },
+    {
+      "group": "database",
+      "name": "database release verification (read-only)",
+      "status": "PASS",
+      "required": true,
+      "detail": "29/29 pass, 0 fail, 0 blocked",
+      "ms": 1604
+    },
+    {
+      "group": "database",
+      "name": "sql suite: rls",
+      "status": "PASS",
+      "required": true,
+      "detail": "5 assertions passed",
+      "ms": 159
+    },
+    {
+      "group": "database",
+      "name": "sql suite: constraints",
+      "status": "PASS",
+      "required": true,
+      "detail": "4 assertions passed",
+      "ms": 155
+    },
+    {
+      "group": "database",
+      "name": "sql suite: mark_reviewed",
+      "status": "PASS",
+      "required": true,
+      "detail": "10 assertions passed",
+      "ms": 215
+    },
+    {
+      "group": "database",
+      "name": "sql suite: booking",
+      "status": "PASS",
+      "required": true,
+      "detail": "4 assertions passed",
+      "ms": 149
+    },
+    {
+      "group": "database",
+      "name": "sql suite: ist_boundary",
+      "status": "PASS",
+      "required": true,
+      "detail": "4 assertions passed",
+      "ms": 173
+    },
+    {
+      "group": "database",
+      "name": "sql suite: doctor_appointments",
+      "status": "PASS",
+      "required": true,
+      "detail": "5 assertions passed",
+      "ms": 156
+    },
+    {
+      "group": "database",
+      "name": "sql suite: report_immutability",
+      "status": "PASS",
+      "required": true,
+      "detail": "5 assertions passed",
+      "ms": 200
+    },
+    {
+      "group": "operations",
+      "name": "clean-room migration rehearsal",
+      "status": "PASS",
+      "required": true,
+      "detail": "29/29 rehearsal checks; 11 migrations applied",
+      "ms": 3696
+    },
+    {
+      "group": "operations",
+      "name": "deployment configuration preflight",
+      "status": "PASS",
+      "required": true,
+      "detail": "17/22 pass, 0 fail, 5 owner-blocked",
+      "ms": 252
+    },
+    {
+      "group": "operations",
+      "name": "demo preflight",
+      "status": "PASS",
+      "required": true,
+      "detail": "16/16 checks",
+      "ms": 301
+    },
+    {
+      "group": "operations",
+      "name": "reset safety self-test",
+      "status": "PASS",
+      "required": true,
+      "detail": "5 refusal cases passed",
+      "ms": 23
+    },
+    {
+      "group": "operations",
+      "name": "demo smoke (integration + adaptive)",
+      "status": "PASS",
+      "required": true,
+      "detail": "integration 52/52, adaptive 29/29; identities created=20 deleted=20",
+      "ms": 5860
+    },
+    {
+      "group": "frontend",
+      "name": "typescript + tests + build",
+      "status": "NOT TESTED",
+      "required": false,
+      "detail": "not requested; run with --frontend",
+      "ms": 0
+    }
+  ],
+  "ok": true,
+  "liveProviders": "NOT TESTED — no live provider call is made by this runner"
+}

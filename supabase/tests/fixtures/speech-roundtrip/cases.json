@@ -1,0 +1,79 @@
+{
+  "description": "Fixed comparison fixtures for the speech round-trip harness. Synthetic text only; no patient or clinical content.",
+  "cases": {
+    "english": {
+      "sentence": "This is a simple speech test.",
+      "transcript": "This is a simple speech test",
+      "expectedVerdict": "MATCH"
+    },
+    "hindi": {
+      "sentence": "आज मौसम बहुत अच्छा है।",
+      "transcript": "आज मौसम बहुत अच्छा है",
+      "expectedVerdict": "MATCH"
+    },
+    "punctuation_whitespace": {
+      "sentence": "This is a simple speech test.",
+      "transcript": "  THIS, is a simple   speech test!! ",
+      "expectedVerdict": "MATCH"
+    },
+    "devanagari_spacing": {
+      "sentence": "आज मौसम बहुत अच्छा है।",
+      "transcript": "  आज   मौसम बहुत अच्छा है !!! ",
+      "expectedVerdict": "MATCH"
+    },
+    "zero_width": {
+      "sentence": "This is a simple speech test.",
+      "transcript": "This\u200b is a simple\u200d speech test.",
+      "expectedVerdict": "MATCH"
+    },
+    "unicode_composed": {
+      "sentence": "café naïve résumé",
+      "transcript": "cafe\u0301 nai\u0308ve re\u0301sume\u0301",
+      "expectedVerdict": "MATCH"
+    },
+    "material_mismatch": {
+      "sentence": "This is a simple speech test.",
+      "transcript": "This is a simple speech task.",
+      "expectedVerdict": "MISMATCH"
+    },
+    "missing_word": {
+      "sentence": "This is a simple speech test.",
+      "transcript": "This is a speech test.",
+      "expectedVerdict": "MISMATCH"
+    },
+    "romanized_hindi": {
+      "sentence": "आज मौसम बहुत अच्छा है।",
+      "transcript": "aaj mausam bahut achha hai",
+      "expectedVerdict": "MISMATCH"
+    },
+    "empty": {
+      "sentence": "This is a simple speech test.",
+      "transcript": " ... ",
+      "expectedVerdict": "EMPTY"
+    }
+  },
+  "providerResponses": {
+    "sttSuccessEnglish": {
+      "success": true,
+      "transcript": "This is a simple speech test",
+      "model": "prisma-v2.5"
+    },
+    "sttSuccessHindi": {
+      "success": true,
+      "transcript": "आज मौसम बहुत अच्छा है",
+      "model": "prisma-v2.5"
+    },
+    "sttEmpty": {
+      "success": true,
+      "transcript": "",
+      "model": "prisma-v2.5"
+    },
+    "sttMalformed": {
+      "success": true
+    },
+    "sttFailure": {
+      "status": 503,
+      "body": { "error": "synthetic provider failure" }
+    }
+  }
+}
