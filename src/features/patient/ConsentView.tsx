@@ -39,19 +39,30 @@ export const ConsentView: React.FC<ConsentViewProps> = ({
     }
     setAudioStatus('playing');
     // Try the approved static locations in order; never a paid fallback for a fixed prompt.
-    for (const source of cachedPromptSources(language, 'greeting')) {
+    const sources = cachedPromptSources(language, 'greeting');
+    let lastError: unknown = null;
+    for (let index = 0; index < sources.length; index += 1) {
+      const isLastCandidate = index === sources.length - 1;
+      const audio = new Audio(sources[index]);
+      audioRef.current = audio;
+      audio.onended = () => setAudioStatus('idle');
+      // Only the last candidate may report "unavailable"; a late error from an earlier
+      // 404 must not overwrite a successful fallback.
+      audio.onerror = () => {
+        if (isLastCandidate) setAudioStatus('unavailable');
+      };
       try {
-        const audio = new Audio(source);
-        audioRef.current = audio;
-        audio.onended = () => setAudioStatus('idle');
-        audio.onerror = () => setAudioStatus('unavailable');
         await audio.play();
         return;
-      } catch {
+      } catch (err) {
+        lastError = err;
         audioRef.current = null;
       }
     }
-    setAudioStatus('unavailable');
+    // Distinguish "the browser blocked autoplay" (recoverable with a tap) from
+    // "the asset is missing or undecodable".
+    const blocked = (lastError as { name?: string } | null)?.name === 'NotAllowedError';
+    setAudioStatus(blocked ? 'blocked' : 'unavailable');
   }, [language]);
 
   useEffect(() => {
