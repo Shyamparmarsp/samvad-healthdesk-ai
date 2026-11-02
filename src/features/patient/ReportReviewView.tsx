@@ -8,6 +8,7 @@ interface ReportReviewViewProps {
   report: ReportDocumentV1;
   isCapReached?: boolean;
   canSubmit?: boolean;
+  isProcessing?: boolean;
   onCorrectField: (field: CorrectableField, patch: { value: any; status: 'provided' | 'declined' }) => void;
   onSubmit: () => void;
   onDontSubmit: () => void;
@@ -19,6 +20,7 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
   report,
   isCapReached = false,
   canSubmit = true,
+  isProcessing = false,
   onCorrectField,
   onSubmit,
   onDontSubmit,
@@ -28,6 +30,39 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
   const { t, language } = useI18n();
   const [editingField, setEditingField] = useState<CorrectableField | null>(null);
   const [editValue, setEditValue] = useState<string>('');
+
+  const formatFieldStatus = (field?: { status: string; value: any } | null) => {
+    if (!field) return t.review.notProvided;
+    if (field.status === 'provided') {
+      if (Array.isArray(field.value)) {
+        return field.value.length > 0 ? field.value.join(', ') : (language === 'hi' ? 'कोई नहीं' : 'None reported');
+      }
+      return field.value ? String(field.value) : (language === 'hi' ? 'कोई नहीं' : 'None reported');
+    }
+    switch (field.status) {
+      case 'declined':
+        return language === 'hi' ? 'उत्तर देने से इनकार किया' : 'Declined to answer';
+      case 'unknown':
+        return language === 'hi' ? 'अज्ञात / स्पष्ट नहीं' : 'Unknown / Not sure';
+      case 'unclear':
+        return language === 'hi' ? 'अस्पष्ट' : 'Unclear';
+      case 'not_asked':
+        return language === 'hi' ? 'नहीं पूछा गया' : 'Not asked';
+      case 'not_provided':
+      default:
+        return t.review.notProvided;
+    }
+  };
+
+  const EditIcon = () => (
+    <span className="inline-flex items-center gap-1 text-[#4a5470] group-hover:text-[#1f2a44]">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-4 h-4">
+        <path d="M2.66663 10.6666L2.1333 13.8666L5.3333 13.3333L12.6666 5.99996C13.0203 5.64634 13.2189 5.16672 13.2189 4.66662C13.2189 4.16653 13.0203 3.68691 12.6666 3.33329C12.313 2.97967 11.8334 2.78101 11.3333 2.78101C10.8332 2.78101 10.3536 2.97967 9.99997 3.33329L2.66663 10.6666Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M9 4.33337L11.6667 7.00004" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+      <span className="sr-only">Edit</span>
+    </span>
+  );
 
   const startEdit = (field: CorrectableField, currentVal: any) => {
     setEditingField(field);
@@ -82,9 +117,11 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
               {t.review.subtitle}
             </p>
           </div>
-          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold uppercase tracking-wider flex-shrink-0 mt-1">
-            Draft Preview
-          </span>
+          {isCapReached && !canSubmit && (
+            <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold uppercase tracking-wider flex-shrink-0 mt-1">
+              Draft Preview
+            </span>
+          )}
         </div>
 
         {/* Incomplete 15-Turn Cap Banner (D9 Copy) */}
@@ -109,9 +146,10 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
               <button
                 type="button"
                 onClick={() => startEdit('patient.name', report.patient.name.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
+                aria-label={`Edit ${t.review.name}`}
+                className="group p-1.5 rounded-lg hover:bg-slate-200/50 transition-colors focus:outline-none"
               >
-                {t.common.edit}
+                <EditIcon />
               </button>
             </div>
 
@@ -126,9 +164,10 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
               <button
                 type="button"
                 onClick={() => startEdit('patient.age', report.patient.age.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
+                aria-label={`Edit ${t.review.age}`}
+                className="group p-1.5 rounded-lg hover:bg-slate-200/50 transition-colors focus:outline-none"
               >
-                {t.common.edit}
+                <EditIcon />
               </button>
             </div>
 
@@ -137,15 +176,16 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
               <div>
                 <span className="text-[11px] text-[#4a5470] block">{t.review.gender}</span>
                 <span className="font-semibold text-[13px] text-[#1d2433] capitalize">
-                  {report.patient.gender.status === 'declined' ? 'Prefer not to say' : (report.patient.gender.value || t.review.notProvided)}
+                  {report.patient.gender.status === 'declined' ? (language === 'hi' ? 'कहना नहीं चाहते' : 'Prefer not to say') : (report.patient.gender.value || t.review.notProvided)}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => startEdit('patient.gender', report.patient.gender.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
+                aria-label={`Edit ${t.review.gender}`}
+                className="group p-1.5 rounded-lg hover:bg-slate-200/50 transition-colors focus:outline-none"
               >
-                {t.common.edit}
+                <EditIcon />
               </button>
             </div>
 
@@ -160,9 +200,10 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
               <button
                 type="button"
                 onClick={() => startEdit('primary_concern', report.primary_concern.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
+                aria-label={`Edit ${t.review.primaryConcern}`}
+                className="group p-1.5 rounded-lg hover:bg-slate-200/50 transition-colors focus:outline-none"
               >
-                {t.common.edit}
+                <EditIcon />
               </button>
             </div>
 
@@ -171,15 +212,16 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
               <div>
                 <span className="text-[11px] text-[#4a5470] block">{t.review.duration}</span>
                 <span className="font-medium text-[13px] text-[#1d2433]">
-                  {report.clinical_details.duration.value || t.review.notProvided}
+                  {formatFieldStatus(report.clinical_details.duration)}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => startEdit('clinical_details.duration', report.clinical_details.duration.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
+                aria-label={`Edit ${t.review.duration}`}
+                className="group p-1.5 rounded-lg hover:bg-slate-200/50 transition-colors focus:outline-none"
               >
-                {t.common.edit}
+                <EditIcon />
               </button>
             </div>
 
@@ -188,15 +230,16 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
               <div>
                 <span className="text-[11px] text-[#4a5470] block">{t.review.severity}</span>
                 <span className="font-medium text-[13px] text-[#1d2433]">
-                  {report.clinical_details.severity.value || t.review.notProvided}
+                  {formatFieldStatus(report.clinical_details.severity)}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => startEdit('clinical_details.severity', report.clinical_details.severity.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
+                aria-label={`Edit ${t.review.severity}`}
+                className="group p-1.5 rounded-lg hover:bg-slate-200/50 transition-colors focus:outline-none"
               >
-                {t.common.edit}
+                <EditIcon />
               </button>
             </div>
 
@@ -205,17 +248,16 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
               <div>
                 <span className="text-[11px] text-[#4a5470] block">{t.review.conditions}</span>
                 <span className="font-medium text-[12px] text-[#1d2433]">
-                  {report.clinical_details.conditions.value?.length
-                    ? report.clinical_details.conditions.value.join(', ')
-                    : t.review.notProvided}
+                  {formatFieldStatus(report.clinical_details.conditions)}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => startEdit('clinical_details.conditions', report.clinical_details.conditions.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
+                aria-label={`Edit ${t.review.conditions}`}
+                className="group p-1.5 rounded-lg hover:bg-slate-200/50 transition-colors focus:outline-none"
               >
-                {t.common.edit}
+                <EditIcon />
               </button>
             </div>
 
@@ -224,17 +266,16 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
               <div>
                 <span className="text-[11px] text-[#4a5470] block">{t.review.medications}</span>
                 <span className="font-medium text-[12px] text-[#1d2433]">
-                  {report.clinical_details.medications.value?.length
-                    ? report.clinical_details.medications.value.join(', ')
-                    : t.review.notProvided}
+                  {formatFieldStatus(report.clinical_details.medications)}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => startEdit('clinical_details.medications', report.clinical_details.medications.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
+                aria-label={`Edit ${t.review.medications}`}
+                className="group p-1.5 rounded-lg hover:bg-slate-200/50 transition-colors focus:outline-none"
               >
-                {t.common.edit}
+                <EditIcon />
               </button>
             </div>
 
@@ -243,17 +284,34 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
               <div>
                 <span className="text-[11px] text-[#4a5470] block">{t.review.allergies}</span>
                 <span className="font-medium text-[12px] text-[#1d2433]">
-                  {report.clinical_details.allergies.value?.length
-                    ? report.clinical_details.allergies.value.join(', ')
-                    : t.review.notProvided}
+                  {formatFieldStatus(report.clinical_details.allergies)}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => startEdit('clinical_details.allergies', report.clinical_details.allergies.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
+                aria-label={`Edit ${t.review.allergies}`}
+                className="group p-1.5 rounded-lg hover:bg-slate-200/50 transition-colors focus:outline-none"
               >
-                {t.common.edit}
+                <EditIcon />
+              </button>
+            </div>
+
+            {/* Other Symptoms (D-12) */}
+            <div className="py-2.5 flex items-start justify-between gap-2">
+              <div>
+                <span className="text-[11px] text-[#4a5470] block">{t.review.otherSymptoms}</span>
+                <span className="font-medium text-[12px] text-[#1d2433]">
+                  {formatFieldStatus(report.clinical_details.other_symptoms)}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => startEdit('clinical_details.other_symptoms', report.clinical_details.other_symptoms?.value)}
+                aria-label={`Edit ${t.review.otherSymptoms}`}
+                className="group p-1.5 rounded-lg hover:bg-slate-200/50 transition-colors focus:outline-none"
+              >
+                <EditIcon />
               </button>
             </div>
           </div>
@@ -330,8 +388,9 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
             <button
               type="button"
               onClick={onSubmit}
+              disabled={isProcessing}
               aria-label={t.review.submitToHospital}
-              className="w-full h-[50px] rounded-[25px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
+              className="w-full h-[50px] rounded-[25px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] disabled:opacity-50 transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
             >
               <svg className="w-4 h-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />

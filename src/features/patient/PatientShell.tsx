@@ -153,10 +153,13 @@ export const PatientShell: React.FC = () => {
   const getFallbackScreen = (screen: PatientScreen): PatientScreen => {
     switch (screen) {
       case 'consent':
-      case 'consent_declined':
-      case 'session_ended':
-      case 'emergency':
         return 'welcome';
+      case 'consent_declined':
+        return 'consent_declined';
+      case 'session_ended':
+        return 'session_ended';
+      case 'emergency':
+        return 'emergency';
       case 'conversation':
         return 'consent';
       case 'what_we_heard':
@@ -166,14 +169,27 @@ export const PatientShell: React.FC = () => {
       case 'booking':
         return 'review';
       case 'confirmed_booking':
+        return 'confirmed_booking';
       case 'confirmed_report_only':
-        return 'booking';
+        return 'confirmed_report_only';
       default:
         return 'welcome';
     }
   };
 
   const handleBack = () => {
+    // D-02: Emergency is terminal — guidance and urgent report stay protected, routine intake does not resume
+    // D-10: Confirmed booking / confirmed report only: terminal, cannot re-open the bookable slot grid
+    if (
+      currentScreen === 'emergency' ||
+      currentScreen === 'session_ended' ||
+      currentScreen === 'consent_declined' ||
+      currentScreen === 'confirmed_booking' ||
+      currentScreen === 'confirmed_report_only'
+    ) {
+      return;
+    }
+
     if (screenHistory.length > 0) {
       const prev = screenHistory[screenHistory.length - 1];
       setScreenHistory((prevList) => prevList.slice(0, -1));
@@ -361,6 +377,14 @@ export const PatientShell: React.FC = () => {
     setErrorMessage(null);
     try {
       const res = await startSession(language);
+      if (res.demo_busy || (res as any).error === 'demo_busy') {
+        setErrorMessage(
+          language === 'hi'
+            ? 'आज के लिए अस्पताल इनटेक सीमा समाप्त हो चुकी है। कृपया कल पुनः प्रयास करें।'
+            : "Today's intake limit reached. Please try again tomorrow."
+        );
+        return;
+      }
       setSessionId(res.session_id);
       setChatState(res);
       try {
@@ -377,7 +401,26 @@ export const PatientShell: React.FC = () => {
 
   // 2. Consent decisions (passes versioned consent constant CONSENT_VERSION)
   const handleConsentAgree = async () => {
-    if (!sessionId) return;
+    if (!sessionId) {
+      setErrorMessage(
+        language === 'hi'
+          ? 'सत्र शुरू करने में असमर्थ। कृपया पुनः प्रयास करें।'
+          : 'Unable to start session. Please try again.'
+      );
+      return;
+    }
+
+    // D-11: If user already has conversation progress, restore conversation immediately without resetting state
+    if (
+      chatState &&
+      (chatState.session_status === 'in_progress' ||
+        (chatState.messages && chatState.messages.length > 0) ||
+        chatState.turn_count > 0)
+    ) {
+      navigateToScreen('conversation');
+      return;
+    }
+
     setIsProcessing(true);
     setErrorMessage(null);
     try {
@@ -385,6 +428,10 @@ export const PatientShell: React.FC = () => {
       setChatState(res);
       navigateToScreen('conversation');
     } catch (err: any) {
+      if (err?.message?.includes('invalid_state') || err?.error === 'invalid_state') {
+        navigateToScreen('conversation');
+        return;
+      }
       console.error('Failed to record consent', err);
       setErrorMessage(sanitizeUserError(err));
     } finally {
@@ -586,16 +633,23 @@ export const PatientShell: React.FC = () => {
   };
 
   // 9. Book appointment
-  const handleBookAppointment = async (slotId: string) => {
+  const handleBookAppointment = async (slotId: string, slotStartTime?: string) => {
     if (!chatState?.submitted_report) return;
     if (activeAppointment) {
       navigateToScreen('confirmed_booking');
       return;
     }
+    const resolvedSlotStart =
+      slotStartTime && !isNaN(new Date(slotStartTime).getTime())
+        ? slotStartTime
+        : slotId && slotId.includes('T') && !isNaN(new Date(slotId).getTime())
+        ? slotId
+        : new Date().toISOString();
+
     const res = await bookAppointment({
       report_id: chatState.submitted_report.id,
       slot_id: slotId,
-      slot_start: slotId,
+      slot_start: resolvedSlotStart,
       doctor_id: chatState.submitted_report.doctor_id,
       patient_name: chatState.submitted_report.report.patient.name.value || undefined,
     });
@@ -700,6 +754,7 @@ export const PatientShell: React.FC = () => {
             onConfirm={handleConfirmTranscript}
             onCancel={handleBack}
             onBack={handleBack}
+            onReplayAudio={handleReplayAudio}
           />
         )}
 
@@ -708,6 +763,7 @@ export const PatientShell: React.FC = () => {
             report={chatState.draft_report as ReportDocumentV1}
             isCapReached={chatState.is_cap_reached}
             canSubmit={chatState.can_submit}
+            isProcessing={isProcessing}
             onCorrectField={handleCorrectField}
             onSubmit={handleSubmitReport}
             onDontSubmit={handleDontSubmit}

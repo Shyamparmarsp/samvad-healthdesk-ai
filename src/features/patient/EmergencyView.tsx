@@ -29,7 +29,7 @@ export const EmergencyView: React.FC<EmergencyViewProps> = ({ onEndDemo, onBack 
           </h1>
 
           <p className="text-[13px] text-[#1d2433] leading-relaxed mb-6 font-normal">
-            Your answer may indicate an urgent situation. This demonstration cannot assess or treat emergencies. Please call 112 now or go to the nearest emergency department. Do not wait for a routine appointment.
+            {t.emergency.guidance}
           </p>
 
           {/* Plain Text 112 Display — NO tap-to-call link per G3 / docs */}

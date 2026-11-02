@@ -1,0 +1,32 @@
+<svg width="23" height="23" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="23" height="23" fill="#E5E5E5"/>
+<g id="DoctorDashboard" clip-path="url(#clip0_0_1)">
+<rect width="1280" height="820" transform="translate(-47 -343)" fill="#DDE3EE"/>
+<foreignObject x="-46" y="-341" width="276" height="824"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(9px);clip-path:url(#bgblur_1_0_1_clip_path);height:100%;width:100%"></div></foreignObject><g id="doctor/sidebar" filter="url(#filter0_d_0_1)" data-figma-bg-blur-radius="18">
+<rect x="-27" y="-323" width="238" height="780" rx="26" fill="white" fill-opacity="0.55"/>
+<rect x="-26.5" y="-322.5" width="237" height="779" rx="25.5" stroke="white"/>
+<g id="nav/Urgent">
+<g id="nav/icon/Urgent">
+<path id="Vector" d="M11.5 2.875L21.0833 20.125H1.91663L11.5 2.875Z" stroke="#1F2A44" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_2" d="M11.5 8.625V13.4167M11.5 16.2917V16.3875" stroke="#1F2A44" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<filter id="filter0_d_0_1" x="-46" y="-341" width="276" height="824" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feMorphology radius="3" operator="erode" in="SourceAlpha" result="effect1_dropShadow_0_1"/>
+<feOffset dy="7"/>
+<feGaussianBlur stdDeviation="11"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.16 0 0 0 0 0.2 0 0 0 0 0.31 0 0 0 0.13 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_1"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_0_1" result="shape"/>
+</filter>
+<clipPath id="bgblur_1_0_1_clip_path" transform="translate(46 341)"><rect x="-27" y="-323" width="238" height="780" rx="26"/>
+</clipPath><clipPath id="clip0_0_1">
+<rect width="1280" height="820" fill="white" transform="translate(-47 -343)"/>
+</clipPath>
+</defs>
+</svg>

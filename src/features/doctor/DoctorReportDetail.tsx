@@ -111,14 +111,33 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
   const patient = report.report.patient;
   const clinical = report.report.clinical_details;
   const routing = report.report.routing_snapshot;
+  const capitalize = (s?: string | null) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '');
   const patientName = patient.name.value || 'Anonymous Patient';
   const patientAge = patient.age.value ? `${patient.age.value} years` : 'Age unstated';
-  const patientGender = patient.gender.value || 'Gender unstated';
+  const patientGender = patient.gender.value ? capitalize(patient.gender.value) : 'Gender unstated';
 
-  // Format conditions, meds, allergies
-  const formatList = (val?: string[] | null) => {
-    if (!val || val.length === 0) return 'Not provided';
-    return val.join(', ');
+  // Format conditions, meds, allergies, other symptoms with InfoStatus support
+  const formatFieldStatus = (field?: { status: string; value: string[] | string | null } | null) => {
+    if (!field) return 'Not provided';
+    if (field.status === 'provided') {
+      if (Array.isArray(field.value)) {
+        return field.value.length > 0 ? field.value.join(', ') : 'None reported';
+      }
+      return field.value || 'None reported';
+    }
+    switch (field.status) {
+      case 'declined':
+        return 'Declined';
+      case 'unknown':
+        return 'Unknown / Not sure';
+      case 'unclear':
+        return 'Unclear';
+      case 'not_asked':
+        return 'Not asked';
+      case 'not_provided':
+      default:
+        return 'Not provided';
+    }
   };
 
   return (
@@ -228,19 +247,25 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-[#4a5470]">Conditions</span>
                 <span className="px-3 py-0.5 rounded-full bg-[#e4e8f2] text-[#3a4468] font-semibold text-[10px]">
-                  {formatList(clinical.conditions.value)}
+                  {formatFieldStatus(clinical.conditions)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#4a5470]">Medications</span>
                 <span className="px-3 py-0.5 rounded-full bg-[#e4e8f2] text-[#3a4468] font-semibold text-[10px]">
-                  {formatList(clinical.medications.value)}
+                  {formatFieldStatus(clinical.medications)}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#4a5470]">Allergies</span>
                 <span className="px-3 py-0.5 rounded-full bg-[#e4e8f2] text-[#3a4468] font-semibold text-[10px]">
-                  {formatList(clinical.allergies.value)}
+                  {formatFieldStatus(clinical.allergies)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#4a5470]">Other symptoms</span>
+                <span className="px-3 py-0.5 rounded-full bg-[#e4e8f2] text-[#3a4468] font-semibold text-[10px]">
+                  {formatFieldStatus(clinical.other_symptoms)}
                 </span>
               </div>
             </div>
@@ -248,30 +273,51 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
 
           <div className="border-b border-[#dde3ee]/80" />
 
-          {/* Missing info */}
+          {/* Missing info (Figma D4: derived from report missing_information) */}
           <div>
             <h3 className="text-[13px] font-bold text-[#1d2433] mb-1">
               Missing information
             </h3>
             <p className="text-[11px] text-[#4a5470]">
-              {[
-                !clinical.conditions.value && 'Existing conditions',
-                !clinical.medications.value && 'medications',
-                !clinical.allergies.value && 'allergies',
-              ]
-                .filter(Boolean)
-                .join(', ') || 'None'}
+              {report.report.missing_information && report.report.missing_information.length > 0
+                ? report.report.missing_information
+                    .map((item) => {
+                      const normalized = item.replace('clinical_details.', '').replace('patient.', '').replace('_', ' ');
+                      return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+                    })
+                    .join(', ')
+                : 'None'}
             </p>
           </div>
 
-          {/* Warning flags */}
+          {/* Warning flags (D-01 / DETAIL-WARNFLAGS-01: reflects actual report data) */}
           <div>
             <h3 className="text-[12px] font-bold text-[#1d2433] mb-1">
               Warning flags
             </h3>
-            <p className="text-[11px] text-[#4a5470]">
-              None
-            </p>
+            {report.possible_urgent || report.needs_human_review || report.emergency_rule_id ? (
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                {report.possible_urgent && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                    Possible urgent (Urgent review hold)
+                    <span className="sr-only">possible_urgent</span>
+                  </span>
+                )}
+                {report.needs_human_review && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-900 border border-indigo-300">
+                    Needs human review
+                    <span className="sr-only">needs_human_review</span>
+                  </span>
+                )}
+                {report.emergency_rule_id && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
+                    Emergency rule: {report.emergency_rule_id}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <p className="text-[11px] text-[#4a5470]">None</p>
+            )}
           </div>
 
           {/* Preliminary routing */}

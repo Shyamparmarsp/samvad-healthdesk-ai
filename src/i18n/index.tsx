@@ -17,7 +17,20 @@ const I18nContext = createContext<I18nContextType>({
 });
 
 export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [language, setLanguage] = useState<Language>('en');
+  const [language, setLanguageState] = useState<Language>(() => {
+    try {
+      const saved = sessionStorage.getItem('samvad_language');
+      if (saved === 'hi' || saved === 'en') return saved;
+    } catch {}
+    return 'en';
+  });
+
+  const setLanguage = (lang: Language) => {
+    setLanguageState(lang);
+    try {
+      sessionStorage.setItem('samvad_language', lang);
+    } catch {}
+  };
 
   const t = language === 'hi' ? hi : en;
 

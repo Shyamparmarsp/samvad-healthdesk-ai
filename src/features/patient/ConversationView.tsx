@@ -156,12 +156,34 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   const [recordingStatus, setRecordingStatus] = useState<'idle' | 'recording' | 'completed' | 'error'>('idle');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [micError, setMicError] = useState<string | null>(null);
+  const [isMicDenied, setIsMicDenied] = useState<boolean>(false);
+  const [selectedChip, setSelectedChip] = useState<string | null>(isP3Fixture ? 'Moderate' : null);
 
   const chatScrollContainerRef = useRef<HTMLDivElement>(null);
   const recordingStartTimeRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<any>(null);
   const isStoppingRef = useRef<boolean>(false);
   const audioRecorderRef = useRef<AudioRecorder | null>(null);
+
+  useEffect(() => {
+    if (chatScrollContainerRef.current) {
+      chatScrollContainerRef.current.scrollTop = chatScrollContainerRef.current.scrollHeight;
+    }
+  }, [messages, currentQuestion]);
+
+  useEffect(() => {
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      if (audioRecorderRef.current) {
+        audioRecorderRef.current.cancel();
+        audioRecorderRef.current = null;
+      }
+      isStoppingRef.current = false;
+    };
+  }, []);
 
   const effectiveQuestion = isP4Fixture
     ? {
@@ -178,6 +200,11 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     return (
       <div className="relative w-[390px] h-[844px] overflow-hidden select-none flex flex-col justify-between p-5">
         <PatientHeader />
+        {onBack && (
+          <div className="pt-0.5 pb-1">
+            <BackButton onClick={onBack} />
+          </div>
+        )}
         {/* Figma 72:192 Processing View */}
         <div className="my-auto backdrop-blur-[9px] bg-[rgba(255,255,255,0.65)] border border-white rounded-[28px] p-8 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)] text-center flex flex-col items-center">
           <div className="flex items-center gap-2.5 mb-5">
@@ -186,7 +213,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
             <span className="w-3 h-3 rounded-full bg-[#1f2a44] animate-bounce [animation-delay:0.4s]"></span>
           </div>
           <h2 className="text-[17px] font-bold text-[#1d2433]">
-            Understanding your answer...
+            {language === 'hi' ? 'आपके उत्तर को समझा जा रहा है...' : 'Understanding your answer...'}
           </h2>
         </div>
         <p className="text-[9px] text-center text-[#4a5470] pb-2 leading-tight font-normal">
@@ -196,33 +223,85 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     );
   }
 
-  if (isP4bFixture) {
+  if (isP4bFixture || isMicDenied) {
     return (
       <div className="relative w-[390px] h-[844px] overflow-hidden select-none flex flex-col justify-between p-5">
         <PatientHeader />
+        {onBack && (
+          <div className="pt-0.5 pb-1">
+            <BackButton onClick={onBack} />
+          </div>
+        )}
+
+        {/* Mic Permission Denied / Error Banner */}
+        {micError && (
+          <div
+            role="alert"
+            aria-live="polite"
+            className="mb-2 p-2.5 rounded-[16px] bg-amber-50/90 border border-amber-200 text-xs text-amber-900 shadow-sm flex items-center justify-between z-10"
+          >
+            <span>{micError}</span>
+            <button
+              onClick={() => {
+                setMicError(null);
+                setIsMicDenied(false);
+              }}
+              aria-label="Dismiss error"
+              className="text-amber-700 hover:text-amber-900 font-bold ml-2 text-xs"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Figma 72:209 Mic Denied / Text Mode */}
         <div className="my-auto backdrop-blur-[9px] bg-[rgba(255,255,255,0.65)] border border-white rounded-[28px] p-6 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)] space-y-5">
           <p className="text-[15px] font-bold text-[#1d2433] leading-snug">
-            Microphone is off. You can type your answers instead.
+            {language === 'hi'
+              ? 'माइक्रोफ़ोन बंद है। आप अपने उत्तर टाइप कर सकते हैं।'
+              : 'Microphone is off. You can type your answers instead.'}
           </p>
-          <div className="relative">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (typedText.trim()) {
+                const text = typedText.trim();
+                setTypedText('');
+                setIsMicDenied(false);
+                onSendText(text);
+              }
+            }}
+            className="relative"
+          >
             <input
               type="text"
-              placeholder="Type your answer here..."
+              value={typedText}
+              onChange={(e) => setTypedText(e.target.value)}
+              placeholder={language === 'hi' ? 'अपना उत्तर यहाँ टाइप करें...' : 'Type your answer here...'}
               className="w-full h-[48px] pl-4 pr-11 rounded-[14px] bg-white/85 border border-white text-sm text-[#1d2433] placeholder:text-[#4a5470]/60 focus:outline-none focus:ring-2 focus:ring-[#1f2a44] shadow-inner"
             />
-            <button type="button" aria-label="Send" className="absolute right-2 top-2 size-8 rounded-[10px] bg-[#1f2a44] text-white flex items-center justify-center">
+            <button
+              type="submit"
+              disabled={!typedText.trim() || isProcessing}
+              aria-label="Send"
+              className="absolute right-2 top-2 size-8 rounded-[10px] bg-[#1f2a44] text-white flex items-center justify-center disabled:opacity-50"
+            >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
               </svg>
             </button>
-          </div>
+          </form>
           <button
             type="button"
+            onClick={() => {
+              setIsMicDenied(false);
+              setMicError(null);
+              void handleStartListening();
+            }}
             className="w-full h-[54px] rounded-[27px] bg-[#1f2a44] text-white font-semibold text-[14px] shadow-sm hover:bg-[#2a3a5c] flex items-center justify-center gap-2"
           >
             <span className="w-2 h-2 rounded-full bg-white"></span>
-            <span>Try microphone again</span>
+            <span>{language === 'hi' ? 'माइक्रोफ़ोन पुनः आज़माएँ' : 'Try microphone again'}</span>
           </button>
         </div>
         <p className="text-[9px] text-center text-[#4a5470] pb-2 leading-tight font-normal">
@@ -246,26 +325,6 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     : messages;
 
   const progressFraction = Math.min(1, Math.max(0.08, turnCount / (maxTurns || 15)));
-
-  useEffect(() => {
-    if (chatScrollContainerRef.current) {
-      chatScrollContainerRef.current.scrollTop = chatScrollContainerRef.current.scrollHeight;
-    }
-  }, [messages, currentQuestion]);
-
-  useEffect(() => {
-    return () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-      if (audioRecorderRef.current) {
-        audioRecorderRef.current.cancel();
-        audioRecorderRef.current = null;
-      }
-      isStoppingRef.current = false;
-    };
-  }, []);
 
   const handleStartListening = async () => {
     if (isProcessing || demoBusy || isListening || isStoppingRef.current) return;
@@ -328,6 +387,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
       setIsListening(false);
       setRecordingStatus('error');
       setElapsedSeconds(0);
+      setIsMicDenied(true);
       setMicError(
         t.chat.micUnavailable ||
           'Microphone access is unavailable. Please check permissions or switch to text mode.'
@@ -429,7 +489,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 
       {/* Turn info & Replay audio bar */}
       <div className="flex items-center justify-between px-5 py-1 text-[11px] text-[#4a5470] z-10">
-        <span>Turn {turnCount} of {maxTurns}</span>
+        <span>{language === 'hi' ? `टर्न ${turnCount} / ${maxTurns}` : `Turn ${turnCount} of ${maxTurns}`}</span>
         <button
           type="button"
           onClick={onReplayAudio}
@@ -461,7 +521,10 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         >
           <span>{micError}</span>
           <button
-            onClick={() => setMicError(null)}
+            onClick={() => {
+              setMicError(null);
+              setIsMicDenied(false);
+            }}
             aria-label="Dismiss error"
             className="text-amber-700 hover:text-amber-900 font-bold ml-2 text-xs"
           >
@@ -499,11 +562,28 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                   className="w-[30px] h-[30px] rounded-full bg-white/80 border border-white text-[#1f2a44] flex items-center justify-center flex-shrink-0 shadow-sm"
                   aria-hidden="true"
                 >
-                  <svg className="w-4 h-4 text-[#1f2a44]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <rect x="4" y="8" width="16" height="12" rx="4" strokeWidth={1.8} />
-                    <circle cx="9" cy="14" r="1.5" fill="currentColor" />
-                    <circle cx="15" cy="14" r="1.5" fill="currentColor" />
-                    <path d="M12 4v4m-3-4h6" strokeWidth={1.8} strokeLinecap="round" />
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 30 30"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-5 h-5 block"
+                  >
+                    <path
+                      d="M20 8.75H10C7.92893 8.75 6.25 10.4289 6.25 12.5V20C6.25 22.0711 7.92893 23.75 10 23.75H20C22.0711 23.75 23.75 22.0711 23.75 20V12.5C23.75 10.4289 22.0711 8.75 20 8.75Z"
+                      stroke="#1F2A44"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M15 3.75V8.75M11.25 15H11.2625M18.75 15H18.7625M11.25 20H18.75M3.75 13.75V18.75M26.25 13.75V18.75"
+                      stroke="#1F2A44"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                 </div>
               )}
@@ -592,16 +672,21 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           }
         >
           {optionsToRender.map((opt) => {
-            const isSeverityModerate = opt.value === 'Moderate';
+            const isChipSelected = selectedChip
+              ? selectedChip === opt.value
+              : (isP3Fixture && opt.value === 'Moderate');
             return (
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => handleChipClick(opt.value)}
+                onClick={() => {
+                  setSelectedChip(opt.value);
+                  handleChipClick(opt.value);
+                }}
                 disabled={isProcessing}
                 aria-label={opt.label}
                 className={`h-[40px] px-4 rounded-[20px] text-[11px] font-semibold transition-all active:scale-95 disabled:opacity-50 text-center flex items-center justify-center ${
-                  isSeverityModerate
+                  isChipSelected
                     ? 'bg-[#1f2a44] border border-[#1f2a44] text-white shadow-[0px_3px_9px_-3px_rgba(41,51,79,0.17)]'
                     : 'backdrop-blur-[9px] bg-[rgba(255,255,255,0.76)] border border-white text-[#4a5470] hover:text-[#1d2433]'
                 }`}
@@ -679,13 +764,14 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                   aria-label={t.chat.typeInstead}
                   className="size-[58px] rounded-[29px] backdrop-blur-[9px] bg-[rgba(255,255,255,0.74)] border border-white shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.09)] flex items-center justify-center text-[#4a5470] hover:text-[#1d2433] active:scale-95 transition-all"
                 >
-                  <svg className="w-5 h-5 text-[#4a5470]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 10h18M3 14h18m-9-4v8m-4-8v8m8-8v8M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
+                  <svg className="w-7 h-7 text-[#1f2a44]" width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor">
+                    <path d="M22.1667 7H5.83333C4.54467 7 3.5 8.04467 3.5 9.33333V18.6667C3.5 19.9553 4.54467 21 5.83333 21H22.1667C23.4553 21 24.5 19.9553 24.5 18.6667V9.33333C24.5 8.04467 23.4553 7 22.1667 7Z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M7 10.5H8.16667M11.6667 10.5H12.8333M16.3333 10.5H17.5M21 10.5H22.1667M7 14H8.16667M11.6667 14H12.8333M16.3333 14H17.5M21 14H22.1667M9.33333 17.5H18.6667" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                   <span className="sr-only">Type</span>
                 </button>
                 <span className="text-[10px] font-medium text-[#4a5470] mt-1.5 text-center">
-                  Type
+                  {language === 'hi' ? 'टाइप करें' : 'Type'}
                 </span>
               </div>
 
@@ -739,13 +825,13 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                       : 'bg-[rgba(255,255,255,0.74)] text-[#4a5470] opacity-50 cursor-not-allowed'
                   }`}
                 >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <rect x="5" y="5" width="14" height="14" rx="2" strokeWidth={2} />
+                  <svg className="w-7 h-7 text-[#1f2a44]" width="28" height="28" viewBox="0 0 28 28" fill="none" stroke="currentColor">
+                    <path d="M18.6667 7H9.33333C8.04467 7 7 8.04467 7 9.33333V18.6667C7 19.9553 8.04467 21 9.33333 21H18.6667C19.9553 21 21 19.9553 21 18.6667V9.33333C21 8.04467 19.9553 7 18.6667 7Z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                   </svg>
                   <span className="sr-only">Done</span>
                 </button>
                 <span className="text-[10px] font-medium text-[#4a5470] mt-1.5 text-center">
-                  Done
+                  {language === 'hi' ? 'पूर्ण' : 'Done'}
                 </span>
               </div>
             </div>

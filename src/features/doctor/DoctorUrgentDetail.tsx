@@ -30,8 +30,8 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
   const [reviewError, setReviewError] = useState<string | null>(null);
   const isReviewed = Boolean(report.reviewed_at);
 
-  // OD-03 Interim rule: General Medicine has read cross-visibility, but only Emergency doctor has review authority
-  const canReview = !currentDoctor || currentDoctor.department_key === 'emergency';
+  // D-36: Deny by default when currentDoctor is null/undefined; Emergency doctor has review authority
+  const canReview = Boolean(currentDoctor && currentDoctor.department_key === 'emergency');
 
   const handleMarkReviewed = async () => {
     if (isMarking || isReviewed || !canReview) return;
@@ -47,10 +47,11 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
     }
   };
 
+  const capitalize = (s?: string | null) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '');
   const patient = report.report.patient;
   const patientName = patient.name.value || 'Anonymous Patient';
   const patientAge = patient.age.value ? `${patient.age.value} years` : 'Age unstated';
-  const patientGender = patient.gender.value || 'Gender unstated';
+  const patientGender = patient.gender.value ? capitalize(patient.gender.value) : 'Gender unstated';
 
   return (
     <div className="space-y-6">

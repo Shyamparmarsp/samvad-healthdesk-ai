@@ -37,6 +37,9 @@ export interface Appointment {
   slot_end: string;   // ISO string
   reference_code: string; // e.g. "APT-20261102-K9X2"
   patient_name: string;
+  patient_age?: number;
+  patient_gender?: string;
+  primary_concern?: string;
   created_at: string;
   status: 'confirmed' | 'cancelled';
 }

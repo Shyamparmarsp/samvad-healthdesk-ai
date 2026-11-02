@@ -8,7 +8,7 @@ import { BackButton } from '../common/BackButton';
 
 interface BookingViewProps {
   report: ReportRow;
-  onBookAppointment: (slotId: string) => Promise<void>;
+  onBookAppointment: (slotId: string, slotStartTime?: string) => Promise<void>;
   onNotNow: () => void;
   onBack?: () => void;
 }
@@ -89,13 +89,26 @@ export const BookingView: React.FC<BookingViewProps> = ({
     }
   };
 
+  const handleTryAnotherDate = () => {
+    if (!dates.length) return;
+    try {
+      sessionStorage.removeItem('FIGMA_PARITY_NO_SLOTS');
+    } catch {}
+    const currentIdx = dates.findIndex((d) => d.dateStr === selectedDate);
+    const nextIdx = (currentIdx + 1) % dates.length;
+    const nextDate = dates[nextIdx].dateStr;
+    setSelectedDate(nextDate);
+    void loadSlots(nextDate);
+  };
+
   const handleBook = async () => {
     if (!selectedSlotId || isBooking) return;
     setIsBooking(true);
     setSlotTakenError(false);
     setBookingErrorMessage(null);
     try {
-      await onBookAppointment(selectedSlotId);
+      const selectedSlot = slots.find((s) => s.id === selectedSlotId);
+      await onBookAppointment(selectedSlotId, selectedSlot?.start_time);
     } catch (err: any) {
       if (err?.message?.includes('taken') || err?.message?.includes('23505')) {
         setSlotTakenError(true);
@@ -310,7 +323,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
           {/* Confirm Appointment or Try another date Button */}
           <button
             type="button"
-            onClick={slots.length === 0 ? () => {} : handleBook}
+            onClick={slots.length === 0 ? handleTryAnotherDate : handleBook}
             disabled={(!selectedSlotId && slots.length > 0) || isBooking}
             className="w-full h-[54px] rounded-[27px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] disabled:opacity-50 active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
           >
