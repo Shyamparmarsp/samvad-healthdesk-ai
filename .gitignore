@@ -18,5 +18,11 @@ node_modules/
 supabase/.branches/
 supabase/.temp/
 
+# Demo lifecycle plans and database dumps (private operational data)
+demo-lifecycle-plan*.json
+samvad-*-prod-*.sql
+samvad-*-prod-*.sql.gz
+samvad-*-prod-*.sql.gpg
+
 # Editor
 .vscode/

@@ -140,6 +140,15 @@ await step("static", "question bank reviewer dashboard", true, async () => {
   return { ok: result.ok, detail: result.ok ? "CSV ids match the bank" : lastLine(result.out) };
 });
 
+await step("static", "demo lifecycle safeguards", true, async () => {
+  const result = await run("deno", ["test", "--allow-read", "--allow-env", "supabase/tests/demo-lifecycle.test.ts"]);
+  const match = /(\d+) passed \| (\d+) failed/.exec(result.out);
+  return {
+    ok: result.ok && Boolean(match),
+    detail: match ? `${match[1]} passed, ${match[2]} failed` : lastLine(result.out),
+  };
+});
+
 await step("static", "contract fixtures (17 canonical)", true, async () => {
   const result = await run("deno", ["run", "--allow-read", "--allow-write", "--allow-env", "scripts/export-contract-fixtures.ts", "--check"]);
   return { ok: result.ok, detail: result.ok ? "17 fixtures valid" : lastLine(result.out) };

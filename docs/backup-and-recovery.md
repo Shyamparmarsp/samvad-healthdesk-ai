@@ -4,7 +4,9 @@ Local rehearsal only. No production backup has been created or restored by the a
 
 Naming, manifest and off-platform storage conventions are in
 `docs/data-retention-and-backup.md` §5. This file covers the dump commands, the restore
-rehearsal and recovery after a failed migration or function deployment.
+rehearsal and recovery after a failed migration or function deployment. Automated structural
+and isolated-restore validation is in `scripts/verify-backup-restore.ts`; its default is a
+dry run and `--execute` creates/drops a uniquely named local scratch database.
 
 ## 1. Back up (owner, before any migration)
 
