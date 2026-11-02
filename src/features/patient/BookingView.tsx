@@ -28,7 +28,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
 
   // Asia/Kolkata weekday options (D-21).
   const dates: DateOption[] = useMemo(() => buildWeekdayDateOptions(new Date(), 14, 1), []);
-  const [visibleDateCount, setVisibleDateCount] = useState(7);
+  const [visibleDateCount, setVisibleDateCount] = useState(3);
   const [selectedDate, setSelectedDate] = useState<string>(dates[0]?.dateKey || '');
   const [slots, setSlots] = useState<AppointmentSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<AppointmentSlot | null>(null);
@@ -160,135 +160,99 @@ export const BookingView: React.FC<BookingViewProps> = ({
           </button>
         </div>
       ) : (
-        /* Normal Booking Flow (P7, P8a, P8b) */
-        <div className="flex-1 overflow-y-auto px-5 py-2 space-y-3">
-          {/* Title & Subtitle */}
-          <div className="pt-1">
-            <h1 className="text-[20px] font-bold text-[#1d2433] tracking-tight">
-              <span>{language === 'hi' ? 'अपॉइंटमेंट बुक करें' : 'Book an appointment'}</span>
-              <span className="sr-only"> · Schedule Consultation</span>
-            </h1>
-            <p className="text-[12px] text-[#4a5470] mt-0.5">
-              {t.booking.subtitle}
-            </p>
-          </div>
-
-          {/* Assigned Doctor Card */}
-          <div className="backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[20px] p-3.5 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)] flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-[#1f2a44] text-white font-bold text-xs flex items-center justify-center shadow-sm flex-shrink-0">
-              {report.report.routing_snapshot.doctor_name
-                .split(' ')
-                .map((n) => n[0])
-                .slice(1, 3)
-                .join('')}
-            </div>
-            <div>
-              <span className="text-[10px] font-bold text-[#284c91] uppercase tracking-wider block">
-                {t.booking.doctorAssigned}
-              </span>
-              <h4 className="font-bold text-[13px] text-[#1d2433]">
-                {report.report.routing_snapshot.doctor_name}
-              </h4>
-              <p className="text-[11px] text-[#4a5470]">
-                {report.report.routing_snapshot.department_name}
+        /* Normal Booking Flow (Figma P7, P8a, P8b) */
+        <div className="flex-1 overflow-y-auto px-5 py-2 space-y-3.5 flex flex-col justify-between">
+          <div className="space-y-3.5">
+            {/* Title & Subtitle matching Figma P7 */}
+            <div className="pt-1">
+              <h1 className="text-[22px] font-bold text-[#1d2433] tracking-tight">
+                <span>{language === 'hi' ? 'अपॉइंटमेंट बुक करें' : 'Book an appointment'}</span>
+                <span className="sr-only"> · Schedule Consultation</span>
+              </h1>
+              <p className="text-[13px] text-[#4a5470] mt-0.5">
+                {report.report.routing_snapshot.doctor_name} · {report.report.routing_snapshot.department_name}
               </p>
             </div>
-          </div>
 
-          {/* Slot Taken Error Banner (Figma P8a) */}
-          {slotTakenError && (
-            <div
-              role="alert"
-              aria-live="assertive"
-              className="p-3 rounded-[16px] bg-amber-50/95 border border-amber-300 text-xs text-amber-900 flex items-start gap-2 shadow-sm"
-            >
-              <svg className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <div>
-                <p className="font-bold">{t.booking.slotTakenTitle}</p>
-                <p className="text-[11px] mt-0.5">{t.booking.slotTakenMessage}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Generic Booking Failure Banner */}
-          {bookingErrorMessage && (
-            <div
-              role="alert"
-              aria-live="assertive"
-              className="p-3 rounded-[16px] bg-red-50/95 border border-red-300 text-xs text-red-900 flex items-start gap-2 shadow-sm"
-            >
-              <svg className="w-4 h-4 text-red-700 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <div>
-                <p className="font-bold">{t.booking.bookingErrorTitle}</p>
-                <p className="text-[11px] mt-0.5">{bookingErrorMessage}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Date Selector Card (Figma 81:384) */}
-          <div className="backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[20px] p-3 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)]">
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#4a5470] mb-2 px-1">
-              {t.booking.selectDate}
-            </label>
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" role="group" aria-label="Consultation dates">
-              {visibleDates.map((d) => {
-                const isSelected = d.dateKey === selectedDate;
-                return (
-                  <button
-                    key={d.dateKey}
-                    type="button"
-                    onClick={() => setSelectedDate(d.dateKey)}
-                    aria-label={`Select date ${d.dayName} ${d.label}`}
-                    aria-pressed={isSelected}
-                    className={`flex-shrink-0 w-[94px] py-2.5 rounded-[16px] text-center border transition-all focus:outline-none focus:ring-2 focus:ring-[#1f2a44] ${
-                      isSelected
-                        ? 'bg-[#1f2a44] border-[#1f2a44] text-white shadow-sm'
-                        : 'bg-white/80 border-white text-[#1d2433] hover:bg-white'
-                    }`}
-                  >
-                    <span className="text-[10px] uppercase font-bold block opacity-75">
-                      {d.dayName}
-                    </span>
-                    <span className="text-xs font-semibold block mt-0.5">
-                      {d.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            {canShowMoreDates && (
-              <button
-                type="button"
-                onClick={() => setVisibleDateCount(dates.length)}
-                className="mt-2 text-[11px] font-semibold text-[#1f2a44] hover:underline focus:outline-none"
+            {/* Slot Taken Error Banner (Figma P8a) */}
+            {slotTakenError && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="rounded-[18px] bg-[#fde8e8] border border-[#fbd5d5] p-3.5 text-center shadow-sm"
               >
-                {t.booking.moreDates}
-              </button>
+                <p className="text-[12px] font-medium text-[#c81e1e]">
+                  {language === 'hi' ? 'यह स्लॉट अभी बुक हो गया। कृपया दूसरा चुनें।' : 'That slot was just taken. Please choose another.'}
+                </p>
+              </div>
             )}
-          </div>
 
-          {/* Time Slot Chips Card (Figma 81:396) */}
-          <div className="backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[20px] p-3.5 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)]">
-            <div className="flex items-center justify-between mb-2 px-1">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-[#4a5470]">
-                {t.booking.selectTime}
-              </label>
-              <span className="text-[10px] text-[#4a5470]/70">
-                30 min slots
-              </span>
+            {/* Generic Booking Failure Banner */}
+            {bookingErrorMessage && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="p-3 rounded-[16px] bg-red-50/95 border border-red-300 text-xs text-red-900 flex items-start gap-2 shadow-sm"
+              >
+                <svg className="w-4 h-4 text-red-700 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div>
+                  <p className="font-bold">{t.booking.bookingErrorTitle}</p>
+                  <p className="text-[11px] mt-0.5">{bookingErrorMessage}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Date Selector Card (Figma P7 / 81:384) */}
+            <div className="backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[22px] p-3.5 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)]">
+              <div className="grid grid-cols-3 gap-2" role="group" aria-label="Consultation dates">
+                {visibleDates.slice(0, visibleDateCount).map((d) => {
+                  const isSelected = d.dateKey === selectedDate;
+                  return (
+                    <button
+                      key={d.dateKey}
+                      type="button"
+                      onClick={() => setSelectedDate(d.dateKey)}
+                      aria-label={`Select date ${d.dayName} ${d.label}`}
+                      aria-pressed={isSelected}
+                      className={`py-2.5 rounded-[16px] text-center border transition-all focus:outline-none focus:ring-2 focus:ring-[#1f2a44] ${
+                        isSelected
+                          ? 'bg-[#1f2a44] border-[#1f2a44] text-white shadow-sm'
+                          : 'bg-white/80 border-white text-[#1d2433] hover:bg-white'
+                      }`}
+                    >
+                      <span className="text-[10px] font-medium block opacity-80">
+                        {d.dayName}
+                      </span>
+                      <span className="text-[12px] font-bold block mt-0.5">
+                        {d.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {canShowMoreDates && (
+                <div className="text-center mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleDateCount(dates.length)}
+                    className="text-[11px] font-semibold text-[#1f2a44] hover:underline focus:outline-none"
+                  >
+                    {t.booking.moreDates}
+                  </button>
+                </div>
+              )}
             </div>
 
+            {/* Time Slot Chips Card (Figma P7 / 81:396 & P8b dedicated state) */}
             {isLoadingSlots ? (
-              <div role="status" aria-live="polite" className="py-8 text-center text-xs text-[#4a5470]">
+              <div className="backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[22px] p-8 text-center text-xs text-[#4a5470] shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)]" role="status" aria-live="polite">
                 {t.common.loading}
               </div>
             ) : slotLoadError ? (
               /* D-22: a failed load is distinct from "no free slots" and offers retry. */
-              <div role="alert" className="py-6 text-center">
+              <div className="backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[22px] p-6 text-center shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)]" role="alert">
                 <h4 className="text-xs font-bold text-[#a12626]">{t.booking.loadErrorTitle}</h4>
                 <p className="text-[11px] text-[#4a5470] mt-0.5">{t.booking.loadErrorMessage}</p>
                 <button
@@ -300,76 +264,100 @@ export const BookingView: React.FC<BookingViewProps> = ({
                 </button>
               </div>
             ) : slots.length === 0 ? (
-              /* No Slots Card (Figma P8b) */
-              <div className="py-6 text-center">
-                <svg className="w-7 h-7 text-[#4a5470]/50 mx-auto mb-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <h4 className="text-xs font-bold text-[#1d2433]">
-                  {t.booking.noSlotsTitle}
-                </h4>
-                <p className="text-[11px] text-[#4a5470] mt-0.5">
-                  {noOtherDates ? t.booking.noOtherDates : t.booking.noSlotsMessage}
-                </p>
+              /* Dedicated No Slots Card matching Figma P8b */
+              <div className="backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[22px] p-6 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)] text-center space-y-3">
+                <h3 className="text-[15px] font-bold text-[#1d2433]">
+                  {noOtherDates ? t.booking.noOtherDates : (language === 'hi' ? 'इस तिथि पर कोई स्लॉट उपलब्ध नहीं है।' : 'No free slots on this date.')}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => void handleTryAnotherDate()}
+                  disabled={noOtherDates}
+                  className="w-full h-[46px] rounded-full bg-[#1f2a44] text-white font-semibold text-[13px] shadow hover:bg-[#2a3a5c] transition-all disabled:opacity-50"
+                >
+                  {t.booking.tryAnotherDate}
+                </button>
+                <button
+                  type="button"
+                  onClick={onNotNow}
+                  className="w-full h-[46px] rounded-full bg-white/80 border border-white text-[#1d2433] font-semibold text-[13px] shadow-sm hover:bg-white transition-all"
+                >
+                  {t.booking.notNow}
+                </button>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-2" role="group" aria-label="Available appointment times">
-                {slots.map((s) => {
-                  const isSelected = selectedSlot?.id === s.id;
-                  const isFree = s.is_available;
-                  const timeLabel = formatIstTime(s.start_time) ?? s.time_display;
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      disabled={!isFree}
-                      onClick={() => setSelectedSlot(s)}
-                      aria-label={`${timeLabel}${isFree ? ', available' : ', unavailable'}`}
-                      aria-pressed={isSelected}
-                      className={`h-[44px] rounded-[14px] text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-[#1f2a44] ${
-                        isSelected
-                          ? 'bg-[#1f2a44] border-[#1f2a44] text-white shadow-sm'
-                          : isFree
-                          ? 'bg-white/80 border-white text-[#1d2433] hover:bg-white'
-                          : 'bg-slate-200/50 border-transparent text-[#4a5470]/50 line-through cursor-not-allowed'
-                      }`}
-                    >
-                      {timeLabel}
-                    </button>
-                  );
-                })}
+              /* Slots Grid matching Figma P7 (2 rows of 3 pills) */
+              <div className="backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[22px] p-4 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)]">
+                <div className="grid grid-cols-3 gap-2.5" role="group" aria-label="Available appointment times">
+                  {slots.slice(0, 6).map((s) => {
+                    const isSelected = selectedSlot?.id === s.id;
+                    const isFree = s.is_available;
+                    const timeLabel = formatIstTime(s.start_time) ?? s.time_display;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        disabled={!isFree}
+                        onClick={() => setSelectedSlot(s)}
+                        aria-label={`${timeLabel}${isFree ? ', available' : ', unavailable'}`}
+                        aria-pressed={isSelected}
+                        className={`h-[46px] rounded-[16px] text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-[#1f2a44] ${
+                          isSelected
+                            ? 'bg-[#1f2a44] border-[#1f2a44] text-white shadow-sm'
+                            : isFree
+                            ? 'bg-white/80 border-white text-[#1d2433] hover:bg-white'
+                            : 'bg-slate-200/50 border-transparent text-[#4a5470]/50 line-through cursor-not-allowed'
+                        }`}
+                      >
+                        {timeLabel}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Action Footer (Figma 81:410 & 81:415) */}
-      {!isBookingBlocked && (
-        <div className="px-5 pt-2 space-y-2">
-          {/* Confirm Appointment or Try another date Button */}
+      {/* Action Footer matching Figma P7 (81:410 & 81:415) */}
+      {!isBookingBlocked && slots.length > 0 && !slotLoadError && (
+        <div className="px-5 pt-1 space-y-2">
+          {/* Confirm Appointment with Calendar Icon matching Figma P7 */}
           <button
             type="button"
-            onClick={slots.length === 0 || slotLoadError ? () => void handleTryAnotherDate() : handleBook}
-            disabled={isLoadingSlots || isBooking || (slots.length > 0 && !selectedSlot)}
-            className="w-full h-[54px] rounded-[27px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] disabled:opacity-50 active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
+            onClick={handleBook}
+            disabled={isLoadingSlots || isBooking || !selectedSlot}
+            aria-label={t.booking.bookSlot}
+            className="w-full h-[52px] rounded-full bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] disabled:opacity-50 active:scale-[0.99] transition-all flex items-center justify-center gap-2.5 focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
           >
-            {slots.length === 0 || slotLoadError
-              ? t.booking.tryAnotherDate
-              : isBooking
-              ? t.common.loading
-              : `${t.booking.bookSlot}${selectedSlot ? ` · ${formatIstTime(selectedSlot.start_time) ?? ''}` : ''}`}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <span>
+              {isBooking
+                ? t.common.loading
+                : selectedSlot
+                ? `${language === 'hi' ? 'बुक करें' : 'Book'} ${formatIstTime(selectedSlot.start_time) ?? ''}`
+                : t.booking.bookSlot}
+            </span>
+            <span className="sr-only"> · {t.booking.bookSlot}</span>
           </button>
 
-          {/* Not Now button */}
-          <button
-            type="button"
-            onClick={onNotNow}
-            disabled={isBooking}
-            className="w-full h-[38px] rounded-[19px] bg-transparent text-[#4a5470] hover:text-[#1d2433] font-semibold text-[13px] transition-colors flex items-center justify-center focus:outline-none disabled:opacity-50"
-          >
-            {t.booking.notNow}
-          </button>
+          {/* Not Now text button */}
+          <div className="text-center pt-0.5">
+            <button
+              type="button"
+              onClick={onNotNow}
+              disabled={isBooking}
+              className="text-[13px] font-medium text-[#4a5470] hover:text-[#1d2433] transition-colors focus:outline-none disabled:opacity-50"
+            >
+              {t.booking.notNow}
+            </button>
+          </div>
 
           {/* Footer Disclaimer */}
           <p className="text-[9px] text-center text-[#4a5470] pt-0.5 leading-tight font-normal">

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { DoctorReportsTab } from '../../types/doctor';
 import { ReportRow } from '../../types/report';
-import { presentGender } from '../../lib/report-presentation';
 import { formatIstTime } from '../../lib/booking-time';
 import { BackButton } from '../common/BackButton';
 
@@ -142,7 +141,7 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
           })}
         </div>
 
-        {/* Table / List */}
+        {/* List matching Figma D3 (74:125 / 81:144) */}
         {filteredReports.length === 0 ? (
           <div className="p-12 text-center text-xs text-[#4a5470]">
             No reports match the selected criteria.
@@ -150,25 +149,13 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="border-b border-[#dde3ee]/80 text-[#4a5470] font-semibold text-[11px]">
-                <tr>
-                  <th className="pb-3 px-4">Patient</th>
-                  <th className="pb-3 px-4">Primary Concern</th>
-                  <th className="pb-3 px-4">Status</th>
-                  <th className="pb-3 px-4">Reference / Time</th>
-                  <th className="pb-3 px-4">Review</th>
-                  <th className="pb-3 px-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#dde3ee]/60 text-[#1d2433]">
+              <tbody className="divide-y divide-[#dde3ee]/60">
                 {filteredReports.map((r) => {
                   const isUrgent = r.status === 'urgent_partial';
-                  const isReviewed = Boolean(r.reviewed_at);
                   const isBooked = bookedReportIds.has(r.id);
                   const patientName = r.report.patient.name.value || 'Anonymous Patient';
                   const patientAge = r.report.patient.age.value ? `${r.report.patient.age.value} yrs` : '';
-                  const patientGender = presentGender(r.report.patient.gender);
-                  const genderLabel = patientGender === 'Unavailable' ? '' : patientGender;
+                  const primaryConcern = r.report.primary_concern?.value || 'Not provided';
                   const timeFormatted = formatIstTime(r.created_at) ?? 'Time unavailable';
 
                   return (
@@ -184,75 +171,57 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
                       tabIndex={0}
                       role="button"
                       aria-label={`View intake report for ${patientName}`}
-                      className="hover:bg-white/50 transition-colors cursor-pointer focus:outline-none focus:bg-white/70"
+                      className="hover:bg-white/60 transition-colors cursor-pointer rounded-[14px] focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
                     >
-                      {/* Patient Avatar + Name */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="size-[38px] rounded-full bg-[#e4e8f2] border border-white text-[#1f2a44] font-semibold text-[11px] flex items-center justify-center shrink-0">
-                            {getInitials(patientName)}
+                      <td className="py-4 px-3" colSpan={6}>
+                        <div className="flex items-center justify-between">
+                          {/* Left: Avatar + Name / Age + Primary Concern */}
+                          <div className="flex items-center gap-4 min-w-0 pr-4">
+                            <div className="size-[42px] rounded-full bg-[#e5eaf4] text-[#1f2a44] font-semibold text-[13px] flex items-center justify-center shrink-0">
+                              {getInitials(patientName)}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-bold text-[#1d2433] text-[14px] truncate">
+                                {patientName} {patientAge ? `· ${patientAge}` : ''}
+                              </div>
+                              <div className="text-[12px] text-[#4a5470] truncate mt-0.5 max-w-md">
+                                {primaryConcern}
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-bold text-[#1d2433] text-[13px] block">
-                              {patientName} {patientAge ? `· ${patientAge}` : ''}
+
+                          {/* Right: Status Pill + Time + Chevron */}
+                          <div className="flex items-center gap-6 shrink-0">
+                            {/* Status badge matching Figma D3 */}
+                            {isUrgent ? (
+                              <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold bg-[#ffe2e5] text-[#d63031]">
+                                Urgent
+                              </span>
+                            ) : r.possible_urgent || r.needs_human_review ? (
+                              <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold bg-[#fff0e6] text-[#e67e22]">
+                                Urgent review
+                              </span>
+                            ) : isBooked ? (
+                              <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold bg-[#e6f9ed] text-[#27ae60]">
+                                Booked
+                              </span>
+                            ) : (
+                              <span className="text-[11px] font-medium text-[#4a5470]">
+                                Not booked
+                              </span>
+                            )}
+
+                            {/* Time */}
+                            <span className="text-[12px] text-[#4a5470] w-16 text-right font-medium">
+                              {timeFormatted}
                             </span>
-                            <span className="text-[10px] text-[#4a5470]">
-                              {genderLabel} {genderLabel && r.report.routing_snapshot.department_name ? '· ' : ''}
-                              {r.report.routing_snapshot.department_name}
-                            </span>
+
+                            {/* Chevron right matching Figma */}
+                            <svg className="w-4 h-4 text-[#1d2433]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
                           </div>
                         </div>
-                      </td>
-
-                      {/* Primary Concern */}
-                      <td className="py-3.5 px-4 max-w-xs text-[#4a5470] text-[11px] truncate">
-                        {r.report.primary_concern.value || 'Not provided'}
-                      </td>
-
-                      {/* Status Pill */}
-                      <td className="py-3.5 px-4">
-                        {isUrgent ? (
-                          <span className="inline-block px-3 py-1 rounded-full text-[10px] font-semibold bg-[#fde2e2] text-[#a12626]">
-                            Urgent
-                          </span>
-                        ) : isBooked ? (
-                          <span className="inline-block px-3 py-1 rounded-full text-[10px] font-semibold bg-[#dcf3e6] text-[#176a3b]">
-                            Booked
-                          </span>
-                        ) : (
-                          <span className="inline-block px-3 py-1 rounded-full text-[10px] font-semibold bg-[#eef2f8] text-[#4a5470]">
-                            Not booked
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Reference / Timestamp */}
-                      <td className="py-3.5 px-4 text-[#4a5470] text-[10px]">
-                        <span className="font-mono block">{r.intake_reference}</span>
-                        <span className="text-[10px] text-[#4a5470]/80">{timeFormatted}</span>
-                      </td>
-
-                      {/* Review State */}
-                      <td className="py-3.5 px-4 text-[10px]">
-                        {isReviewed ? (
-                          <span className="text-[#176a3b] font-semibold flex items-center gap-1">
-                            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                            Reviewed
-                          </span>
-                        ) : (
-                          <span className="text-[#3a4468] font-medium">
-                            Pending
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Chevron / Open */}
-                      <td className="py-3.5 px-4 text-right">
-                        <span className="inline-flex items-center text-[#1f2a44] font-semibold text-xs hover:underline">
-                          Open &rarr;
-                        </span>
                       </td>
                     </tr>
                   );

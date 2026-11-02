@@ -445,6 +445,35 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 
   return (
     <div className="relative w-[390px] h-[844px] overflow-hidden select-none flex flex-col justify-between">
+      {/* Dedicated Processing Screen matching Figma P3b / Node 72:192 (D-09) */}
+      {isProcessing && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute inset-0 z-40 bg-[rgba(221,227,238,0.7)] backdrop-blur-sm flex flex-col justify-between p-5 select-none"
+        >
+          <PatientHeader progress={progressFraction} />
+          {onBack && (
+            <div className="pt-0.5 pb-1">
+              <BackButton onClick={onBack} />
+            </div>
+          )}
+          <div className="my-auto backdrop-blur-[9px] bg-[rgba(255,255,255,0.75)] border border-white rounded-[28px] p-8 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)] text-center max-w-[350px] mx-auto w-full">
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <span className="w-3 h-3 rounded-full bg-[#1f2a44] animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-3 h-3 rounded-full bg-[#1f2a44] animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-3 h-3 rounded-full bg-[#1f2a44] animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+            <p className="text-[17px] font-bold text-[#1d2433] leading-snug">
+              {language === 'hi' ? 'आपके उत्तर को समझा जा रहा है...' : 'Understanding your answer...'}
+            </p>
+          </div>
+          <p className="text-[9px] text-center text-[#4a5470] pb-2">
+            {t.welcome.disclaimer}
+          </p>
+        </div>
+      )}
+
       {/* Top Header with Progress Bar (Figma 81:60 - 81:68) */}
       <PatientHeader progress={progressFraction} />
 
@@ -516,7 +545,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           return (
             <div
               key={msg.id}
-              className={`flex items-end gap-2.5 ${isAssistant ? 'justify-start' : 'justify-end'}`}
+              className={`flex items-center gap-2.5 ${isAssistant ? 'justify-start' : 'justify-end'}`}
             >
               {isAssistant && (
                 <div
@@ -559,26 +588,26 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
               </div>
               {!isAssistant && (
                 <div
-                  className="w-[28px] h-[28px] rounded-full bg-white/80 border border-white text-[#1f2a44] flex items-center justify-center flex-shrink-0 shadow-sm"
+                  className="w-[30px] h-[30px] rounded-full bg-white/80 border border-white text-[#1f2a44] flex items-center justify-center flex-shrink-0 shadow-sm"
                   aria-hidden="true"
                 >
                   <svg
-                    width="28"
-                    height="28"
-                    viewBox="0 0 28 28"
+                    width="18"
+                    height="18"
+                    viewBox="3 3.875 22 22"
                     fill="none"
                     xmlns="http://www.w3.org/2000/svg"
-                    className="w-[28px] h-[28px] block"
+                    className="w-[18px] h-[18px] block"
                   >
                     <path
-                      d="M18.0833 9.33333C18.0833 11.5885 16.2552 13.4167 14 13.4167C11.7448 13.4167 9.91667 11.5885 9.91667 9.33333C9.91667 7.07817 11.7448 5.25 14 5.25C16.2552 5.25 18.0833 7.07817 18.0833 9.33333Z"
+                      d="M14 13.4167C16.2551 13.4167 18.0833 11.5885 18.0833 9.33333C18.0833 7.07817 16.2551 5.25 14 5.25C11.7448 5.25 9.91663 7.07817 9.91663 9.33333C9.91663 11.5885 11.7448 13.4167 14 13.4167Z"
                       stroke="#1F2A44"
                       strokeWidth="1.8"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     />
                     <path
-                      d="M5.83333 24.5C5.83333 22.3341 6.69375 20.2568 8.22529 18.7253C9.75684 17.1937 11.8341 16.3333 14 16.3333C16.1659 16.3333 18.2432 17.1937 19.7747 18.7253C21.3063 20.2568 22.1667 22.3341 22.1667 24.5"
+                      d="M5.83337 24.5C5.83337 22.3341 6.69379 20.2568 8.22534 18.7253C9.75688 17.1937 11.8341 16.3333 14 16.3333C16.166 16.3333 18.2432 17.1937 19.7747 18.7253C21.3063 20.2568 22.1667 22.3341 22.1667 24.5"
                       stroke="#1F2A44"
                       strokeWidth="1.8"
                       strokeLinecap="round"
