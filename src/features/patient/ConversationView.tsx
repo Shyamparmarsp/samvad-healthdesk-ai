@@ -889,7 +889,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
             </form>
 
             <p className="text-[10px] text-center text-[#4a5470]">
-              Press Send to submit your response
+              {t.chat.textModeHint}
             </p>
           </div>
         )}

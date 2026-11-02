@@ -13,6 +13,7 @@ export const en = {
     save: 'Save',
     or: 'or',
     retry: 'Retry',
+    backToStart: 'Back to start',
     emergencyNumber: '112',
   },
   welcome: {
@@ -106,6 +107,7 @@ export const en = {
     statusUnclear: 'Unclear',
     statusNotAsked: 'Not asked',
     unavailable: 'Unavailable',
+    draftBadge: 'Draft Preview',
     submittedTitle: 'Report submitted',
     submittedNote: 'This report has already been submitted to the hospital and can no longer be edited.',
     viewBooking: 'View appointment options',
@@ -144,6 +146,11 @@ export const en = {
     instructions: 'Please arrive 15 minutes before your scheduled appointment time. Bring any previous medical records if available.',
     reportOnlyNotice: 'Your intake report is safely available to the assigned doctor. You can schedule your visit at the clinic desk upon arrival.',
     returnHome: 'Return to Home',
+  },
+  sessionEnded: {
+    title: 'Session Ended Privately',
+    privacyLabel: 'Privacy Status:',
+    privacyBody: 'Your draft intake was not sent to the hospital and will not appear on any doctor dashboard.',
   },
   emergency: {
     title: 'This may be urgent',

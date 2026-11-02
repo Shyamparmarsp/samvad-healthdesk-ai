@@ -969,7 +969,9 @@ async function runVerification() {
     // Verify Hindi Review Screen
     const hindiReviewText = await cdp.waitForText(/अपनी इनटेक रिपोर्ट की समीक्षा करें|समीक्षा/i);
     assert.ok(hindiReviewText.includes('राजेश कुमार'), 'Hindi patient name must render');
-    assert.ok(/draft preview/i.test(hindiReviewText), 'Draft Preview badge must be visible in Hindi review');
+    // D-26: the draft badge is localized now, so the Hindi review must not leak English.
+    assert.ok(hindiReviewText.includes('प्रारूप पूर्वावलोकन'), 'Draft badge must be localized in the Hindi review');
+    assert.ok(!/draft preview/i.test(hindiReviewText), 'English draft badge must not leak into the Hindi review');
 
     // Click "अस्पताल को भेजें" (Submit)
     await cdp.eval(`
