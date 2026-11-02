@@ -693,7 +693,16 @@ async function runVerification() {
     assert.ok(emergencyText.includes('112'), 'Plain-text 112 emergency number must render');
     assert.ok(emergencyText.includes('This may be urgent') || emergencyText.includes('गंभीर') || emergencyText.includes('112'), 'Emergency alert rendered');
     assert.ok(!emergencyText.toLowerCase().includes('book appointment'), 'Routine booking actions must be suppressed in emergency');
-    console.log('  ✓ Deterministic emergency trigger stopped routine intake and displayed plain 112 guidance');
+
+    // D-02: the emergency state is terminal. No back affordance may exist, because
+    // leaving it would restore routine intake and discard the 112 guidance.
+    const emergencyBackControls = await cdp.eval(`
+      (() => Array.from(document.querySelectorAll('button'))
+        .filter(b => /(^|\\s)back(\\s|$)|पीछे/i.test(((b.getAttribute('aria-label') || '') + ' ' + (b.innerText || '')).trim()))
+        .length)()
+    `);
+    assert.equal(emergencyBackControls, 0, 'Emergency screen must not offer a Back control');
+    console.log('  ✓ Deterministic emergency trigger stopped routine intake and displayed plain 112 guidance (no Back control)');
 
     // Click Return Home / End Demo
     await cdp.eval(`
