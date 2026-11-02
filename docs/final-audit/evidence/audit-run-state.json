@@ -1,0 +1,54 @@
+{
+  "before": {
+    "tabs": [
+      {
+        "t": "All",
+        "active": true
+      },
+      {
+        "t": "Urgent",
+        "active": false
+      },
+      {
+        "t": "Booked",
+        "active": false
+      },
+      {
+        "t": "Not booked",
+        "active": false
+      }
+    ],
+    "search": "Rohan",
+    "rows": 1
+  },
+  "afterBack": {
+    "tabs": [
+      {
+        "t": "All",
+        "active": true
+      },
+      {
+        "t": "Urgent",
+        "active": false
+      },
+      {
+        "t": "Booked",
+        "active": false
+      },
+      {
+        "t": "Not booked",
+        "active": false
+      }
+    ],
+    "search": "",
+    "rows": 2
+  },
+  "beforeReload": true,
+  "storedSession": "sess-1793633847369-c6161",
+  "afterReload": {
+    "onWelcome": true,
+    "onConversation": false,
+    "storedSession": null,
+    "body": "Patient IntakeDoctor Portal | + | Samvad HealthDesk AI | English | हिंदी | Welcome to Samvad HealthDesk AI |  | Talk to our assistant, share your concern, and book an appointment. "
+  }
+}

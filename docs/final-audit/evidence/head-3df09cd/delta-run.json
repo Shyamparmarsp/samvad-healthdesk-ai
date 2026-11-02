@@ -1,0 +1,195 @@
+{
+  "head": "3df09cd466fb01e496b499f05118af323326b6bd",
+  "appRoot": "/Users/shyamparmar/Desktop/gnani ai project/samvad-frontend",
+  "startedAt": "2026-11-02T19:35:40.082Z",
+  "checks": [
+    {
+      "name": "BACK-P2 consent",
+      "expected": "visible back button",
+      "actual": "[{\"label\":\"Go back\",\"x\":14,\"y\":54,\"w\":36,\"h\":36}]",
+      "pass": true,
+      "evidence": "consent-with-back.png"
+    },
+    {
+      "name": "BACK-P2 destination",
+      "expected": "returns to Welcome",
+      "actual": true,
+      "pass": true
+    },
+    {
+      "name": "BACK-P3 conversation",
+      "expected": "visible back button",
+      "actual": "[{\"label\":\"Go back\",\"x\":14,\"y\":105,\"w\":36,\"h\":36}]",
+      "pass": true,
+      "evidence": "conversation-with-back.png"
+    },
+    {
+      "name": "BACK-P3 destination",
+      "expected": "returns to Consent",
+      "actual": true,
+      "pass": true
+    },
+    {
+      "name": "BACK-P3 state",
+      "expected": "answer/turn progress preserved after back to consent",
+      "actual": "turn before=1, after re-consent=\"Turn 1 of 15\"",
+      "pass": true,
+      "evidence": "conversation-after-back.png"
+    },
+    {
+      "name": "BACK-P8 review",
+      "expected": "visible back button",
+      "actual": "[{\"label\":\"Go back\",\"x\":14,\"y\":72,\"w\":36,\"h\":36}]",
+      "pass": true,
+      "evidence": "review-with-back.png"
+    },
+    {
+      "name": "BACK-P9 booking destination",
+      "expected": "returns to review",
+      "actual": "review=true draftBadge=false",
+      "pass": true,
+      "evidence": "booking-back-to-review.png"
+    },
+    {
+      "name": "BACK-P12 confirmed booking",
+      "expected": "must not re-open a bookable grid",
+      "actual": "bookable=false",
+      "pass": true,
+      "evidence": "confirmed-back-to-booking.png"
+    },
+    {
+      "name": "BACK-P14 emergency",
+      "expected": "visible back button",
+      "actual": "[{\"label\":\"Go back\",\"x\":14,\"y\":54,\"w\":36,\"h\":36}]",
+      "pass": true,
+      "evidence": "emergency-with-back.png"
+    },
+    {
+      "name": "BACK-P14 emergency state",
+      "expected": "emergency state must not be reset into routine intake",
+      "actual": "routine resumed=false, guidance=true",
+      "pass": true,
+      "evidence": "emergency-after-back.png"
+    },
+    {
+      "name": "BACK-D1 login",
+      "expected": "visible return to patient intake",
+      "actual": "[{\"tag\":\"A\",\"label\":\"Patient Intake\"},{\"tag\":\"BUTTON\",\"label\":\"Back to Patient Intake\"}]",
+      "pass": true,
+      "evidence": "login-nav.png"
+    }
+  ],
+  "navigation": {
+    "consent": [
+      {
+        "label": "Go back",
+        "x": 14,
+        "y": 54,
+        "w": 36,
+        "h": 36
+      }
+    ],
+    "conversation": [
+      {
+        "label": "Go back",
+        "x": 14,
+        "y": 105,
+        "w": 36,
+        "h": 36
+      }
+    ],
+    "review": [
+      {
+        "label": "Go back",
+        "x": 14,
+        "y": 72,
+        "w": 36,
+        "h": 36
+      }
+    ],
+    "booking": [
+      {
+        "label": "Go back",
+        "x": 14,
+        "y": 72,
+        "w": 36,
+        "h": 36
+      }
+    ],
+    "confirmed": [
+      {
+        "label": "Go back",
+        "x": 14,
+        "y": 54,
+        "w": 36,
+        "h": 36
+      }
+    ],
+    "emergency": [
+      {
+        "label": "Go back",
+        "x": 14,
+        "y": 54,
+        "w": 36,
+        "h": 36
+      }
+    ],
+    "doctor_dashboard": [],
+    "doctor_reports": [
+      {
+        "label": "Back to Dashboard",
+        "x": 273,
+        "y": 43,
+        "w": 36,
+        "h": 36
+      }
+    ],
+    "doctor_appointments": [
+      {
+        "label": "Back to Dashboard",
+        "x": 273,
+        "y": 43,
+        "w": 36,
+        "h": 36
+      }
+    ],
+    "doctor_urgent": [
+      {
+        "label": "Back to Dashboard",
+        "x": 273,
+        "y": 43,
+        "w": 36,
+        "h": 36
+      }
+    ],
+    "doctor_report_detail": [
+      {
+        "label": "Back to Reports",
+        "x": 273,
+        "y": 41,
+        "w": 36,
+        "h": 36
+      }
+    ],
+    "doctor_urgent_detail": [
+      {
+        "label": "Back to Urgent List",
+        "x": 273,
+        "y": 41,
+        "w": 36,
+        "h": 36
+      }
+    ],
+    "doctor_login_visible_return": [
+      {
+        "tag": "A",
+        "label": "Patient Intake"
+      },
+      {
+        "tag": "BUTTON",
+        "label": "Back to Patient Intake"
+      }
+    ]
+  },
+  "finishedAt": "2026-11-02T19:36:10.265Z"
+}

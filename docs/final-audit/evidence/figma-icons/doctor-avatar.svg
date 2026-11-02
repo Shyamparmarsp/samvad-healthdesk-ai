@@ -1,0 +1,33 @@
+<svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="42" height="42" fill="#E5E5E5"/>
+<g id="DoctorDashboard" clip-path="url(#clip0_0_1)">
+<rect width="1280" height="820" transform="translate(-36 -714)" fill="#DDE3EE"/>
+<foreignObject x="-35" y="-712" width="276" height="824"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(9px);clip-path:url(#bgblur_1_0_1_clip_path);height:100%;width:100%"></div></foreignObject><g id="doctor/sidebar" filter="url(#filter0_d_0_1)" data-figma-bg-blur-radius="18">
+<rect x="-16" y="-694" width="238" height="780" rx="26" fill="white" fill-opacity="0.55"/>
+<rect x="-15.5" y="-693.5" width="237" height="779" rx="25.5" stroke="white"/>
+<g id="doctor/profile">
+<g id="doctor/avatar">
+<rect x="0.5" y="0.5" width="41" height="41" rx="20.5" fill="#E4E8F2"/>
+<rect x="0.5" y="0.5" width="41" height="41" rx="20.5" stroke="white"/>
+<path id="doctor/avatar/initials" d="M13.5692 23L16.3962 14.805H18.3322L21.1592 23H19.5312L18.9482 21.24H15.7802L15.1862 23H13.5692ZM16.2092 19.92H18.5192L17.1552 15.839H17.5732L16.2092 19.92ZM22.0713 23V14.805H25.1183C25.6756 14.805 26.167 14.9077 26.5923 15.113C27.025 15.311 27.3623 15.6043 27.6043 15.993C27.8463 16.3743 27.9673 16.84 27.9673 17.39C27.9673 17.9547 27.8316 18.435 27.5603 18.831C27.2963 19.227 26.937 19.5203 26.4823 19.711L28.3633 23H26.6693L24.6563 19.403L25.6243 19.975H23.5673V23H22.0713ZM23.5673 18.655H25.1403C25.4116 18.655 25.6463 18.6037 25.8443 18.501C26.0423 18.391 26.1963 18.2407 26.3063 18.05C26.4163 17.8593 26.4713 17.6393 26.4713 17.39C26.4713 17.1333 26.4163 16.9133 26.3063 16.73C26.1963 16.5393 26.0423 16.3927 25.8443 16.29C25.6463 16.18 25.4116 16.125 25.1403 16.125H23.5673V18.655Z" fill="#1F2A44"/>
+</g>
+</g>
+</g>
+</g>
+<defs>
+<filter id="filter0_d_0_1" x="-35" y="-712" width="276" height="824" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feMorphology radius="3" operator="erode" in="SourceAlpha" result="effect1_dropShadow_0_1"/>
+<feOffset dy="7"/>
+<feGaussianBlur stdDeviation="11"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.16 0 0 0 0 0.2 0 0 0 0 0.31 0 0 0 0.13 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_1"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_0_1" result="shape"/>
+</filter>
+<clipPath id="bgblur_1_0_1_clip_path" transform="translate(35 712)"><rect x="-16" y="-694" width="238" height="780" rx="26"/>
+</clipPath><clipPath id="clip0_0_1">
+<rect width="1280" height="820" fill="white" transform="translate(-36 -714)"/>
+</clipPath>
+</defs>
+</svg>

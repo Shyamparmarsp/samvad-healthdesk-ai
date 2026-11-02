@@ -1,0 +1,27 @@
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="16" height="16" fill="#E5E5E5"/>
+<g id="PatientReportReview">
+<rect width="390" height="844" transform="translate(-337 -199)" fill="#DDE3EE"/>
+<foreignObject x="-336" y="-30" width="388" height="436"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(9px);clip-path:url(#bgblur_0_0_1_clip_path);height:100%;width:100%"></div></foreignObject><g id="report/details-card" filter="url(#filter0_d_0_1)" data-figma-bg-blur-radius="18">
+<rect x="-317" y="-12" width="350" height="392" rx="22" fill="white" fill-opacity="0.55"/>
+<rect x="-316.5" y="-11.5" width="349" height="391" rx="21.5" stroke="white"/>
+<g id="report/edit-icon/0">
+<path id="Vector" d="M2.66663 10.6666L2.1333 13.8666L5.3333 13.3333L12.6666 5.99996C13.0203 5.64634 13.2189 5.16672 13.2189 4.66662C13.2189 4.16653 13.0203 3.68691 12.6666 3.33329C12.313 2.97967 11.8334 2.78101 11.3333 2.78101C10.8332 2.78101 10.3536 2.97967 9.99997 3.33329L2.66663 10.6666Z" stroke="#4A5470" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_2" d="M9 4.33337L11.6667 7.00004" stroke="#4A5470" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</g>
+</g>
+<defs>
+<filter id="filter0_d_0_1" x="-336" y="-30" width="388" height="436" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+<feMorphology radius="3" operator="erode" in="SourceAlpha" result="effect1_dropShadow_0_1"/>
+<feOffset dy="7"/>
+<feGaussianBlur stdDeviation="11"/>
+<feColorMatrix type="matrix" values="0 0 0 0 0.16 0 0 0 0 0.2 0 0 0 0 0.31 0 0 0 0.12 0"/>
+<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_0_1"/>
+<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_0_1" result="shape"/>
+</filter>
+<clipPath id="bgblur_0_0_1_clip_path" transform="translate(336 30)"><rect x="-317" y="-12" width="350" height="392" rx="22"/>
+</clipPath></defs>
+</svg>

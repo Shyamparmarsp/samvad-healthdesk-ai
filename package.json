@@ -6,9 +6,22 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "npm run test:mock && npm run test:supabase && npm run test:api",
+    "test:mock": "tsx --test tests/contract-regression.test.ts tests/patient-flow.test.ts tests/doctor-flow.test.ts tests/browser-speech-playback.test.ts tests/recording-lifecycle.test.ts tests/back-navigation.test.ts tests/remediation.test.ts",
+    "test:supabase": "tsx --test tests/supabase-mode.test.ts tests/local-supabase-journey.test.ts",
+    "test:api": "tsx --test --test-concurrency=1 tests/api/patient-journey.test.ts tests/api/safety-and-adaptive.test.ts tests/api/contract-and-authorisation.test.ts",
+    "test:api:journey": "tsx --test tests/api/patient-journey.test.ts",
+    "test:api:safety": "tsx --test tests/api/safety-and-adaptive.test.ts",
+    "test:api:contract": "tsx --test tests/api/contract-and-authorisation.test.ts",
+    "test:e2e": "npm run build:mock && node tests/verify-interactions.mjs",
+    "test:visual": "npm run build:mock && node tests/visual-qa.mjs",
+    "test:api:browser": "node tests/api/browser/supabase-journey.mjs",
+    "test:api:browser:extras": "node tests/api/browser/supabase-extras.mjs",
+    "build:mock": "tsc && VITE_SUPABASE_URL= VITE_SUPABASE_KEY= vite build"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0"
@@ -20,8 +33,8 @@
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
+    "tsx": "^4.23.15",
     "typescript": "^5.6.3",
     "vite": "^6.0.1"
   }
 }
-

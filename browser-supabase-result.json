@@ -1,0 +1,116 @@
+{
+  "generatedAt": "2026-11-02T09:14:21.539Z",
+  "target": "http://127.0.0.1:54321",
+  "preview": "http://127.0.0.1:4180",
+  "mode": "supabase (real Auth, Edge Functions, Postgres, RPCs)",
+  "providers": "stubbed (Groq, Prisma, Timbre on 127.0.0.1:8787)",
+  "results": [
+    {
+      "name": "1. patient anonymous sign-in and welcome screen",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "welcome rendered"
+    },
+    {
+      "name": "2. English consent screen shows the versioned copy",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "consent text rendered"
+    },
+    {
+      "name": "3. consent accepted and the first scripted question is asked",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "name question live, 3 real Edge Function request(s)"
+    },
+    {
+      "name": "4. audio capture returns a transcript preview (stub Prisma)",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "transcript preview shown"
+    },
+    {
+      "name": "5. transcript is editable before it is accepted",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "edited transcript"
+    },
+    {
+      "name": "6. confirmed transcript counts as one accepted answer",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "advanced to age"
+    },
+    {
+      "name": "7. scripted intake completes through the real backend",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "review screen reached"
+    },
+    {
+      "name": "8. review screen shows persisted report fields",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "report fields rendered from the backend"
+    },
+    {
+      "name": "9. report submission reaches the booking screen",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "booking screen reached"
+    },
+    {
+      "name": "10. availability comes from get_available_slots",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "booking controls rendered (11 candidate controls)"
+    },
+    {
+      "name": "11. booking persists and confirmation shows server data",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "confirmed APT-20261103-6BCABF"
+    },
+    {
+      "name": "12. doctor signs in with email/password against real Auth",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "doctor dashboard rendered"
+    },
+    {
+      "name": "13. doctor sees the submitted report through RLS",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "report visible in the doctor portal"
+    },
+    {
+      "name": "14. doctor opens the report detail and marks it reviewed",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "stored patient responses rendered; review recorded in the UI"
+    },
+    {
+      "name": "15. review is persisted for the assigned doctor",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "reviewed_at=2026-11-02T09:14:20.871555+00:00"
+    },
+    {
+      "name": "16. the appointment exists in PostgreSQL with the UI reference",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "APT-20261103-6BCABF @ 2026-11-03T03:30:00+00:00"
+    },
+    {
+      "name": "17. no uncaught page errors during the journey",
+      "ok": true,
+      "layer": "browser+supabase",
+      "detail": "0 console errors captured (expected: none fatal)"
+    }
+  ],
+  "notes": [
+    "exposed app mode: (not exposed)",
+    "identities created=1 deleted=1"
+  ],
+  "ok": true
+}

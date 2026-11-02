@@ -1,0 +1,68 @@
+{
+  "note": "Measured on the running build at 390x844 design width. clientWidth excludes the scrollbar.",
+  "viewports": {
+    "360x800": {
+      "innerWidth": 376,
+      "clientWidth": 360,
+      "shellWidth": 390,
+      "shellLeft": -15,
+      "shellRight": 375,
+      "clippedLeftPx": 15,
+      "clippedRightPx": 15
+    },
+    "390x844": {
+      "innerWidth": 390,
+      "clientWidth": 390,
+      "shellWidth": 390,
+      "shellLeft": 0,
+      "shellRight": 390,
+      "clippedLeftPx": 0,
+      "clippedRightPx": 0
+    },
+    "430x932": {
+      "innerWidth": 430,
+      "clientWidth": 430,
+      "shellWidth": 390,
+      "shellLeft": 20,
+      "shellRight": 410,
+      "clippedLeftPx": 0,
+      "clippedRightPx": 0
+    },
+    "768x1024": {
+      "innerWidth": 768,
+      "clientWidth": 768,
+      "shellWidth": 390,
+      "shellLeft": 189,
+      "shellRight": 579,
+      "clippedLeftPx": 0,
+      "clippedRightPx": 0
+    },
+    "1024x768": {
+      "innerWidth": 1024,
+      "clientWidth": 1024,
+      "shellWidth": 390,
+      "shellLeft": 317,
+      "shellRight": 707,
+      "clippedLeftPx": 0,
+      "clippedRightPx": 0
+    },
+    "1280x820": {
+      "innerWidth": 1280,
+      "clientWidth": 1280,
+      "shellWidth": 390,
+      "shellLeft": 445,
+      "shellRight": 835,
+      "clippedLeftPx": 0,
+      "clippedRightPx": 0
+    },
+    "1440x900": {
+      "innerWidth": 1440,
+      "clientWidth": 1440,
+      "shellWidth": 390,
+      "shellLeft": 525,
+      "shellRight": 915,
+      "clippedLeftPx": 0,
+      "clippedRightPx": 0
+    }
+  }
+}

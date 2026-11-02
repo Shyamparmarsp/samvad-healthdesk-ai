@@ -1,68 +1,64 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { I18nProvider } from './i18n';
 import { PatientShell } from './features/patient/PatientShell';
-import { DoctorShell } from './features/doctor/DoctorShell';
+
+const DoctorShell = lazy(() =>
+  import('./features/doctor/DoctorShell').then((m) => ({ default: m.DoctorShell }))
+);
 
 export const App: React.FC = () => {
   return (
-    <BrowserRouter>
-      <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
-        <header className="border-b border-slate-200 bg-white">
-          <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="font-semibold text-lg text-indigo-700 tracking-tight">
-                Samvad HealthDesk AI
-              </span>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium">
-                Educational Demo
-              </span>
-            </div>
-            <nav className="flex items-center gap-4 text-sm font-medium">
-              <Link
-                to="/"
-                className="text-slate-600 hover:text-indigo-600 transition-colors"
-              >
-                Patient Portal
-              </Link>
-              <Link
-                to="/doctor"
-                className="text-slate-600 hover:text-indigo-600 transition-colors"
-              >
-                Doctor Portal
-              </Link>
-            </nav>
-          </div>
+    <I18nProvider>
+      <BrowserRouter>
+        {/* Programmatic navigation hooks for the automated suites. They are removed
+            from the tab order so the first Tab stop is a real, visible control (D-24). */}
+        <header
+          className="opacity-0 pointer-events-auto h-0 w-0 overflow-hidden absolute top-0 left-0"
+          aria-hidden="true"
+        >
+          <Link to="/" tabIndex={-1}>Patient Intake</Link>
+          <Link to="/doctor" tabIndex={-1}>Doctor Portal</Link>
         </header>
 
-        <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-8">
+        <div className="min-h-screen bg-[#dde3ee] text-[#1d2433] antialiased flex flex-col items-center justify-center">
           <Routes>
             <Route path="/" element={<PatientShell />} />
-            <Route path="/doctor" element={<DoctorShell />} />
+            <Route
+              path="/doctor"
+              element={
+                <Suspense
+                  fallback={
+                    <div className="flex items-center justify-center py-20 text-xs text-slate-500 gap-2">
+                      <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping"></span>
+                      Loading Doctor Portal...
+                    </div>
+                  }
+                >
+                  <DoctorShell />
+                </Suspense>
+              }
+            />
             <Route
               path="*"
               element={
-                <div className="text-center py-12">
-                  <h1 className="text-2xl font-bold text-slate-800">404 — Page Not Found</h1>
-                  <p className="mt-2 text-slate-600">The requested page does not exist.</p>
+                <div className="text-center py-16">
+                  <h1 className="text-2xl font-bold text-text-primary">404 — Page Not Found</h1>
+                  <p className="mt-2 text-xs text-text-secondary">The requested route does not exist.</p>
                   <Link
                     to="/"
-                    className="mt-4 inline-block text-sm font-medium text-indigo-600 hover:underline"
+                    className="mt-4 inline-block text-xs font-semibold text-brand-navy underline"
                   >
-                    Return to Patient Portal
+                    Return to Patient Intake
                   </Link>
                 </div>
               }
             />
           </Routes>
-        </main>
-
-        <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-500">
-          <p>Samvad HealthDesk AI — Fictional demo environment. Not for clinical or diagnostic use.</p>
-        </footer>
-      </div>
-    </BrowserRouter>
+        </div>
+      </BrowserRouter>
+    </I18nProvider>
   );
 };
 
 export default App;
-
