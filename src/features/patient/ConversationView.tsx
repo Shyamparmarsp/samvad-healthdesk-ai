@@ -549,8 +549,28 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                     : 'bg-[#1f2a44] text-white hover:bg-[#2a3a5c]'
                 }`}
               >
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
+                <svg
+                  className="w-7 h-7"
+                  width="28"
+                  height="28"
+                  viewBox="0 0 28 28"
+                  fill="none"
+                  stroke="currentColor"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M14 3.5C13.0717 3.5 12.1815 3.86875 11.5251 4.52513C10.8687 5.1815 10.5 6.07174 10.5 7V14C10.5 14.9283 10.8687 15.8185 11.5251 16.4749C12.1815 17.1313 13.0717 17.5 14 17.5C14.9283 17.5 15.8185 17.1313 16.4749 16.4749C17.1313 15.8185 17.5 14.9283 17.5 14V7C17.5 6.07174 17.1313 5.1815 16.4749 4.52513C15.8185 3.86875 14.9283 3.5 14 3.5Z"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M5.83333 12.8333V14C5.83333 16.1659 6.69375 18.2432 8.22529 19.7747C9.75684 21.3063 11.8341 22.1667 14 22.1667M14 22.1667C16.1659 22.1667 18.2432 21.3063 19.7747 19.7747C21.3063 18.2432 22.1667 16.1659 22.1667 14V12.8333M14 22.1667V25.6667M14 25.6667H9.33333M14 25.6667H18.6667"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </button>
 
