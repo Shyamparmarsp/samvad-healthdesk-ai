@@ -5,7 +5,9 @@
  * metadata-only — no embeddings, no vector store, no external search.
  */
 
-import { BANK_VERSION, RAW_QUESTIONS, type AnswerType, type RawQuestion } from "./bank-v1.ts";
+import { BANK_VERSION, RAW_QUESTIONS, type AnswerType, type RawQuestion } from "./bank-v2.ts";
+
+export type { AnswerType, RawQuestion };
 
 export { BANK_VERSION };
 export const ANSWER_TYPES: readonly AnswerType[] = ["free_text", "yes_no", "single_choice"];
@@ -72,7 +74,7 @@ function optionsFor(topic: string, answerType: AnswerType): BankOption[] {
 }
 
 function expand(raw: RawQuestion): BankQuestion {
-  const [id, topic, en, hi, field, answerType] = raw;
+  const [id, topic, en, hi, field, answerType, suppliedOptions] = raw;
   const department = PREFIX[id.split("-")[0]];
   return {
     id,
@@ -83,7 +85,10 @@ function expand(raw: RawQuestion): BankQuestion {
     hi,
     field,
     answerType,
-    options: optionsFor(topic, answerType),
+    // Owner-reviewed option wording from the CSV always wins over the topic table.
+    options: suppliedOptions && suppliedOptions.length > 0
+      ? suppliedOptions.map(([value, optionEn, optionHi]) => ({ value, en: optionEn, hi: optionHi }))
+      : optionsFor(topic, answerType),
     version: BANK_VERSION,
     review: "draft_owner_review",
   };
@@ -131,7 +136,10 @@ export function validateBank(questions: readonly BankQuestion[] = QUESTIONS): st
     if (pairs.has(pair)) problems.push(`${question.id}: duplicate translation pair`);
     pairs.add(pair);
 
-    if (!REPORT_FIELDS.has(question.field)) problems.push(`${question.id}: invalid report field ${question.field}`);
+    // Option 3: fields outside report v1.2 are accepted as conversation-level answers.
+    if (!REPORT_FIELDS.has(question.field) && !/^clinical_details\.[a-z_]+$/.test(question.field)) {
+      problems.push(`${question.id}: invalid report field ${question.field}`);
+    }
     if (!ANSWER_TYPES.includes(question.answerType)) problems.push(`${question.id}: invalid answer type`);
     if (question.tags.length === 0) problems.push(`${question.id}: no tags`);
     if (question.review !== "draft_owner_review") problems.push(`${question.id}: review status`);
@@ -172,6 +180,9 @@ export function retrieveCandidates(input: RetrieveInput): BankQuestion[] {
     .filter((question) => !asked.has(question.id))
     .map((question) => {
       const tagScore = question.tags.reduce((sum, tag) => sum + (wanted.has(tag) ? 2 : 0), 0);
+      // Conversation-level questions (fields outside report v1.2) score on tags only;
+      // a neutral field score would make every question a match and destroy the
+      // documented "0 candidates" fallback.
       const fieldScore = missing.has(question.field) ? 1 : 0;
       return { question, score: tagScore + fieldScore };
     })

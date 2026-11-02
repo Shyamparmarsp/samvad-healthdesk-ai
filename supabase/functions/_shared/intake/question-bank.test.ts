@@ -11,7 +11,7 @@ Deno.test("bank: exactly 150 unique questions, 30 per department", () => {
   for (const department of DEPARTMENT_KEYS) {
     assertEqual(QUESTIONS.filter((q) => q.department === department).length, 30, department);
   }
-  assertEqual(BANK_VERSION, "question-bank-v1", "bank version");
+  assertEqual(BANK_VERSION, "question-bank-v2", "bank version");
 });
 
 Deno.test("bank: 150 questions carry 300 language variants", () => {
@@ -39,7 +39,11 @@ Deno.test("bank: validation rejects a broken entry", () => {
   }];
   const problems = validateBank(broken as never);
   assert(problems.some((p) => p.includes("not Devanagari")), "hindi check");
-  assert(problems.some((p) => p.includes("invalid report field")), "field check");
+  // Option 3: non-report fields are legal; a malformed field name is still rejected.
+  const malformed = QUESTIONS.map((q, index) =>
+    index === 0 ? { ...q, field: "not-a-report-field" } : q,
+  );
+  assert(validateBank(malformed).some((p) => p.includes("invalid report field")), "field check");
   assert(problems.some((p) => p.includes("at least two options")), "option check");
 });
 
