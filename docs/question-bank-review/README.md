@@ -1,14 +1,21 @@
-# Question bank review package — `question-bank-v1`
+# Question bank review package
 
-**Status:** DRAFT. All 150 questions are `draft_owner_review`. Nothing here is clinically
-validated and nothing may be presented to patients as clinically approved.
+**Status:** DRAFT. All 150 questions remain `draft_owner_review` at the bank level. Nothing
+here is clinically validated and nothing may be presented to patients as clinically
+approved.
 
 ## What is in this folder
 
 | File | Purpose |
 |---|---|
-| `question-bank-v1-review.csv` | 150 rows, one per stable question ID, generated from source |
+| `question-bank-v2-reviewed.csv` | The owner-supplied v2 source: 150 rows with wording, options, tags, report fields and reviewer comments/revision notes |
+| `question-bank-v1-review.csv` | Generated v1 reviewer template; wording/options only, review columns intentionally blank/pending |
 | `README.md` | This guide |
+
+`question-bank-v2-reviewed.csv` is the integrity source of truth for `bank-v2.ts`. It was
+supplied by the owner and is reproduced byte-for-byte except that the verifier strips the
+UTF-8 BOM when reading. Do not regenerate this file from the TypeScript module: that would
+destroy the reviewer metadata.
 
 ## Who reviews what
 
@@ -19,7 +26,7 @@ validated and nothing may be presented to patients as clinically approved.
 
 Set a status to `approved` or `needs_revision` in your own copy. Do **not** edit the CSV in
 place if it will be regenerated; record decisions in the tracking sheet and send them to the
-maintainer, who applies changes to `bank-v1.ts` deliberately.
+maintainer, who applies changes to `bank-v2.ts` deliberately.
 
 ## What to check (clinical)
 
@@ -39,15 +46,22 @@ maintainer, who applies changes to `bank-v1.ts` deliberately.
 ## Reproducing and validating
 
 ```bash
-deno run --allow-read --allow-write scripts/export-question-bank.ts
-deno run --allow-read scripts/export-question-bank.ts --check
+# Exact CSV ↔ active-bank integrity (all 150 rows, every column)
+deno run --allow-read scripts/verify-question-bank-integrity.ts
+
+# Structural bank validation and distribution
+deno run --allow-read --allow-write scripts/export-question-bank.ts --check
 ```
 
-`--check` prints the distribution, the pending/approved counts and fails on duplicate IDs,
-missing English/Hindi, missing localized options, a version mismatch or a wrong count.
+The integrity verifier fails on any changed question ID, department, topic/tags, English or
+Hindi wording, report field, answer type, option value/label/order, review status, comment
+or revision note. It also fails if a bank row is missing from the CSV or the CSV contains an
+unknown row. It is part of the release gate.
 
 ## Rules
 
-- The script never edits the bank and never marks anything approved.
+- The scripts never edit the bank and never mark anything approved.
 - Reviewer comments never change source questions automatically.
 - The bank stays `draft_owner_review` until a named clinician and Hindi reviewer sign off.
+- `GM-002` is a pinned regression example: its supplied bilingual options must remain
+  `constant: Constant/लगातार` and `intermittent: Comes and goes/आता-जाता है`.

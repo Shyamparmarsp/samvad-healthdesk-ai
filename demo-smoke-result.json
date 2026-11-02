@@ -1,12 +1,12 @@
 {
-  "runId": "7fb275af-cb2a-4961-a11e-ab5fa7240a7d",
-  "generatedAt": "2026-11-02T07:31:54.063Z",
+  "runId": "3ae00475-18c2-42e3-b426-d673c31ce8ed",
+  "generatedAt": "2026-11-02T09:44:05.398Z",
   "target": "http://127.0.0.1:54321",
   "providerMode": "stub",
   "identityIsolation": {
-    "preexistingAnonymous": 211,
-    "createdByThisRun": 20,
-    "deleted": 20,
+    "preexistingAnonymous": 233,
+    "createdByThisRun": 21,
+    "deleted": 21,
     "remainingFromThisRun": 0
   },
   "suites": [
@@ -22,13 +22,13 @@
       "suite": "adaptive",
       "ok": true,
       "exitCode": 0,
-      "passed": 29,
-      "total": 29,
-      "tail": "29/29 adaptive scenarios passed"
+      "passed": 33,
+      "total": 33,
+      "tail": "33/33 adaptive scenarios passed"
     }
   ],
   "cleanup": {
-    "attempted": 20,
+    "attempted": 21,
     "failed": 0,
     "ok": true
   },

@@ -135,6 +135,11 @@ await step("static", "question bank validation (150, bilingual)", true, async ()
   return { ok: result.ok, detail: result.ok ? "150 questions valid" : lastLine(result.out) };
 });
 
+await step("static", "question bank source integrity (CSV ↔ bank)", true, async () => {
+  const result = await run("deno", ["run", "--allow-read", "scripts/verify-question-bank-integrity.ts"]);
+  return { ok: result.ok, detail: result.ok ? "150 CSV rows match the active bank" : lastLine(result.out) };
+});
+
 await step("static", "question bank reviewer dashboard", true, async () => {
   const result = await run("deno", ["run", "--allow-read", "--allow-write", "--allow-env", "scripts/question-bank-status.ts", "--json"]);
   return { ok: result.ok, detail: result.ok ? "CSV ids match the bank" : lastLine(result.out) };

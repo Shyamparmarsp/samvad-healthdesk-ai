@@ -73,6 +73,23 @@ while (current && String(current).match(/^ORTH-/) && attempts < 6) {
 }
 ok("at most three adaptive answers are accepted", attempts === 3, `adaptive_answered=${attempts}`);
 ok("a fourth adaptive question is never selected", !String(current ?? "").match(/^ORTH-/), String(current ?? "none"));
+const cappedMessages = await storedMessages(capped.sid);
+const cappedBankRows = (cappedMessages ?? []).filter((message) => /^(GM|ORTH|SURG|DERM|CARD)-\d{3}$/.test(message.question_id ?? ""));
+ok("three adaptive answers persist as conversation messages", cappedBankRows.length === 3, `rows=${cappedBankRows.length}`);
+
+// --- conversation-level bank answer: eligible and persisted ---
+const conversation = await session("en", "fever pattern every evening");
+const conversationQuestion = String(conversation.last?.current_question?.id ?? "");
+ok("a conversation-level bank question is eligible", conversationQuestion === "GM-002", conversationQuestion);
+const conversationAnswer = (await turn(conversation.token, conversation.sid, conversationQuestion, "It comes and goes")).body;
+ok("the unsupported-field answer is accepted", conversationAnswer?.turn_count === 11, `turns=${conversationAnswer?.turn_count}`);
+const conversationMessages = await storedMessages(conversation.sid);
+const storedConversation = (conversationMessages ?? []).find((message) => message.question_id === "GM-002");
+ok(
+  "the unsupported-field answer is persisted as a conversation message",
+  storedConversation?.role === "patient" && storedConversation?.final_text === "It comes and goes",
+  storedConversation ? `${storedConversation.role}:${storedConversation.final_text}` : "missing",
+);
 
 // --- complete flow: concern -> draft, and routing consistency ---
 async function completeSession(language: "en" | "hi", concern: string) {
@@ -97,6 +114,24 @@ async function storedDepartment(sid: string): Promise<string | null> {
   const r = await fetch(`${BASE}/rest/v1/sessions?select=preliminary_department&id=eq.${sid}`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
   const rows = await r.json();
   return Array.isArray(rows) && rows[0] ? rows[0].preliminary_department : null;
+}
+
+interface StoredMessage {
+  role: string;
+  question_id: string | null;
+  final_text: string;
+}
+
+async function storedMessages(sid: string): Promise<StoredMessage[] | null> {
+  const key = Deno.env.get("LOCAL_SERVICE_KEY") ?? "";
+  if (!key) return null;
+  const r = await fetch(
+    `${BASE}/rest/v1/messages?select=role,question_id,final_text&session_id=eq.${sid}&order=turn_index.asc`,
+    { headers: { apikey: key, Authorization: `Bearer ${key}` } },
+  );
+  if (!r.ok) return null;
+  const rows = await r.json();
+  return Array.isArray(rows) ? rows as StoredMessage[] : null;
 }
 
 for (const [concern, expected] of [
