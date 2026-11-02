@@ -1,0 +1,222 @@
+{
+  "generatedAt": "2026-11-02T20:49:52.346Z",
+  "provider": {
+    "adapter": "supabase/functions/_shared/timbre.ts",
+    "model": "timbre-v2.5",
+    "container": "mp3",
+    "sampleRate": 24000
+  },
+  "requestCount": 10,
+  "assets": [
+    {
+      "promptId": "greeting",
+      "questionId": null,
+      "language": "en",
+      "speechLanguage": "en-IN",
+      "voice": "Kaveri",
+      "source": "src/i18n/en.ts → consent.greetingAudio",
+      "path": "public/audio/en/greeting.mp3",
+      "textSha256": "3e5194413093123f",
+      "hash": "—",
+      "bytes": 0,
+      "valid": "missing",
+      "legacy": {
+        "path": "public/audio/greeting_en.wav",
+        "hash": "56d4af65701c26df",
+        "bytes": 16044,
+        "durationSeconds": 1,
+        "meanVolumeDb": -91,
+        "valid": "INVALID — not a decodable MP3 (the production container is mp3); mean volume -91 dB is at or below the silence floor; peak volume -91 dB is too quiet to be speech"
+      }
+    },
+    {
+      "promptId": "ask-name",
+      "questionId": "name",
+      "language": "en",
+      "speechLanguage": "en-IN",
+      "voice": "Kaveri",
+      "source": "supabase/functions/_shared/questions.ts → QUESTIONS.name.en",
+      "path": "public/audio/en/ask-name.mp3",
+      "textSha256": "b7bc3f438183072b",
+      "hash": "—",
+      "bytes": 0,
+      "valid": "missing",
+      "legacy": {
+        "path": "public/audio/ask-name_en.wav",
+        "hash": "56d4af65701c26df",
+        "bytes": 16044,
+        "durationSeconds": 1,
+        "meanVolumeDb": -91,
+        "valid": "INVALID — not a decodable MP3 (the production container is mp3); mean volume -91 dB is at or below the silence floor; peak volume -91 dB is too quiet to be speech"
+      }
+    },
+    {
+      "promptId": "ask-age",
+      "questionId": "age",
+      "language": "en",
+      "speechLanguage": "en-IN",
+      "voice": "Kaveri",
+      "source": "supabase/functions/_shared/questions.ts → QUESTIONS.age.en",
+      "path": "public/audio/en/ask-age.mp3",
+      "textSha256": "9599637071955c20",
+      "hash": "—",
+      "bytes": 0,
+      "valid": "missing",
+      "legacy": {
+        "path": "public/audio/ask-age_en.wav",
+        "hash": "56d4af65701c26df",
+        "bytes": 16044,
+        "durationSeconds": 1,
+        "meanVolumeDb": -91,
+        "valid": "INVALID — not a decodable MP3 (the production container is mp3); mean volume -91 dB is at or below the silence floor; peak volume -91 dB is too quiet to be speech"
+      }
+    },
+    {
+      "promptId": "ask-gender",
+      "questionId": "gender",
+      "language": "en",
+      "speechLanguage": "en-IN",
+      "voice": "Kaveri",
+      "source": "supabase/functions/_shared/questions.ts → QUESTIONS.gender.en",
+      "path": "public/audio/en/ask-gender.mp3",
+      "textSha256": "e7933a0f9f3c0fbf",
+      "hash": "—",
+      "bytes": 0,
+      "valid": "missing",
+      "legacy": {
+        "path": "public/audio/ask-gender_en.wav",
+        "hash": "56d4af65701c26df",
+        "bytes": 16044,
+        "durationSeconds": 1,
+        "meanVolumeDb": -91,
+        "valid": "INVALID — not a decodable MP3 (the production container is mp3); mean volume -91 dB is at or below the silence floor; peak volume -91 dB is too quiet to be speech"
+      }
+    },
+    {
+      "promptId": "ask-primary-concern",
+      "questionId": "primary_concern",
+      "language": "en",
+      "speechLanguage": "en-IN",
+      "voice": "Kaveri",
+      "source": "supabase/functions/_shared/questions.ts → QUESTIONS.primary_concern.en",
+      "path": "public/audio/en/ask-primary-concern.mp3",
+      "textSha256": "31ad11309183bd78",
+      "hash": "—",
+      "bytes": 0,
+      "valid": "missing",
+      "legacy": {
+        "path": "public/audio/ask-primary-concern_en.wav",
+        "hash": "56d4af65701c26df",
+        "bytes": 16044,
+        "durationSeconds": 1,
+        "meanVolumeDb": -91,
+        "valid": "INVALID — not a decodable MP3 (the production container is mp3); mean volume -91 dB is at or below the silence floor; peak volume -91 dB is too quiet to be speech"
+      }
+    },
+    {
+      "promptId": "greeting",
+      "questionId": null,
+      "language": "hi",
+      "speechLanguage": "hi-IN",
+      "voice": "Nalini",
+      "source": "src/i18n/hi.ts → consent.greetingAudio",
+      "path": "public/audio/hi/greeting.mp3",
+      "textSha256": "0fa2ad57a89fe59e",
+      "hash": "—",
+      "bytes": 0,
+      "valid": "missing",
+      "legacy": {
+        "path": "public/audio/greeting_hi.wav",
+        "hash": "56d4af65701c26df",
+        "bytes": 16044,
+        "durationSeconds": 1,
+        "meanVolumeDb": -91,
+        "valid": "INVALID — not a decodable MP3 (the production container is mp3); mean volume -91 dB is at or below the silence floor; peak volume -91 dB is too quiet to be speech"
+      }
+    },
+    {
+      "promptId": "ask-name",
+      "questionId": "name",
+      "language": "hi",
+      "speechLanguage": "hi-IN",
+      "voice": "Nalini",
+      "source": "supabase/functions/_shared/questions.ts → QUESTIONS.name.hi",
+      "path": "public/audio/hi/ask-name.mp3",
+      "textSha256": "8a2af1e73335f808",
+      "hash": "—",
+      "bytes": 0,
+      "valid": "missing",
+      "legacy": {
+        "path": "public/audio/ask-name_hi.wav",
+        "hash": "56d4af65701c26df",
+        "bytes": 16044,
+        "durationSeconds": 1,
+        "meanVolumeDb": -91,
+        "valid": "INVALID — not a decodable MP3 (the production container is mp3); mean volume -91 dB is at or below the silence floor; peak volume -91 dB is too quiet to be speech"
+      }
+    },
+    {
+      "promptId": "ask-age",
+      "questionId": "age",
+      "language": "hi",
+      "speechLanguage": "hi-IN",
+      "voice": "Nalini",
+      "source": "supabase/functions/_shared/questions.ts → QUESTIONS.age.hi",
+      "path": "public/audio/hi/ask-age.mp3",
+      "textSha256": "aa30c870fad20cd5",
+      "hash": "—",
+      "bytes": 0,
+      "valid": "missing",
+      "legacy": {
+        "path": "public/audio/ask-age_hi.wav",
+        "hash": "56d4af65701c26df",
+        "bytes": 16044,
+        "durationSeconds": 1,
+        "meanVolumeDb": -91,
+        "valid": "INVALID — not a decodable MP3 (the production container is mp3); mean volume -91 dB is at or below the silence floor; peak volume -91 dB is too quiet to be speech"
+      }
+    },
+    {
+      "promptId": "ask-gender",
+      "questionId": "gender",
+      "language": "hi",
+      "speechLanguage": "hi-IN",
+      "voice": "Nalini",
+      "source": "supabase/functions/_shared/questions.ts → QUESTIONS.gender.hi",
+      "path": "public/audio/hi/ask-gender.mp3",
+      "textSha256": "b4116257bfebb9d7",
+      "hash": "—",
+      "bytes": 0,
+      "valid": "missing",
+      "legacy": {
+        "path": "public/audio/ask-gender_hi.wav",
+        "hash": "56d4af65701c26df",
+        "bytes": 16044,
+        "durationSeconds": 1,
+        "meanVolumeDb": -91,
+        "valid": "INVALID — not a decodable MP3 (the production container is mp3); mean volume -91 dB is at or below the silence floor; peak volume -91 dB is too quiet to be speech"
+      }
+    },
+    {
+      "promptId": "ask-primary-concern",
+      "questionId": "primary_concern",
+      "language": "hi",
+      "speechLanguage": "hi-IN",
+      "voice": "Nalini",
+      "source": "supabase/functions/_shared/questions.ts → QUESTIONS.primary_concern.hi",
+      "path": "public/audio/hi/ask-primary-concern.mp3",
+      "textSha256": "9478b7303688ca63",
+      "hash": "—",
+      "bytes": 0,
+      "valid": "missing",
+      "legacy": {
+        "path": "public/audio/ask-primary-concern_hi.wav",
+        "hash": "56d4af65701c26df",
+        "bytes": 16044,
+        "durationSeconds": 1,
+        "meanVolumeDb": -91,
+        "valid": "INVALID — not a decodable MP3 (the production container is mp3); mean volume -91 dB is at or below the silence floor; peak volume -91 dB is too quiet to be speech"
+      }
+    }
+  ]
+}

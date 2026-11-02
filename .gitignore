@@ -21,5 +21,8 @@ supabase/.temp/
 # Local provider smoke audio (synthetic clips for manual listening; never commit)
 .provider-audio/
 
+# Prompt-audio generation staging (validated before it is promoted to public/audio)
+.prompt-audio-staging/
+
 # Editor
 .vscode/
