@@ -17,7 +17,7 @@ const OUTPUT = resolve(ROOT, 'docs/release-readiness/SAMVAD-FINAL-REGRESSION-AND
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const CANDIDATE = '938126a';
-const FRONTEND_BASE = '3df09cd';
+const FRONTEND_BASE = '78b68c2';
 const ANTIGRAVITY_PATCH = 'ffd2fd28ce7e45a170e410b096bc0c8c3c92588eeb1abcb8516dd2f7d2b137e8';
 const OPENCODE = 'c12df34';
 const BACKEND = 'e5d77e5';
@@ -76,7 +76,7 @@ const defects = [
   ['D-50', 'P3', 'Severity chip always dark', 'FIXED', 'Selection-driven styling'],
   ['N-01', 'P1', 'Uncommitted branch fabricated demographics and a fallback date', 'FIXED IN CANDIDATE', 'Rejected at merge; data-driven behaviour retained'],
   ['N-02', 'P1', 'Prompt audio assets are 1-second placeholders', 'OWNER ACTION', 'All 11 files byte-identical, no speech'],
-  ['N-03', 'P2', 'Antigravity work is uncommitted', 'OWNER ACTION', 'Patch hash recorded; commit required'],
+  ['N-03', 'P2', 'Design corrections were uncommitted', 'VERIFIED FIXED', 'Committed as 78b68c2; src diff byte-identical to the validated snapshot'],
 ];
 
 const suites = [
@@ -170,8 +170,8 @@ function buildHtml() {
     </div>
     <div class="callout danger" style="margin-top:10pt;">
       <b>Not release-approved.</b> One P1 remains owner-blocked (real prompt audio), five visual
-      findings remain with the design owner, and the combined candidate is a snapshot of
-      uncommitted visual work.
+      findings remain with the design owner, and this is a disposable validation candidate
+      rather than a release branch.
     </div>
   </div>
   <table class="meta">
@@ -222,15 +222,17 @@ evaluator access or permanent branch integration.</p>
   <tbody>
     <tr><td>Audit of record</td><td>audit/final-ui-logic-figma-review</td><td><code>${AUDIT}</code></td></tr>
     <tr><td>Frontend base</td><td>feat/frontend-figma-parity</td><td><code>${FRONTEND_BASE}</code></td></tr>
-    <tr><td>Design-owner visual work</td><td>uncommitted working tree on the base</td><td><code>patch sha256 ${ANTIGRAVITY_PATCH.slice(0, 32)}…</code></td></tr>
+    <tr><td>Design-owner visual work</td><td>feat/frontend-figma-parity</td><td><code>78b68c2</code> (src diff sha256 ${ANTIGRAVITY_PATCH.slice(0, 24)}…)</td></tr>
     <tr><td>OpenCode remediation</td><td>fix/opencode-audit-frontend</td><td><code>${OPENCODE}</code> (code d7a3248, report 77c9cc5)</td></tr>
     <tr><td>Backend baseline</td><td>feat/backend</td><td><code>${BACKEND}</code></td></tr>
     <tr><td>Combined validation candidate</td><td>validation/samvad-combined-release-audit</td><td><code>${CANDIDATE}</code></td></tr>
   </tbody>
 </table>
-<p class="small"><b>Process finding N-03:</b> the design owner's corrections were never committed,
-so the candidate contains a working-tree snapshot identified only by the patch hash. The owner
-should require a commit before permanent integration.</p>
+<p class="small"><b>Process note N-03 (resolved):</b> the design corrections were uncommitted when
+the candidate was assembled and were committed as <code>78b68c2</code> during validation. The
+committed <code>src/</code> diff is byte-identical to the snapshot that was merged and tested
+(sha256 <code>${ANTIGRAVITY_PATCH.slice(0, 24)}…</code>), so the candidate is reproducible from two
+commits: <code>938126a</code> + <code>78b68c2</code>.</p>
 
 <h2>3. Integration-validation scope</h2>
 <table>
@@ -389,8 +391,8 @@ validation. Status reflects the combined candidate.</p>
     ${defects.map(([id, sev, title, status, note]) => `<tr><td><b>${id}</b></td><td>${sev}</td><td>${title}</td><td><span class="badge ${badgeClass(status)}">${status}</span></td><td>${note}</td></tr>`).join('')}
   </tbody>
 </table>
-<p class="small"><b>Totals</b> — P0 1 · P1 12 · P2 29 · P3 11. Fixed or verified <b>40</b>,
-joint/partial <b>4</b>, design-owner <b>5</b>, owner action <b>4</b>.</p>
+<p class="small"><b>Totals</b> — P0 1 · P1 12 · P2 29 · P3 11. Fixed or verified <b>41</b>,
+joint/partial <b>4</b>, design-owner <b>5</b>, owner action <b>3</b>.</p>
 
 <div class="pagebreak"></div>
 <h2>16. Full automated test results</h2>
@@ -423,7 +425,7 @@ warning-flag chip on the urgent detail; no Back control on the emergency screen.
   <li>The mock backend completes in ≤13 turns, so the 15-turn cap UI is not browser-tested.</li>
   <li>The doctor portal does not restore a session on refresh (refresh returns to login).</li>
   <li>Visual parity is unchanged for the five frames the audit rated as material mismatches.</li>
-  <li>The candidate is a rehearsal snapshot of uncommitted visual work (N-03).</li>
+  <li>The candidate is a disposable rehearsal of two branches, not a release branch.</li>
   <li>Hindi copy improved but incomplete (D-26).</li>
 </ol>
 
@@ -431,7 +433,7 @@ warning-flag chip on the urgent detail; no Back control on the emergency screen.
 <ol>
   <li>Generate real prompt audio for the ten documented files (reserve the Timbre budget first); do not ship the placeholders.</li>
   <li>Record D-30 (urgent-review authority; candidate is fail-closed) and D-34 (consent copy).</li>
-  <li>Require the design owner to commit its corrections so the candidate has a reviewable hash.</li>
+  <li>Rebase the remediation onto <code>78b68c2</code> (or re-apply the visual changes on top), resolving the shared screen files per the integration contract.</li>
   <li>Provision a local Supabase stack and run <code>npm run test:api</code>, or accept static security verification explicitly.</li>
   <li>Decide whether the urgent queue includes <code>needs_human_review</code> reports.</li>
   <li>Approve permanent integration only after 1–4.</li>

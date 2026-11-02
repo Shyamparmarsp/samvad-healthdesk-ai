@@ -55,7 +55,7 @@ and the candidate is exercised once against a real local Supabase stack.
 |---|---|---|
 | Audit of record | `audit/final-ui-logic-figma-review` | `ab4ba5b` |
 | Frontend base (Antigravity) | `feat/frontend-figma-parity` | `3df09cd` |
-| Antigravity visual work | **uncommitted working tree** on `3df09cd` | patch sha256 `ffd2fd28ce7e45a170e410b096bc0c8c3c92588eeb1abcb8516dd2f7d2b137e8` |
+| Design-owner visual work | `feat/frontend-figma-parity` | `78b68c2` (src diff sha256 `ffd2fd28…b137e8`, verified identical to the validated snapshot) |
 | OpenCode remediation | `fix/opencode-audit-frontend` | `c12df34` (code `d7a3248`, report `77c9cc5`) |
 | Backend baseline | `feat/backend` | `e5d77e5` |
 | **Combined validation candidate** | `validation/samvad-combined-release-audit` | **`938126a`** |
@@ -63,11 +63,11 @@ and the candidate is exercised once against a real local Supabase stack.
 The validation branch is disposable. Nothing was merged into `feat/frontend-figma-parity`,
 `feat/backend`, `release/*` or `main`, and nothing was pushed or deployed.
 
-**Process finding (new, N-03):** Antigravity's corrections were never committed. The
-combined candidate therefore contains a *working-tree snapshot*, not a reviewable commit
-on the feature branch. This is a release-process risk: the exact visual state is
-identified only by the patch hash above. The owner should require a commit before any
-permanent integration.
+**Process note (N-03, resolved during validation):** the design corrections were
+uncommitted when the candidate was assembled. They were committed as `78b68c2` during
+the validation run; the committed `src/` diff is byte-identical to the snapshot that was
+merged and tested (sha256 `ffd2fd28…b137e8`), so no re-validation was required. The
+candidate is therefore reproducible from two commits (`938126a` + `78b68c2`).
 
 ---
 
@@ -316,10 +316,10 @@ Legend: **F** fixed · **V** verified already fixed · **A** Antigravity · **J*
 |---|---|---|---|
 | N-01 | P1 | Antigravity's working tree fabricated patient demographics by name in the appointments table and returned a hardcoded date when the slot timestamp was unparseable | **F** (rejected at merge; data-driven behaviour retained) |
 | N-02 | P1 | The eleven shipped prompt-audio files are byte-identical 1-second placeholders, not spoken prompts | **O** |
-| N-03 | P2 | Antigravity's corrections exist only as uncommitted working-tree changes on `3df09cd` | **O** |
+| N-03 | P2 | Design corrections existed only as uncommitted working-tree changes | **V** — committed as `78b68c2`; src diff byte-identical to the validated snapshot |
 
 **Totals (53 findings):** P0 1 · P1 12 · P2 29 · P3 11.
-Status: fixed or verified **40**, joint/partial **4**, Antigravity **5**, owner action **4**.
+Status: fixed or verified **41**, joint/partial **4**, Antigravity **5**, owner action **3**.
 
 ---
 
@@ -367,7 +367,7 @@ control on the emergency screen.
 4. The doctor portal has no session-restore on refresh (deliberate; refresh returns to
    login).
 5. Visual parity is unchanged for the five frames the audit rated as material mismatches.
-6. The combined candidate is a rehearsal snapshot of uncommitted visual work (N-03).
+6. The candidate is a disposable rehearsal of two branches; it is not itself a release branch.
 7. Hindi copy is improved but not complete (D-26).
 
 ---
@@ -378,8 +378,9 @@ control on the emergency screen.
    reserving the Timbre budget for that IST day first. Do not ship the placeholders.
 2. **Record the two open decisions:** D-30 (urgent review authority — the candidate is
    fail-closed: Emergency doctor only) and D-34 (consent bubble copy).
-3. **Require Antigravity to commit** its corrections to `feat/frontend-figma-parity` so the
-   candidate has a reviewable hash.
+3. Merge order: rebase `fix/opencode-audit-frontend` onto `78b68c2` (or re-apply the visual
+   changes on top of the remediation), resolving the shared screen files as documented in the
+   integration contract.
 4. **Provision a local Supabase stack** and run `npm run test:api`, or accept the static
    security verification explicitly.
 5. Decide whether the urgent queue should include `needs_human_review` reports.
@@ -404,6 +405,8 @@ control on the emergency screen.
 
 - Validation worktree: `../samvad-final-release-validation` (branch
   `validation/samvad-combined-release-audit` @ `938126a`, report commit follows).
+- Design-owner commit: `feat/frontend-figma-parity` @ `78b68c2` (src diff verified identical
+  to the validated snapshot).
 - Screenshots: `docs/screenshots/` (23 files, including
   `doctor-urgent-warning-flags-1280x820.png` and
   `booking-confirmation-390x844.png`).
