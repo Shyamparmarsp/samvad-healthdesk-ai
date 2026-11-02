@@ -190,6 +190,22 @@ await step("providers", "provider harness live mode fails closed without keys", 
   return { ok: refused, detail: refused ? "refused before any request (exit 2)" : `exit ${result.code}: ${lastLine(result.out)}` };
 });
 
+await step("providers", "provider smoke harness default mode makes no request", true, async () => {
+  // Deliberately omits --allow-net and --allow-write: a default run cannot call out or save.
+  const result = await run("deno", ["run", "--allow-env", "scripts/provider-smoke.ts"]);
+  const noRequest = result.ok && /No request was made/i.test(result.out) && /NON-LIVE/.test(result.out);
+  return { ok: noRequest, detail: noRequest ? "non-live, zero requests, no files" : lastLine(result.out) };
+});
+
+await step("providers", "provider smoke failure-path tests", true, async () => {
+  const result = await run("deno", ["test", "--allow-read", "--allow-env", "supabase/tests/provider-smoke.test.ts"]);
+  const match = /(\d+) passed \| (\d+) failed/.exec(result.out);
+  return {
+    ok: result.ok && Boolean(match),
+    detail: match ? `${match[1]} passed, ${match[2]} failed` : lastLine(result.out),
+  };
+});
+
 // ---------------------------------------------------------------- 3. database
 
 if (!dbUp) {
