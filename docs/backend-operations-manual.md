@@ -3,6 +3,20 @@
 Day-to-day operation of the two Edge Functions, the database and the release gates.
 Every command here was executed in this environment unless marked otherwise.
 
+## 0. Documentation map
+
+| Need | Document |
+|---|---|
+| Production deployment, in order | `docs/backend-deployment-runbook.md` |
+| Supabase project, Auth, doctor identities, caps | `docs/supabase-owner-setup.md` |
+| Access model and open security decisions | `docs/security-and-access-review.md` |
+| Retention, account disablement, backup naming/storage | `docs/data-retention-and-backup.md` |
+| Environment variable matrix | `docs/environment-variables.md` |
+| Local verification, SQL suites, CORS | `docs/release-runbook.md` |
+| Restore and failed-migration recovery | `docs/backup-and-recovery.md` |
+| Doctor mapping detail | `docs/doctor-onboarding.md` |
+| Per-step owner approval gates | `docs/final-owner-launch-checklist.md` |
+
 ## 1. Architecture in one page
 
 - Two Edge Functions only: `chat-turn` (six actions) and `speak` (adaptive TTS).

@@ -3,7 +3,7 @@
  *
  * Reports what a 30-day post-competition cleanup WOULD delete, in foreign-key order.
  * This script contains no delete path. Deletion is an owner action requiring separate
- * approval (docs/data-retention-and-deletion.md).
+ * approval (docs/data-retention-and-backup.md).
  *
  *   deno run --allow-net --allow-env --allow-read --allow-write scripts/retention-dry-run.ts
  *

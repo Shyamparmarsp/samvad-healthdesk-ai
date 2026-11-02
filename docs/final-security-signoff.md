@@ -142,7 +142,7 @@ set (never an error that confirms a mapping); returns no `appointments.user_id`;
 `RETURN QUERY SELECT`; `EXECUTE` granted to `authenticated` only; no table grant.
 
 **Status: NOT SILENTLY ACCEPTED.** The exception is documented here, in
-`docs/integration-contract.md` and in `docs/release/SECURITY-FINDINGS.md`, and it is
+`docs/integration-contract.md` and in `docs/security-and-access-review.md`, and it is
 enforced by `_shared/schema.test.ts` (a fifth definer cannot appear without editing the
 reviewed allowlist). The owner must approve or reject it. Rejection means dropping the RPC
 and accepting an empty appointments screen.

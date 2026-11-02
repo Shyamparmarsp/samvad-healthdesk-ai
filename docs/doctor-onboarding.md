@@ -69,3 +69,10 @@ Machine check: `deno run --allow-net --allow-env --allow-read --allow-run --allo
 
 Credentials are shared with evaluators privately. The login screen states that and
 displays no password.
+
+## 5. Disable after the demonstration
+
+Keep both identities and both `doctor_profiles` rows. Disable (ban) the accounts; do not
+delete them, because deleting an Auth user cascades the mapping away. The full procedure,
+residual-token window and verification steps are in
+`docs/data-retention-and-backup.md` §4.

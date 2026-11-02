@@ -10,7 +10,7 @@ BLOCKED. Evidence names the test that proves the claim.
 | 2 | Identity derivation | `auth.uid()`/`userClaims.sub` only; no client-supplied user id accepted; `requireOwnedRow` on every fetch | PASS |
 | 3 | Cross-patient isolation | `integration.ts`: foreign `resume_session` → 404, foreign REST report read → 0 rows; `rls.sql` patient block | PASS |
 | 4 | Doctor authorization | `rls.sql` + `integration.ts`: assigned doctor sees the routed report, GM/EM cross-visibility, drafts invisible, unrelated doctor 0 rows, EM cannot read another department's conversation | PASS |
-| 5 | SECURITY DEFINER scope | `pg_proc`: 3 functions, all `search_path=""`, owner `postgres`, ACL = postgres/service_role/authenticated (no PUBLIC, no anon) | PASS |
+| 5 | SECURITY DEFINER scope | `pg_proc`: 5 functions (4 definer + 1 invoker), all `search_path=""`, owner `postgres`; no PUBLIC/anon execute, definer RPCs granted to `authenticated`, reservation granted to `service_role` | PASS (see `docs/security-and-access-review.md` §5 for the two read exceptions) |
 | 6 | Browser write path | `has_table_privilege('authenticated','appointments','insert')` = false; no INSERT/UPDATE/DELETE grant to anon/authenticated on any server-owned table; `schema.test.ts` | PASS |
 | 7 | Provider credentials | Read only via `Deno.env` inside the functions; never returned, never logged; `policy.test.ts` allowlists the names; secret scan clean | PASS |
 | 8 | Error redaction | Adapters return enums, never provider bodies; `toErrorCode` collapses unknown throws to `internal`; isolation test asserts the destination is not echoed | PASS |

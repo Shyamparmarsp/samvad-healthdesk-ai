@@ -80,8 +80,8 @@ real.
 | **Where** | terminal |
 | **Do** | `supabase link --project-ref <ref>` → `supabase db push` → `psql -f supabase/seed.sql` |
 | **Approval** | Yes — this is the only step that changes production data |
-| **Order** | the 10 migrations in `docs/release/DEPLOYMENT-CHECKLIST.md` §2; the seed is **not** applied by `db push` |
-| **Success** | `supabase migration list` shows all 10 local = remote; 6 departments, 6 doctors, 25 schedule rows, 4 usage limits |
+| **Order** | the 11 migrations in `docs/backend-deployment-runbook.md` §5; the seed is **not** applied by `db push` |
+| **Success** | `supabase migration list` shows all 11 local = remote; 6 departments, 6 doctors, 25 schedule rows, 4 usage limits |
 | **Failure** | a failed migration → stop, restore the pre-migration dump, re-apply known-good files. Never re-run a half-applied file. |
 
 ## Step 8 — Live provider verification

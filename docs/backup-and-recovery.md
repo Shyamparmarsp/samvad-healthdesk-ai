@@ -2,6 +2,10 @@
 
 Local rehearsal only. No production backup has been created or restored by the agent.
 
+Naming, manifest and off-platform storage conventions are in
+`docs/data-retention-and-backup.md` §5. This file covers the dump commands, the restore
+rehearsal and recovery after a failed migration or function deployment.
+
 ## 1. Back up (owner, before any migration)
 
 ```bash
@@ -47,8 +51,8 @@ select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
 Drop it afterwards: `drop database samvad_restore_rehearsal with (force);`
 
 **Rehearsal evidence produced by the agent:** `scripts/rehearse-db.ts` builds a brand-new
-database, applies all 10 migrations from nothing, applies the seed twice and verifies
-counts, functions, grants and RLS — 28/28 checks. That proves the migration path can
+database, applies all 11 migrations from nothing, applies the seed twice and verifies
+counts, functions, grants and RLS — 29/29 checks. That proves the migration path can
 rebuild the schema; it is not a data restore test.
 
 ## 3. Failed migration

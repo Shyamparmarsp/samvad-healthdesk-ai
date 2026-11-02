@@ -41,9 +41,13 @@ Integration: run `supabase/tests/stub-providers.ts` on the host, point the funct
 6. `20261102120000_mark_report_reviewed.sql`
 7. `20261102130000_availability_and_booking.sql`
 8. `20261102140000_ist_day_bucket.sql`
-9. `supabase/seed.sql` (six departments, six fictional doctors, weekday schedules, D5 limits)
+9. `20261102150000_session_preliminary_department.sql`
+10. `20261102160000_doctor_appointment_reads.sql`
+11. `20261102170000_report_immutability.sql`
+12. `supabase/seed.sql` (six departments, six fictional doctors, weekday schedules, D5 limits)
 
-Apply with `APPROVE APPLY <project> <exact filenames> supabase/seed.sql` **[owner]**.
+The authoritative deployment sequence is `docs/backend-deployment-runbook.md`. Apply with
+`APPROVE APPLY <project> <exact filenames> supabase/seed.sql` **[owner]**.
 
 ## 4. Doctor Auth users and profiles
 
