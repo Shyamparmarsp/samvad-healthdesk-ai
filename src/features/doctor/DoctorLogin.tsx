@@ -28,137 +28,159 @@ export const DoctorLogin: React.FC<DoctorLoginProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-[720px] flex items-center justify-center p-6 bg-slate-100">
-      <div className="w-full max-w-md space-y-6">
-        {/* Brand Header */}
-        <div className="text-center">
-          <div className="w-14 h-14 rounded-2xl bg-brand-navy text-white flex items-center justify-center mx-auto shadow-md mb-3">
-            <svg className="w-8 h-8 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-text-primary tracking-tight">
-            Samvad Clinical Desk
-          </h1>
-          <p className="text-xs text-text-secondary mt-1">
-            Doctor Intake Review &amp; Consultation Portal
-          </p>
-        </div>
+    <div className="w-full flex justify-center py-4">
+      {/* Outer Desktop Shell Container matching Figma D1 (74:2) */}
+      <div className="w-full max-w-[1260px] min-h-[760px] rounded-[30px] bg-[rgba(221,227,238,0.45)] border border-white shadow-xl p-8 md:p-14 flex flex-col md:flex-row items-center justify-between gap-10 relative overflow-hidden select-none">
+        {/* Figma Ambient Glow Orbs (82:2 & 82:3) */}
+        <div className="absolute w-[420px] h-[400px] right-[-100px] bottom-[-100px] rounded-full glow-lilac z-0" aria-hidden="true" />
+        <div className="absolute w-[420px] h-[380px] left-[-160px] bottom-[-100px] rounded-full glow-sand z-0" aria-hidden="true" />
 
-        {/* Mandatory Evaluator Access Card (Exact D8 / AGENTS.md Copy) */}
-        <div className="p-4 rounded-xl bg-indigo-50/80 border border-indigo-200 text-indigo-950 shadow-sm text-center">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-indigo-900 mb-1">
-            Evaluator access
-          </h2>
-          <p className="text-xs font-medium">
-            Credentials are shared privately with reviewers.
-          </p>
-          <p className="text-[11px] text-indigo-700 mt-0.5">
-            Not displayed in public project materials.
-          </p>
-        </div>
-
-        {/* Login Error Alert */}
-        {loginError && (
-          <div className="p-3.5 rounded-xl bg-red-100 border border-red-300 text-red-900 text-xs font-medium flex items-center gap-2">
-            <svg className="w-4 h-4 text-red-700 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <span>{loginError}</span>
-          </div>
-        )}
-
-        {/* Login Form (D1) */}
-        <form
-          onSubmit={handleLogin}
-          className="p-6 rounded-card bg-white border border-slate-200 shadow-lg space-y-4"
-        >
-          {/* Identity Quick Select for Judges / Evaluators (Restricted to Mock Mode per AGENTS.md) */}
-          {isMockMode && (
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-                Select Demo Identity (Mock Mode)
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail(FICTIONAL_DOCTORS.general_medicine.email);
-                    setLoginError(null);
-                  }}
-                  aria-label="Select Dr. Aditi Rao, General Medicine"
-                  className={`py-2 px-2.5 rounded-lg text-xs font-semibold border text-left transition-all focus:outline-none focus:ring-2 focus:ring-brand-navy ${
-                    email === FICTIONAL_DOCTORS.general_medicine.email
-                      ? 'bg-brand-navy border-brand-navy text-white shadow-sm'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <span className="block font-bold">Dr. Aditi Rao</span>
-                  <span className="text-[10px] opacity-80 block">General Medicine</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail(FICTIONAL_DOCTORS.emergency.email);
-                    setLoginError(null);
-                  }}
-                  aria-label="Select Dr. Neha Verma, Emergency"
-                  className={`py-2 px-2.5 rounded-lg text-xs font-semibold border text-left transition-all focus:outline-none focus:ring-2 focus:ring-red-500 ${
-                    email === FICTIONAL_DOCTORS.emergency.email
-                      ? 'bg-red-700 border-red-700 text-white shadow-sm'
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <span className="block font-bold">Dr. Neha Verma</span>
-                  <span className="text-[10px] opacity-80 block">Emergency</span>
-                </button>
-              </div>
+        {/* Left Hero Area (Figma 82:5 - 82:9) */}
+        <div className="relative z-10 max-w-md space-y-4">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-[42px] h-[42px] rounded-[12px] bg-[#1f2a44] border border-white text-white flex items-center justify-center font-bold text-[30px] leading-none shadow-sm flex-shrink-0"
+              aria-hidden="true"
+            >
+              +
             </div>
-          )}
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Doctor Account Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setLoginError(null);
-              }}
-              required
-              className="w-full h-11 px-3.5 rounded-input border border-slate-300 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-navy"
-            />
+            <span className="font-bold text-[16px] text-[#1d2433] tracking-tight">
+              Samvad HealthDesk AI
+            </span>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setLoginError(null);
-              }}
-              required
-              className="w-full h-11 px-3.5 rounded-input border border-slate-300 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-navy font-mono"
-            />
+          <div className="pt-8">
+            <h1 className="text-[34px] font-bold text-[#1d2433] tracking-tight leading-tight">
+              Doctor Login
+            </h1>
+            <p className="text-[15px] text-[#4a5470] mt-2 leading-relaxed">
+              Sign in to view patient reports and appointments.
+            </p>
           </div>
+        </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full h-btn-desktop rounded-pill bg-brand-navy text-white font-semibold text-sm shadow hover:bg-brand-navy-light disabled:opacity-50 transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-brand-navy"
-          >
-            {isLoading ? 'Signing In...' : 'Sign In to Portal'}
-          </button>
-        </form>
+        {/* Right Form Card (Figma 82:10 login/form-card) */}
+        <div className="relative z-10 w-full max-w-[480px]">
+          <div className="backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[30px] p-8 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.13)] space-y-4">
+            {/* Login Error Alert */}
+            {loginError && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="p-3 rounded-[16px] bg-red-100/90 border border-red-300 text-red-900 text-xs font-medium flex items-center gap-2"
+              >
+                <svg className="w-4 h-4 text-red-700 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>{loginError}</span>
+              </div>
+            )}
+
+            {/* Identity Quick Select for Judges / Evaluators (Mock Mode) */}
+            {isMockMode && (
+              <div className="pb-1">
+                <label className="block text-[11px] font-semibold text-[#4a5470] uppercase tracking-wider mb-1.5">
+                  Select Demo Identity (Mock Mode)
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail(FICTIONAL_DOCTORS.general_medicine.email);
+                      setLoginError(null);
+                    }}
+                    aria-label="Select Dr. Aditi Rao, General Medicine"
+                    className={`py-2 px-3 rounded-[14px] text-xs font-semibold border text-left transition-all focus:outline-none focus:ring-2 focus:ring-[#1f2a44] ${
+                      email === FICTIONAL_DOCTORS.general_medicine.email
+                        ? 'bg-[#1f2a44] border-[#1f2a44] text-white shadow-sm'
+                        : 'bg-white/80 border-white text-[#1d2433] hover:bg-white'
+                    }`}
+                  >
+                    <span className="block font-bold">Dr. Aditi Rao</span>
+                    <span className="text-[10px] opacity-80 block">General Medicine</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail(FICTIONAL_DOCTORS.emergency.email);
+                      setLoginError(null);
+                    }}
+                    aria-label="Select Dr. Neha Verma, Emergency"
+                    className={`py-2 px-3 rounded-[14px] text-xs font-semibold border text-left transition-all focus:outline-none focus:ring-2 focus:ring-[#1f2a44] ${
+                      email === FICTIONAL_DOCTORS.emergency.email
+                        ? 'bg-[#1f2a44] border-[#1f2a44] text-white shadow-sm'
+                        : 'bg-white/80 border-white text-[#1d2433] hover:bg-white'
+                    }`}
+                  >
+                    <span className="block font-bold">Dr. Neha Verma</span>
+                    <span className="text-[10px] opacity-80 block">Emergency</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              {/* Email (Figma 82:12 & 82:13) */}
+              <div>
+                <label className="block text-[11px] font-medium text-[#4a5470] mb-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setLoginError(null);
+                  }}
+                  required
+                  placeholder="doctor@hospital.demo"
+                  className="w-full h-[44px] px-3.5 rounded-[13px] backdrop-blur-[9px] bg-white/70 border border-white text-xs text-[#1d2433] focus:outline-none focus:ring-2 focus:ring-[#1f2a44] shadow-inner"
+                />
+              </div>
+
+              {/* Password (Figma 82:15 & 82:16) */}
+              <div>
+                <label className="block text-[11px] font-medium text-[#4a5470] mb-1">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setLoginError(null);
+                  }}
+                  required
+                  className="w-full h-[44px] px-3.5 rounded-[13px] backdrop-blur-[9px] bg-white/70 border border-white text-xs text-[#1d2433] focus:outline-none focus:ring-2 focus:ring-[#1f2a44] font-mono shadow-inner"
+                />
+              </div>
+
+              {/* Log in Button (Figma 82:20 btn-login) */}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-[54px] rounded-[27px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[13px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.18)] hover:bg-[#2a3a5c] disabled:opacity-50 transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
+              >
+                {isLoading ? 'Signing In...' : 'Log in'}
+              </button>
+            </form>
+
+            {/* Evaluator Access Card (Figma 82:22 login/evaluator-access-card) */}
+            <div className="backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[20px] p-4 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.13)] space-y-1">
+              <h2 className="text-[13px] font-bold text-[#1d2433]">
+                Evaluator access
+              </h2>
+              <p className="text-[12px] text-[#4a5470]">
+                Credentials are shared privately with reviewers.
+              </p>
+              <p className="text-[12px] text-[#4a5470]">
+                Not displayed in public project materials.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
-

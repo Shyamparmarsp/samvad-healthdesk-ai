@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useI18n } from '../../i18n';
 import { CorrectableField, ReportDocumentV1 } from '../../types/report';
+import { PatientHeader } from './PatientHeader';
 
 interface ReportReviewViewProps {
   report: ReportDocumentV1;
@@ -55,75 +56,50 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-surface-mobile">
-      {/* Header */}
-      <div className="px-6 py-4 bg-white/70 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-10 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-text-primary tracking-tight">
-            {t.review.title}
-          </h2>
-          <p className="text-xs text-text-secondary mt-0.5">
-            {t.review.subtitle}
-          </p>
-        </div>
-        <span className="text-[10px] px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-bold uppercase tracking-wider">
-          Draft Preview
-        </span>
-      </div>
+    <div className="flex flex-col h-full justify-between pb-4 select-none relative overflow-hidden">
+      {/* Top Header & Language Toggle & Progress (Figma 72:235) */}
+      <PatientHeader progress={1} />
 
-      {/* Incomplete 15-Turn Cap Banner (D9 Copy) */}
-      {isCapReached && !canSubmit && (
-        <div className="mx-4 mt-4 p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 shadow-sm leading-relaxed">
-          <p className="font-bold text-sm mb-1">{t.review.incompleteCapTitle}</p>
-          <p>{t.review.incompleteCapMessage}</p>
-        </div>
-      )}
-
-      {/* Main Scrolling Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {/* Preliminary Department Suggestion Card */}
-        <div className="p-4 rounded-card bg-indigo-50/70 border border-indigo-100 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase text-indigo-900 tracking-wider">
-              {t.review.departmentRecommendation}
-            </span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-200/60 text-indigo-900 font-medium">
-              Preliminary
-            </span>
+      {/* Main Scrolling Content Area */}
+      <div className="flex-1 overflow-y-auto px-5 py-2 space-y-3.5">
+        {/* Title & Subtitle */}
+        <div className="flex items-start justify-between gap-2 pt-1">
+          <div>
+            <h1 className="text-[20px] font-bold text-[#1d2433] tracking-tight">
+              {t.review.title}
+            </h1>
+            <p className="text-[12px] text-[#4a5470] mt-0.5">
+              {t.review.subtitle}
+            </p>
           </div>
-
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-lg font-bold text-brand-navy">
-              {report.routing_snapshot.department_name}
-            </span>
-            <span className="text-xs text-slate-500">
-              • {report.routing_snapshot.doctor_name}
-            </span>
-          </div>
-
-          <p className="text-[11px] text-indigo-800/80 mt-1 italic">
-            "{t.review.departmentDisclaimer}"
-          </p>
+          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold uppercase tracking-wider flex-shrink-0 mt-1">
+            Draft Preview
+          </span>
         </div>
 
-        {/* Section 1: Patient Information */}
-        <div className="p-4 rounded-card bg-white border border-slate-200/80 shadow-sm">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-            {t.review.patientSection}
-          </h3>
+        {/* Incomplete 15-Turn Cap Banner (D9 Copy) */}
+        {isCapReached && !canSubmit && (
+          <div className="p-3.5 rounded-[18px] bg-amber-50/90 border border-amber-200 text-xs text-amber-900 shadow-sm leading-relaxed">
+            <p className="font-bold text-sm mb-1">{t.review.incompleteCapTitle}</p>
+            <p>{t.review.incompleteCapMessage}</p>
+          </div>
+        )}
 
-          <div className="divide-y divide-slate-100 text-sm">
+        {/* Allowlisted Patient Details Card (Figma 81:306) */}
+        <div className="backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[24px] p-4 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)]">
+          <div className="divide-y divide-slate-200/60 text-xs">
             {/* Name */}
             <div className="py-2.5 flex items-center justify-between">
               <div>
-                <span className="text-xs text-slate-400 block">{t.review.name}</span>
-                <span className="font-semibold text-text-primary">
+                <span className="text-[11px] text-[#4a5470] block">{t.review.name}</span>
+                <span className="font-semibold text-[13px] text-[#1d2433]">
                   {report.patient.name.value || t.review.notProvided}
                 </span>
               </div>
               <button
+                type="button"
                 onClick={() => startEdit('patient.name', report.patient.name.value)}
-                className="text-xs font-medium text-brand-navy hover:underline"
+                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
               >
                 {t.common.edit}
               </button>
@@ -132,14 +108,15 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
             {/* Age */}
             <div className="py-2.5 flex items-center justify-between">
               <div>
-                <span className="text-xs text-slate-400 block">{t.review.age}</span>
-                <span className="font-semibold text-text-primary">
+                <span className="text-[11px] text-[#4a5470] block">{t.review.age}</span>
+                <span className="font-semibold text-[13px] text-[#1d2433]">
                   {report.patient.age.value ? `${report.patient.age.value} yrs` : t.review.notProvided}
                 </span>
               </div>
               <button
+                type="button"
                 onClick={() => startEdit('patient.age', report.patient.age.value)}
-                className="text-xs font-medium text-brand-navy hover:underline"
+                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
               >
                 {t.common.edit}
               </button>
@@ -148,39 +125,32 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
             {/* Gender */}
             <div className="py-2.5 flex items-center justify-between">
               <div>
-                <span className="text-xs text-slate-400 block">{t.review.gender}</span>
-                <span className="font-semibold text-text-primary capitalize">
+                <span className="text-[11px] text-[#4a5470] block">{t.review.gender}</span>
+                <span className="font-semibold text-[13px] text-[#1d2433] capitalize">
                   {report.patient.gender.status === 'declined' ? 'Prefer not to say' : (report.patient.gender.value || t.review.notProvided)}
                 </span>
               </div>
               <button
+                type="button"
                 onClick={() => startEdit('patient.gender', report.patient.gender.value)}
-                className="text-xs font-medium text-brand-navy hover:underline"
+                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
               >
                 {t.common.edit}
               </button>
             </div>
-          </div>
-        </div>
 
-        {/* Section 2: Clinical Details */}
-        <div className="p-4 rounded-card bg-white border border-slate-200/80 shadow-sm">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
-            {t.review.clinicalSection}
-          </h3>
-
-          <div className="divide-y divide-slate-100 text-sm">
             {/* Primary Concern */}
             <div className="py-2.5 flex items-start justify-between gap-2">
               <div>
-                <span className="text-xs text-slate-400 block">{t.review.primaryConcern}</span>
-                <span className="font-semibold text-text-primary leading-snug">
+                <span className="text-[11px] text-[#4a5470] block">{t.review.primaryConcern}</span>
+                <span className="font-semibold text-[13px] text-[#1d2433] leading-snug">
                   {report.primary_concern.value || t.review.notProvided}
                 </span>
               </div>
               <button
+                type="button"
                 onClick={() => startEdit('primary_concern', report.primary_concern.value)}
-                className="text-xs font-medium text-brand-navy hover:underline pt-1"
+                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
               >
                 {t.common.edit}
               </button>
@@ -189,14 +159,15 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
             {/* Duration */}
             <div className="py-2.5 flex items-center justify-between">
               <div>
-                <span className="text-xs text-slate-400 block">{t.review.duration}</span>
-                <span className="font-medium text-text-primary">
+                <span className="text-[11px] text-[#4a5470] block">{t.review.duration}</span>
+                <span className="font-medium text-[13px] text-[#1d2433]">
                   {report.clinical_details.duration.value || t.review.notProvided}
                 </span>
               </div>
               <button
+                type="button"
                 onClick={() => startEdit('clinical_details.duration', report.clinical_details.duration.value)}
-                className="text-xs font-medium text-brand-navy hover:underline"
+                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
               >
                 {t.common.edit}
               </button>
@@ -205,14 +176,15 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
             {/* Severity */}
             <div className="py-2.5 flex items-center justify-between">
               <div>
-                <span className="text-xs text-slate-400 block">{t.review.severity}</span>
-                <span className="font-medium text-text-primary">
+                <span className="text-[11px] text-[#4a5470] block">{t.review.severity}</span>
+                <span className="font-medium text-[13px] text-[#1d2433]">
                   {report.clinical_details.severity.value || t.review.notProvided}
                 </span>
               </div>
               <button
+                type="button"
                 onClick={() => startEdit('clinical_details.severity', report.clinical_details.severity.value)}
-                className="text-xs font-medium text-brand-navy hover:underline"
+                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
               >
                 {t.common.edit}
               </button>
@@ -221,16 +193,17 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
             {/* Conditions */}
             <div className="py-2.5 flex items-start justify-between gap-2">
               <div>
-                <span className="text-xs text-slate-400 block">{t.review.conditions}</span>
-                <span className="font-medium text-text-primary text-xs">
+                <span className="text-[11px] text-[#4a5470] block">{t.review.conditions}</span>
+                <span className="font-medium text-[12px] text-[#1d2433]">
                   {report.clinical_details.conditions.value?.length
                     ? report.clinical_details.conditions.value.join(', ')
                     : t.review.notProvided}
                 </span>
               </div>
               <button
+                type="button"
                 onClick={() => startEdit('clinical_details.conditions', report.clinical_details.conditions.value)}
-                className="text-xs font-medium text-brand-navy hover:underline"
+                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
               >
                 {t.common.edit}
               </button>
@@ -239,16 +212,17 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
             {/* Medications */}
             <div className="py-2.5 flex items-start justify-between gap-2">
               <div>
-                <span className="text-xs text-slate-400 block">{t.review.medications}</span>
-                <span className="font-medium text-text-primary text-xs">
+                <span className="text-[11px] text-[#4a5470] block">{t.review.medications}</span>
+                <span className="font-medium text-[12px] text-[#1d2433]">
                   {report.clinical_details.medications.value?.length
                     ? report.clinical_details.medications.value.join(', ')
                     : t.review.notProvided}
                 </span>
               </div>
               <button
+                type="button"
                 onClick={() => startEdit('clinical_details.medications', report.clinical_details.medications.value)}
-                className="text-xs font-medium text-brand-navy hover:underline"
+                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
               >
                 {t.common.edit}
               </button>
@@ -257,16 +231,17 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
             {/* Allergies */}
             <div className="py-2.5 flex items-start justify-between gap-2">
               <div>
-                <span className="text-xs text-slate-400 block">{t.review.allergies}</span>
-                <span className="font-medium text-text-primary text-xs">
+                <span className="text-[11px] text-[#4a5470] block">{t.review.allergies}</span>
+                <span className="font-medium text-[12px] text-[#1d2433]">
                   {report.clinical_details.allergies.value?.length
                     ? report.clinical_details.allergies.value.join(', ')
                     : t.review.notProvided}
                 </span>
               </div>
               <button
+                type="button"
                 onClick={() => startEdit('clinical_details.allergies', report.clinical_details.allergies.value)}
-                className="text-xs font-medium text-brand-navy hover:underline"
+                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
               >
                 {t.common.edit}
               </button>
@@ -274,20 +249,20 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
           </div>
         </div>
 
-        {/* Section 3: AI-Generated Summary (Draft) */}
-        {report.summary && (
-          <div className="p-4 rounded-card bg-white border border-slate-200/80 shadow-sm">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-2">
-              {t.review.summarySection}
+        {/* Suggested Department Card (Figma 81:360) */}
+        <div className="backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[20px] p-4 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)]">
+          <span className="text-[11px] font-semibold uppercase text-[#4a5470] tracking-wider block">
+            {t.review.departmentRecommendation}
+          </span>
+          <div className="mt-1.5 flex items-center gap-2">
+            <span className="px-3 py-1 rounded-[14px] bg-[#e1ebfd] text-[#284c91] font-semibold text-[11px] inline-block shadow-sm">
+              {report.routing_snapshot.department_name} (preliminary)
             </span>
-            <p className="text-xs text-text-primary leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-100">
-              {report.summary.text}
-            </p>
-            <p className="text-[10px] text-slate-400 mt-2 italic">
-              {t.review.summaryDisclaimer}
-            </p>
           </div>
-        )}
+          <p className="text-[11px] text-[#4a5470] mt-1.5 leading-snug">
+            {report.routing_snapshot.doctor_name} · "{t.review.departmentDisclaimer}"
+          </p>
+        </div>
       </div>
 
       {/* Inline Field Edit Modal / Sheet */}
@@ -295,16 +270,16 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
           <form
             onSubmit={handleSaveEdit}
-            className="w-full max-w-sm rounded-card bg-white p-5 shadow-2xl border border-slate-100"
+            className="w-full max-w-sm rounded-[24px] backdrop-blur-[9px] bg-white/95 p-5 shadow-2xl border border-white"
           >
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-sm font-bold text-text-primary capitalize">
+              <h4 className="text-sm font-bold text-[#1d2433] capitalize">
                 Edit {editingField.replace('clinical_details.', '').replace('patient.', '').replace('_', ' ')}
               </h4>
               <button
                 type="button"
                 onClick={() => setEditingField(null)}
-                className="text-xs text-slate-400 hover:text-slate-600"
+                className="text-xs text-[#4a5470] hover:text-[#1d2433]"
               >
                 {t.common.cancel}
               </button>
@@ -314,21 +289,21 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
               type="text"
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
-              className="w-full h-11 px-3 rounded-lg border border-slate-300 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-navy mb-4"
+              className="w-full h-11 px-3.5 rounded-[13px] border border-slate-300 text-sm text-[#1d2433] focus:outline-none focus:ring-2 focus:ring-[#1f2a44] mb-4 bg-white"
               autoFocus
             />
 
             <div className="flex gap-2">
               <button
                 type="submit"
-                className="flex-1 h-10 rounded-pill bg-brand-navy text-white text-xs font-semibold hover:bg-brand-navy-light"
+                className="flex-1 h-10 rounded-[20px] bg-[#1f2a44] text-white text-xs font-semibold hover:bg-[#2a3a5c]"
               >
                 {t.common.save}
               </button>
               <button
                 type="button"
                 onClick={() => setEditingField(null)}
-                className="flex-1 h-10 rounded-pill bg-slate-100 text-slate-600 text-xs font-medium hover:bg-slate-200"
+                className="flex-1 h-10 rounded-[20px] bg-slate-100 text-[#4a5470] text-xs font-medium hover:bg-slate-200"
               >
                 {t.common.cancel}
               </button>
@@ -337,44 +312,52 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
         </div>
       )}
 
-      {/* Action Footer */}
-      <div className="p-4 bg-white/80 border-t border-slate-200/60 backdrop-blur-md">
+      {/* Action Footer (Figma 81:365 & 81:367) */}
+      <div className="px-5 pt-2 space-y-2">
         {canSubmit ? (
-          /* Normal Submission Flow (also allowed at 15th turn if normal completion criteria satisfied) */
-          <div className="space-y-2">
+          <>
+            {/* Submit to hospital (Figma 81:365) */}
             <button
+              type="button"
               onClick={onSubmit}
               aria-label={t.review.submitToHospital}
-              className="w-full h-btn-mobile rounded-pill bg-brand-navy text-white font-semibold text-sm shadow-md hover:bg-brand-navy-light active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-brand-navy"
+              className="w-full h-[50px] rounded-[25px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
             >
-              <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-4 h-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
-              {t.review.submitToHospital}
+              <span>{t.review.submitToHospital}</span>
             </button>
 
+            {/* Don't submit (Figma 81:367) */}
             <button
+              type="button"
               onClick={onDontSubmit}
               aria-label={t.review.dontSubmit}
-              className="w-full py-2.5 text-xs text-slate-500 hover:text-red-600 font-medium transition-colors rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="w-full h-[40px] rounded-[20px] bg-transparent text-[#4a5470] hover:text-[#1d2433] font-semibold text-[13px] transition-colors flex items-center justify-center focus:outline-none"
             >
               {t.review.dontSubmit}
             </button>
-          </div>
+          </>
         ) : (
-          /* Incomplete Cap Action: Exactly ONE "End session" action button, no submit */
+          /* Incomplete Cap Action: Exactly ONE "End session" action button */
           <div>
             <button
+              type="button"
               onClick={onEndSessionCap}
               aria-label={t.review.endSession}
-              className="w-full h-btn-mobile rounded-pill bg-slate-800 text-white font-semibold text-sm shadow hover:bg-slate-900 active:scale-[0.99] transition-all focus:outline-none focus:ring-2 focus:ring-slate-500"
+              className="w-full h-[50px] rounded-[25px] bg-[#1f2a44] text-white font-semibold text-[14px] shadow hover:bg-[#2a3a5c] active:scale-[0.99] transition-all focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
             >
               {t.review.endSession}
             </button>
           </div>
         )}
+
+        {/* Footer Disclaimer */}
+        <p className="text-[9px] text-center text-[#4a5470] pt-0.5 leading-tight font-normal">
+          {t.welcome.disclaimer}
+        </p>
       </div>
     </div>
   );
 };
-

@@ -42,109 +42,129 @@ export const DoctorAppointmentsView: React.FC<DoctorAppointmentsViewProps> = ({
   // Derive Today, Upcoming, Past based on slot_start in Asia/Kolkata
   const filteredAppointments = filterAppointmentsByTab(appointments, activeTab, now);
 
+  const tabs: { key: DoctorAppointmentsTab; label: string }[] = [
+    { key: 'today', label: 'Today' },
+    { key: 'upcoming', label: 'Upcoming' },
+    { key: 'past', label: 'Past' },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header matching Figma D6 */}
       <div>
-        <h1 className="text-2xl font-bold text-text-primary tracking-tight">
-          Clinical Appointments
+        <h1 className="text-[26px] font-bold text-[#1d2433] tracking-tight">
+          Appointments
         </h1>
-        <p className="text-xs text-text-secondary mt-0.5">
+        <p className="text-[12px] text-[#4a5470] mt-0.5">
           Patient consultations scheduled via Samvad HealthDesk AI referral.
         </p>
       </div>
 
-      {/* Tabs (Today / Upcoming / Past) */}
-      <div className="flex border-b border-slate-200 gap-6 text-xs font-semibold">
-        {(['today', 'upcoming', 'past'] as DoctorAppointmentsTab[]).map((tab) => {
-          const isActive = activeTab === tab;
-          const labels: Record<DoctorAppointmentsTab, string> = {
-            today: 'Today',
-            upcoming: 'Upcoming',
-            past: 'Past',
-          };
-          return (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`pb-3 capitalize transition-colors relative ${
-                isActive
-                  ? 'text-brand-navy border-b-2 border-brand-navy font-bold'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              {labels[tab]}
-            </button>
-          );
-        })}
-      </div>
+      {/* Frosted Table Card matching Figma 82:416 */}
+      <div className="rounded-[24px] bg-[rgba(255,255,255,0.55)] backdrop-blur-[9px] border border-white p-6 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.13)] space-y-6">
+        {/* Figma Pill Tabs */}
+        <div className="flex flex-wrap items-center gap-2">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`h-[34px] px-5 rounded-full text-[11px] font-semibold transition-all ${
+                  isActive
+                    ? 'bg-[#1f2a44] text-white shadow-sm'
+                    : 'bg-[rgba(255,255,255,0.55)] backdrop-blur-[6px] text-[#4a5470] border border-white hover:bg-white/80'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
 
-      {/* Appointments List */}
-      <div className="space-y-3">
+        {/* Appointments Table */}
         {filteredAppointments.length === 0 ? (
-          <div className="p-12 rounded-card bg-white border border-slate-200 text-center text-xs text-slate-400">
+          <div className="p-12 text-center text-xs text-[#4a5470]">
             No appointments found in the {activeTab} view.
           </div>
         ) : (
-          filteredAppointments.map((apt) => {
-            const isCompleted = new Date(apt.slot_end).getTime() < now.getTime();
-            return (
-              <div
-                key={apt.id}
-                className="p-5 rounded-card bg-white border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:border-slate-300 transition-all"
-              >
-                <div className="flex items-center gap-4">
-                  {/* Time Badge */}
-                  <div className="px-3.5 py-2.5 rounded-xl bg-slate-100 text-center min-w-[75px]">
-                    <span className="text-xs font-bold text-brand-navy block">
-                      {new Date(apt.slot_start).toLocaleTimeString('en-US', {
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                    <span className="text-[10px] text-slate-500 uppercase font-medium">
-                      30 min
-                    </span>
-                  </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-[#dde3ee]/80 text-[#1d2433] font-bold text-[11px]">
+                <tr>
+                  <th className="pb-3 px-4">Date</th>
+                  <th className="pb-3 px-4">Time</th>
+                  <th className="pb-3 px-4">Patient</th>
+                  <th className="pb-3 px-4">Age / Gender</th>
+                  <th className="pb-3 px-4">Concern</th>
+                  <th className="pb-3 px-4">Status</th>
+                  {onSelectReport && <th className="pb-3 px-4 text-right">Intake</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#dde3ee]/60 text-[#1d2433]">
+                {filteredAppointments.map((apt) => {
+                  const isCompleted = new Date(apt.slot_end).getTime() < now.getTime();
+                  const slotDate = new Date(apt.slot_start);
+                  const dateStr = slotDate.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    day: '2-digit',
+                    month: 'short',
+                  });
+                  const timeStr = slotDate.toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  });
 
-                  <div>
-                    <h3 className="text-sm font-bold text-text-primary">
-                      {apt.patient_name}
-                    </h3>
-                    <p className="text-xs text-text-secondary mt-0.5">
-                      Ref: <span className="font-mono">{apt.reference_code}</span> • {apt.department_name}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  {/* Derived Completed badge */}
-                  {isCompleted ? (
-                    <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold">
-                      Completed
-                    </span>
-                  ) : (
-                    <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-semibold">
-                      Confirmed
-                    </span>
-                  )}
-
-                  {onSelectReport && (
-                    <button
-                      onClick={() => onSelectReport(apt.report_id)}
-                      aria-label={`View intake report for ${apt.patient_name}`}
-                      className="text-xs font-semibold text-brand-navy hover:underline px-2 py-1 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                  return (
+                    <tr
+                      key={apt.id}
+                      className="hover:bg-white/50 transition-colors"
                     >
-                      View Intake &rarr;
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })
+                      <td className="py-3.5 px-4 font-medium text-[10px] text-[#1d2433]">
+                        {dateStr}
+                      </td>
+                      <td className="py-3.5 px-4 font-medium text-[10px] text-[#1d2433]">
+                        {timeStr}
+                      </td>
+                      <td className="py-3.5 px-4 font-semibold text-[11px] text-[#1d2433]">
+                        {apt.patient_name}
+                      </td>
+                      <td className="py-3.5 px-4 text-[10px] text-[#4a5470]">
+                        {apt.department_name}
+                      </td>
+                      <td className="py-3.5 px-4 text-[10px] text-[#4a5470] max-w-xs truncate">
+                        Ref: <span className="font-mono">{apt.reference_code}</span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {isCompleted ? (
+                          <span className="inline-block px-3 py-1 rounded-full text-[10px] font-semibold bg-[#dcf3e6] text-[#176a3b]">
+                            Completed
+                          </span>
+                        ) : (
+                          <span className="inline-block px-3 py-1 rounded-full text-[10px] font-semibold bg-[#e1ebfd] text-[#284c91]">
+                            Upcoming
+                          </span>
+                        )}
+                      </td>
+                      {onSelectReport && (
+                        <td className="py-3.5 px-4 text-right">
+                          <button
+                            onClick={() => onSelectReport(apt.report_id)}
+                            aria-label={`View intake report for ${apt.patient_name}`}
+                            className="text-xs font-semibold text-[#1f2a44] hover:underline focus:outline-none"
+                          >
+                            View Intake &rarr;
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
   );
 };
-

@@ -373,30 +373,36 @@ export const PatientShell: React.FC = () => {
   };
 
   return (
-    <div className="w-full flex justify-center py-4 sm:py-8">
+    <div className="w-full flex justify-center py-2 sm:py-6">
       {/* Mobile Frame Container (390 x 844 viewport matching Figma V2) */}
-      <div className="w-full max-w-[390px] h-[844px] bg-white rounded-[36px] shadow-2xl border-4 border-slate-700/10 overflow-hidden flex flex-col relative">
-        {/* Accessible Error / Network Alert Banner */}
-        {errorMessage && (
-          <div
-            role="alert"
-            className="absolute top-3 left-4 right-4 z-50 p-3 rounded-2xl bg-red-600 text-white text-xs font-semibold shadow-xl flex items-center justify-between"
-          >
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <span className="leading-tight">{errorMessage}</span>
-            </div>
-            <button
-              onClick={() => setErrorMessage(null)}
-              aria-label="Dismiss error notification"
-              className="ml-2 text-white/80 hover:text-white font-bold p-1 rounded-full hover:bg-white/20 transition-colors"
+      <div className="w-full max-w-[390px] h-[844px] bg-[#dde3ee] rounded-[36px] shadow-2xl border border-white/80 overflow-hidden flex flex-col relative">
+        {/* Figma Ambient Glow Orbs (81:2 & 81:3) */}
+        <div className="absolute w-[260px] h-[310px] right-[-30px] bottom-[-20px] rounded-full glow-lilac z-0" aria-hidden="true" />
+        <div className="absolute w-[280px] h-[260px] left-[-60px] bottom-[-10px] rounded-full glow-sand z-0" aria-hidden="true" />
+
+        {/* Content Shell Layer */}
+        <div className="relative z-10 flex flex-col h-full w-full">
+          {/* Accessible Error / Network Alert Banner */}
+          {errorMessage && (
+            <div
+              role="alert"
+              className="absolute top-3 left-4 right-4 z-50 p-3 rounded-2xl bg-red-600 text-white text-xs font-semibold shadow-xl flex items-center justify-between"
             >
-              ✕
-            </button>
-          </div>
-        )}
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span className="leading-tight">{errorMessage}</span>
+              </div>
+              <button
+                onClick={() => setErrorMessage(null)}
+                aria-label="Dismiss error notification"
+                className="ml-2 text-white/80 hover:text-white font-bold p-1 rounded-full hover:bg-white/20 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+          )}
         {currentScreen === 'welcome' && (
           <WelcomeView
             onStartTalking={handleStartIntake}
@@ -484,6 +490,7 @@ export const PatientShell: React.FC = () => {
         {currentScreen === 'emergency' && (
           <EmergencyView onEndDemo={handleRestart} />
         )}
+        </div>
       </div>
     </div>
   );

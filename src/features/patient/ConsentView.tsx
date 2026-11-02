@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useI18n } from '../../i18n';
 import { CONSENT_TEXT } from '../../types/consent';
+import { PatientHeader } from './PatientHeader';
 
 interface ConsentViewProps {
   onAgree: () => void;
@@ -15,78 +16,88 @@ export const ConsentView: React.FC<ConsentViewProps> = ({ onAgree, onDecline }) 
     setIsPlayingAudio(true);
     setTimeout(() => {
       setIsPlayingAudio(false);
-    }, 3000);
+    }, 2500);
   };
 
   return (
-    <div className="flex flex-col h-full justify-between p-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-text-primary tracking-tight">
-          {t.consent.title}
-        </h2>
-        <p className="text-xs text-text-secondary mt-1">
-          {t.common.appName}
-        </p>
-      </div>
+    <div className="flex flex-col h-full justify-between pb-4 select-none relative">
+      {/* Top Header & Language Toggle */}
+      <PatientHeader />
 
-      {/* Greeting Bubble Card (P2 design with versioned consent copy) */}
-      <div className="my-auto space-y-4">
-        <div className="p-5 rounded-card bg-white/80 border border-white shadow-sm backdrop-blur-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-xs font-semibold uppercase text-brand-navy tracking-wider">
-              AI Assistant Notice
-            </span>
-          </div>
-
-          {/* Official Versioned Consent Text */}
-          <p className="text-sm text-text-primary leading-relaxed font-normal">
-            {CONSENT_TEXT[language]}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col justify-between px-5 py-4">
+        {/* Title */}
+        <div className="pt-1">
+          <h1 className="text-[21px] font-bold text-[#1d2433] tracking-tight">
+            {t.consent.title}
+          </h1>
+          <p className="text-[12px] text-[#4a5470] mt-0.5">
+            {t.common.appName}
           </p>
+        </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-            <button
-              onClick={simulatePlayAudio}
-              aria-label={isPlayingAudio ? 'Playing greeting' : t.chat.replayQuestion}
-              className="text-xs font-medium text-brand-navy flex items-center gap-1.5 hover:underline rounded-md px-1 py-0.5 focus:outline-none focus:ring-2 focus:ring-brand-navy"
-            >
-              <svg className={`w-4 h-4 ${isPlayingAudio ? 'text-indigo-600 animate-spin' : 'text-slate-500'}`} fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+        {/* Assistant Consent Bubble (Figma 81:50) */}
+        <div className="my-auto space-y-3">
+          <div className="flex items-start gap-2.5">
+            {/* Assistant Avatar (Figma 81:47) */}
+            <div className="w-[30px] h-[30px] rounded-full bg-[#1f2a44] border border-white text-white flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
               </svg>
-              {isPlayingAudio ? 'Playing greeting...' : t.chat.replayQuestion}
-            </button>
-            <span className="text-[10px] text-slate-400 font-mono">v1</span>
+            </div>
+
+            {/* Bubble */}
+            <div className="flex-1 backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[20px] p-4 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)]">
+              <p className="text-[13px] text-[#1d2433] leading-relaxed font-normal">
+                {CONSENT_TEXT[language]}
+              </p>
+
+              {/* Audio greeting control */}
+              <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-xs">
+                <button
+                  type="button"
+                  onClick={simulatePlayAudio}
+                  aria-label={isPlayingAudio ? 'Playing greeting' : t.chat.replayQuestion}
+                  className="text-[11px] font-medium text-[#1f2a44] flex items-center gap-1.5 hover:underline focus:outline-none"
+                >
+                  <svg className={`w-3.5 h-3.5 ${isPlayingAudio ? 'animate-spin text-indigo-600' : 'text-[#4a5470]'}`} fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                  </svg>
+                  <span>{isPlayingAudio ? 'Playing...' : t.chat.replayQuestion}</span>
+                </button>
+                <span className="text-[10px] text-[#4a5470]/70 font-mono">v1</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div className="p-3 rounded-lg bg-amber-50/70 border border-amber-200/60 text-[11px] text-amber-900 leading-normal">
-          <span className="font-semibold">Note:</span> Your consent is required before any health details can be collected. You can stop or decline at any time.
+        {/* Action Buttons (Figma 81:53 & 81:55) */}
+        <div className="space-y-3 pt-2">
+          {/* Yes, I agree (Primary Action, h=54px) */}
+          <button
+            type="button"
+            onClick={onAgree}
+            aria-label={t.consent.agree}
+            className="w-full h-[54px] rounded-[27px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
+          >
+            {t.consent.agree}
+          </button>
+
+          {/* No, do not proceed (Secondary Action, h=54px) */}
+          <button
+            type="button"
+            onClick={onDecline}
+            aria-label={t.consent.decline}
+            className="w-full h-[54px] rounded-[27px] bg-[rgba(255,255,255,0.74)] backdrop-blur-[9px] border border-white text-[#1f2a44] font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.1)] hover:bg-white active:scale-[0.99] transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
+          >
+            {t.consent.decline}
+          </button>
+
+          {/* Footer Disclaimer */}
+          <p className="text-[9px] text-center text-[#4a5470] pt-1 leading-normal font-normal">
+            {t.welcome.disclaimer}
+          </p>
         </div>
-      </div>
-
-      {/* On-Screen Yes / No Action Buttons (h=54px) */}
-      <div className="space-y-3 pt-4">
-        {/* Yes Button */}
-        <button
-          onClick={onAgree}
-          aria-label={t.consent.agree}
-          className="w-full h-btn-mobile rounded-pill bg-brand-navy text-white font-semibold text-sm shadow-md hover:bg-brand-navy-light active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-brand-navy"
-        >
-          <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-          </svg>
-          {t.consent.agree}
-        </button>
-
-        {/* No Button */}
-        <button
-          onClick={onDecline}
-          aria-label={t.consent.decline}
-          className="w-full h-btn-mobile rounded-pill bg-white/80 border border-slate-300 text-slate-600 font-medium text-sm hover:bg-white active:scale-[0.99] transition-all focus:outline-none focus:ring-2 focus:ring-slate-400"
-        >
-          {t.consent.decline}
-        </button>
       </div>
     </div>
   );

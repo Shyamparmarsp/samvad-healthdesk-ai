@@ -75,179 +75,189 @@ export const DoctorShell: React.FC = () => {
   const urgentReports = reports.filter((r) => r.status === 'urgent_partial');
 
   return (
-    <div className="w-full max-w-[1280px] min-h-[820px] bg-slate-100 rounded-3xl shadow-xl border border-slate-300 overflow-hidden flex flex-col md:flex-row mx-auto my-4">
-      {/* 4-Item Sidebar (Exact D2 Layout, No Settings, No Bell, No Print) */}
-      <aside className="w-full md:w-64 bg-brand-navy text-white flex flex-col justify-between p-5 flex-shrink-0">
-        <div>
-          {/* Clinical Portal Header */}
-          <div className="flex items-center gap-3 pb-6 border-b border-white/10">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-sm">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
+    <div className="w-full flex justify-center py-2 md:py-4">
+      {/* Outer Shell Container matching Figma D2 (74:24) */}
+      <div className="w-full max-w-[1280px] min-h-[820px] rounded-[30px] bg-[rgba(221,227,238,0.45)] border border-white shadow-xl flex flex-col md:flex-row p-3 md:p-5 gap-5 relative overflow-hidden select-none">
+        {/* Figma Ambient Glow Orbs (82:26 & 82:27) */}
+        <div className="absolute w-[420px] h-[400px] right-[-100px] bottom-[-100px] rounded-full glow-lilac z-0" aria-hidden="true" />
+        <div className="absolute w-[420px] h-[380px] left-[-160px] bottom-[-100px] rounded-full glow-sand z-0" aria-hidden="true" />
+
+        {/* Frosted Sidebar (Figma 82:29 doctor/sidebar) */}
+        <aside className="relative z-10 w-full md:w-[238px] rounded-[26px] backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.13)] p-4 flex flex-col justify-between flex-shrink-0">
+          <div>
+            {/* Brand Header (Figma 82:30 & 82:32) */}
+            <div className="flex items-center gap-2.5 pb-5">
+              <div
+                className="w-[36px] h-[36px] rounded-[11px] bg-[#1f2a44] border border-white text-white flex items-center justify-center font-bold text-[26px] leading-none shadow-sm flex-shrink-0"
+                aria-hidden="true"
+              >
+                +
+              </div>
+              <div>
+                <span className="font-bold text-[12px] text-[#1d2433] tracking-tight leading-tight block">
+                  Samvad HealthDesk AI
+                </span>
+                <span className="text-[10px] text-[#4a5470] block leading-tight font-medium">
+                  Clinical Desk
+                </span>
+              </div>
             </div>
-            <div>
-              <span className="font-bold text-sm tracking-tight block">
-                Clinical Desk
-              </span>
-              <span className="text-[10px] text-indigo-300 block uppercase tracking-wider font-semibold">
-                Samvad HealthDesk
-              </span>
-            </div>
+
+            {/* 4 Navigation Items Only (Figma 82:34 - 82:55) */}
+            <nav className="space-y-1.5" aria-label="Doctor portal navigation">
+              <button
+                type="button"
+                onClick={() => setCurrentView('dashboard')}
+                className={`w-full h-[48px] rounded-[24px] px-3.5 flex items-center gap-3 transition-all ${
+                  currentView === 'dashboard'
+                    ? 'bg-white rounded-[26px] border border-white shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.12)] text-[#1d2433] font-semibold text-[13px]'
+                    : 'text-[#4a5470] font-medium text-[13px] hover:text-[#1d2433] hover:bg-white/40'
+                }`}
+              >
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+                <span>Dashboard</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCurrentView('reports')}
+                className={`w-full h-[48px] rounded-[24px] px-3.5 flex items-center justify-between transition-all ${
+                  currentView === 'reports' || currentView === 'report_detail'
+                    ? 'bg-white rounded-[26px] border border-white shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.12)] text-[#1d2433] font-semibold text-[13px]'
+                    : 'text-[#4a5470] font-medium text-[13px] hover:text-[#1d2433] hover:bg-white/40'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>Reports</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200/60 text-[#1d2433] font-mono font-semibold">
+                  {reports.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCurrentView('appointments')}
+                className={`w-full h-[48px] rounded-[24px] px-3.5 flex items-center justify-between transition-all ${
+                  currentView === 'appointments'
+                    ? 'bg-white rounded-[26px] border border-white shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.12)] text-[#1d2433] font-semibold text-[13px]'
+                    : 'text-[#4a5470] font-medium text-[13px] hover:text-[#1d2433] hover:bg-white/40'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span>Appointments</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200/60 text-[#1d2433] font-mono font-semibold">
+                  {appointments.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCurrentView('urgent')}
+                className={`w-full h-[48px] rounded-[24px] px-3.5 flex items-center justify-between transition-all ${
+                  currentView === 'urgent'
+                    ? 'bg-white rounded-[26px] border border-white shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.12)] text-[#1d2433] font-semibold text-[13px]'
+                    : 'text-[#4a5470] font-medium text-[13px] hover:text-[#1d2433] hover:bg-white/40'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <svg className="w-5 h-5 flex-shrink-0 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span>Urgent</span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-mono font-bold">
+                  {stats.urgent}
+                </span>
+              </button>
+            </nav>
           </div>
 
-          {/* 4 Navigation Items Only */}
-          <nav className="mt-6 space-y-1">
-            <button
-              onClick={() => setCurrentView('dashboard')}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                currentView === 'dashboard'
-                  ? 'bg-white/15 text-white shadow-sm'
-                  : 'text-indigo-200 hover:bg-white/5 hover:text-white'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-              Dashboard
-            </button>
-
-            <button
-              onClick={() => setCurrentView('reports')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                currentView === 'reports'
-                  ? 'bg-white/15 text-white shadow-sm'
-                  : 'text-indigo-200 hover:bg-white/5 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Reports
-              </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/20 text-white font-mono">
-                {reports.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setCurrentView('appointments')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                currentView === 'appointments'
-                  ? 'bg-white/15 text-white shadow-sm'
-                  : 'text-indigo-200 hover:bg-white/5 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Appointments
-              </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/20 text-white font-mono">
-                {appointments.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setCurrentView('urgent')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                currentView === 'urgent'
-                  ? 'bg-red-900/60 text-white shadow-sm border border-red-500/40'
-                  : 'text-red-200 hover:bg-red-950/40 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="w-2 h-2 rounded-full bg-red-400 animate-ping"></span>
-                Urgent Triage
-              </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-600 text-white font-mono font-bold">
-                {stats.urgent}
-              </span>
-            </button>
-          </nav>
-        </div>
-
-        {/* Doctor Identity & Logout Footer */}
-        <div className="pt-6 border-t border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-full bg-indigo-500 flex items-center justify-center text-white text-xs font-bold uppercase shadow-sm">
+          {/* Doctor Profile & Logout Footer (Figma 82:56 doctor/profile) */}
+          <div className="pt-4 border-t border-slate-200/50 flex items-center gap-2.5">
+            <div className="w-[42px] h-[42px] rounded-[21px] bg-[#e4e8f2] border border-white text-[#1f2a44] font-bold text-[11px] flex items-center justify-center flex-shrink-0 shadow-sm">
               {currentDoctor.initials}
             </div>
-            <div>
-              <span className="font-bold text-xs block text-white truncate max-w-[120px]">
+            <div className="flex-1 min-w-0">
+              <span className="font-bold text-[12px] text-[#1d2433] block truncate leading-tight">
                 {currentDoctor.name}
               </span>
-              <span className="text-[10px] text-indigo-300 block truncate max-w-[120px]">
+              <span className="text-[10px] text-[#4a5470] block truncate leading-tight">
                 {currentDoctor.department_name}
               </span>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="text-[10px] font-medium text-[#4a5470] hover:text-red-600 block mt-0.5 transition-colors focus:outline-none"
+              >
+                Log out
+              </button>
             </div>
           </div>
+        </aside>
 
-          <button
-            onClick={handleLogout}
-            title="Log Out"
-            className="p-1.5 rounded-lg text-indigo-300 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content View Container */}
-      <main className="flex-1 p-6 md:p-8 overflow-y-auto">
-        {currentView === 'dashboard' && (
-          <DoctorDashboardView
-            doctor={currentDoctor}
-            stats={stats}
-            recentReports={reports}
-            onSelectReport={handleSelectReport}
-            onNavigateTab={(tab) => setCurrentView(tab)}
-          />
-        )}
-
-        {currentView === 'reports' && (
-          <DoctorReportsList
-            reports={reports}
-            bookedReportIds={bookedReportIds}
-            onSelectReport={handleSelectReport}
-          />
-        )}
-
-        {currentView === 'appointments' && (
-          <DoctorAppointmentsView
-            appointments={appointments}
-            onSelectReport={handleSelectReport}
-          />
-        )}
-
-        {currentView === 'urgent' && (
-          <DoctorUrgentList
-            urgentReports={urgentReports}
-            onSelectReport={handleSelectReport}
-          />
-        )}
-
-        {currentView === 'report_detail' && selectedReport && (
-          selectedReport.status === 'urgent_partial' ? (
-            <DoctorUrgentDetail
-              report={selectedReport}
-              currentDoctor={currentDoctor}
-              onBack={() => setCurrentView('reports')}
-              onRefreshReport={() => loadData(currentDoctor.id)}
+        {/* Main Content Area */}
+        <main className="relative z-10 flex-1 overflow-y-auto">
+          {currentView === 'dashboard' && (
+            <DoctorDashboardView
+              doctor={currentDoctor}
+              stats={stats}
+              recentReports={reports}
+              bookedReportIds={bookedReportIds}
+              onSelectReport={handleSelectReport}
+              onNavigateTab={(tab) => setCurrentView(tab)}
             />
-          ) : (
-            <DoctorReportDetail
-              report={selectedReport}
-              onBack={() => setCurrentView('reports')}
-              onRefreshReport={() => loadData(currentDoctor.id)}
+          )}
+
+          {currentView === 'reports' && (
+            <DoctorReportsList
+              reports={reports}
+              bookedReportIds={bookedReportIds}
+              onSelectReport={handleSelectReport}
             />
-          )
-        )}
-      </main>
+          )}
+
+          {currentView === 'appointments' && (
+            <DoctorAppointmentsView
+              appointments={appointments}
+              onSelectReport={handleSelectReport}
+            />
+          )}
+
+          {currentView === 'urgent' && (
+            <DoctorUrgentList
+              urgentReports={urgentReports}
+              onSelectReport={handleSelectReport}
+            />
+          )}
+
+          {currentView === 'report_detail' && selectedReport && (
+            selectedReport.status === 'urgent_partial' ? (
+              <DoctorUrgentDetail
+                report={selectedReport}
+                currentDoctor={currentDoctor}
+                onBack={() => setCurrentView('reports')}
+                onRefreshReport={() => loadData(currentDoctor.id)}
+              />
+            ) : (
+              <DoctorReportDetail
+                report={selectedReport}
+                onBack={() => setCurrentView('reports')}
+                onRefreshReport={() => loadData(currentDoctor.id)}
+              />
+            )
+          )}
+        </main>
+      </div>
     </div>
   );
 };

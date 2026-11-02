@@ -12,18 +12,15 @@ const AppNav: React.FC = () => {
   const isDoctor = location.pathname.startsWith('/doctor');
 
   return (
-    <header className="border-b border-slate-200/80 bg-white/80 backdrop-blur-md sticky top-0 z-30">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+    <header className="border-b border-white/60 bg-[rgba(255,255,255,0.65)] backdrop-blur-[9px] sticky top-0 z-30">
+      <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link to="/" className="font-bold text-lg text-brand-navy tracking-tight hover:opacity-90 flex items-center gap-2">
-            <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-black shadow-sm">
-              S
+          <Link to="/" className="font-bold text-base text-[#1d2433] tracking-tight hover:opacity-90 flex items-center gap-2.5">
+            <span className="w-7 h-7 rounded-[8px] bg-[#1f2a44] border border-white text-white flex items-center justify-center text-lg font-bold shadow-sm">
+              +
             </span>
-            Samvad HealthDesk AI
+            <span>Samvad HealthDesk AI</span>
           </Link>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 font-bold uppercase tracking-wider">
-            Educational Demo
-          </span>
         </div>
 
         <nav className="flex items-center gap-2 text-xs font-semibold">
@@ -31,8 +28,8 @@ const AppNav: React.FC = () => {
             to="/"
             className={`px-3.5 py-1.5 rounded-full transition-all ${
               !isDoctor
-                ? 'bg-brand-navy text-white shadow-sm'
-                : 'text-slate-600 hover:text-brand-navy hover:bg-slate-100'
+                ? 'bg-[#1f2a44] text-white shadow-sm'
+                : 'text-[#4a5470] hover:text-[#1d2433] hover:bg-white/60'
             }`}
           >
             Patient Intake
@@ -41,8 +38,8 @@ const AppNav: React.FC = () => {
             to="/doctor"
             className={`px-3.5 py-1.5 rounded-full transition-all ${
               isDoctor
-                ? 'bg-brand-navy text-white shadow-sm'
-                : 'text-slate-600 hover:text-brand-navy hover:bg-slate-100'
+                ? 'bg-[#1f2a44] text-white shadow-sm'
+                : 'text-[#4a5470] hover:text-[#1d2433] hover:bg-white/60'
             }`}
           >
             Doctor Portal
