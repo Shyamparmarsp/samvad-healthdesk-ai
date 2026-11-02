@@ -5,11 +5,17 @@ import { PatientHeader } from './PatientHeader';
 interface WelcomeViewProps {
   onStartTalking: () => void;
   onTypeInstead: () => void;
+  /** D-04: the global session cap was reached; show the demo-busy state. */
+  demoBusy?: boolean;
+  /** True while a start request is in flight (prevents duplicate sessions). */
+  isStarting?: boolean;
 }
 
 export const WelcomeView: React.FC<WelcomeViewProps> = ({
   onStartTalking,
   onTypeInstead,
+  demoBusy = false,
+  isStarting = false,
 }) => {
   const { t, language } = useI18n();
 
@@ -76,25 +82,48 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
         ))}
       </div>
 
+      {/* Demo Busy Notice (D-04): shown instead of proceeding to Consent */}
+      {demoBusy && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="absolute left-[20px] top-[565px] w-[350px] rounded-[18px] bg-amber-50/95 border border-amber-300 text-amber-900 p-3.5 shadow-sm z-20"
+        >
+          <p className="text-[12px] font-bold">{t.welcome.demoBusyTitle}</p>
+          <p className="text-[11px] mt-1 leading-snug">{t.welcome.demoBusyMessage}</p>
+          <button
+            type="button"
+            onClick={onStartTalking}
+            disabled={isStarting}
+            className="mt-2 text-[11px] font-semibold underline disabled:opacity-50 focus:outline-none"
+          >
+            {t.welcome.retryStart}
+          </button>
+        </div>
+      )}
+
       {/* Start Talking Button (Figma 81:30: w=350, h=58 at x=20, y=623) */}
       <button
         type="button"
         onClick={onStartTalking}
+        disabled={isStarting}
         aria-label={t.welcome.startTalking}
-        className="absolute left-[20px] top-[623px] w-[350px] h-[58px] rounded-[29px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center gap-3 z-20 focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
+        aria-busy={isStarting}
+        className="absolute left-[20px] top-[623px] w-[350px] h-[58px] rounded-[29px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center gap-3 z-20 focus:outline-none focus:ring-2 focus:ring-[#1f2a44] disabled:opacity-60"
       >
         <svg className="w-5 h-5 text-white/90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
         </svg>
-        <span>{t.welcome.startTalking}</span>
+        <span>{isStarting ? t.common.loading : t.welcome.startTalking}</span>
       </button>
 
       {/* Type Instead Button (Figma 81:35: keyboard.svg vector) */}
       <button
         type="button"
         onClick={onTypeInstead}
+        disabled={isStarting}
         aria-label={t.welcome.typeInstead}
-        className="absolute left-[20px] top-[694px] w-[350px] h-[54px] rounded-[27px] backdrop-blur-[9px] bg-[rgba(255,255,255,0.74)] border border-white text-[#1f2a44] font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.1)] hover:bg-white active:scale-[0.99] transition-all flex items-center justify-center gap-2.5 z-20 focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
+        className="absolute left-[20px] top-[694px] w-[350px] h-[54px] rounded-[27px] backdrop-blur-[9px] bg-[rgba(255,255,255,0.74)] border border-white text-[#1f2a44] font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.1)] hover:bg-white active:scale-[0.99] transition-all flex items-center justify-center gap-2.5 z-20 focus:outline-none focus:ring-2 focus:ring-[#1f2a44] disabled:opacity-60"
       >
         <svg className="w-5 h-5 text-[#1f2a44]" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M22.1667 7H5.83333C4.54467 7 3.5 8.04467 3.5 9.33333V18.6667C3.5 19.9553 4.54467 21 5.83333 21H22.1667C23.4553 21 24.5 19.9553 24.5 18.6667V9.33333C24.5 8.04467 23.4553 7 22.1667 7Z" stroke="#1F2A44" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>

@@ -2,7 +2,14 @@ import React, { useState } from 'react';
 import { ReportRow } from '../../types/report';
 import { DoctorProfile } from '../../types/doctor';
 import { markReportReviewed } from '../../lib/api';
+import {
+  describeSourceChip,
+  presentField,
+  presentGender,
+  presentMissingInformation,
+} from '../../lib/report-presentation';
 import { BackButton } from '../common/BackButton';
+import { WarningFlags } from './WarningFlags';
 
 interface DoctorUrgentDetailProps {
   report: ReportRow;
@@ -30,7 +37,8 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
   const [reviewError, setReviewError] = useState<string | null>(null);
   const isReviewed = Boolean(report.reviewed_at);
 
-  // D-36: Deny by default when currentDoctor is null/undefined; Emergency doctor has review authority
+  // OD-03 interim rule: General Medicine has read cross-visibility; only the Emergency
+  // doctor has review authority. Fail closed when the doctor is unknown (D-36).
   const canReview = Boolean(currentDoctor && currentDoctor.department_key === 'emergency');
 
   const handleMarkReviewed = async () => {
@@ -49,9 +57,16 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
 
   const capitalize = (s?: string | null) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '');
   const patient = report.report.patient;
-  const patientName = patient.name.value || 'Anonymous Patient';
-  const patientAge = patient.age.value ? `${patient.age.value} years` : 'Age unstated';
-  const patientGender = patient.gender.value ? capitalize(patient.gender.value) : 'Gender unstated';
+  const routing = report.report.routing_snapshot;
+
+  const name = presentField(patient.name);
+  const age = presentField(patient.age);
+  const patientName = name.isAbsent ? 'Name unavailable' : name.text;
+  const patientAge = age.isAbsent ? 'Age unavailable' : `${age.text} years`;
+  const patientGender = presentGender(patient.gender);
+  const primaryConcern = presentField(report.report.primary_concern);
+  const missingInformation = presentMissingInformation(report.report);
+  const sourceChip = describeSourceChip(report.report);
 
   return (
     <div className="space-y-6">
@@ -64,7 +79,7 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
               Patient Report
             </h1>
             <p className="text-[11px] text-[#4a5470] mt-0.5">
-              {report.intake_reference} · Urgent Triage Case
+              {report.intake_reference || 'Reference unavailable'} · Urgent Triage Case
             </p>
           </div>
         </div>
@@ -72,7 +87,7 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
         {/* Source & Status Chips matching Figma 84:8, 84:10 */}
         <div className="flex items-center gap-2">
           <div className="h-[28px] px-3.5 rounded-full bg-[rgba(225,235,253,0.8)] border border-white text-[#1f2a44] text-[10px] font-semibold flex items-center justify-center">
-            Voice · English
+            {sourceChip}
           </div>
           <div className="h-[28px] px-3.5 rounded-full bg-[rgba(228,232,242,0.75)] border border-white text-[#3a4468] text-[10px] font-semibold flex items-center justify-center">
             {isReviewed ? 'Reviewed' : 'Pending review'}
@@ -92,13 +107,13 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
 
       {/* Emergency banner matching Figma 82:351 */}
       <div className="p-4 rounded-[14px] bg-[rgba(253,226,226,0.85)] border border-white text-[#a12626] shadow-sm space-y-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-ping"></span>
           <span className="text-[12px] font-semibold">
             Urgent: Emergency Trigger Fired
           </span>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-200/80 font-mono font-bold text-red-950">
-            Rule: {report.emergency_rule_id || 'severe_chest_pain'}
+            Rule: {report.emergency_rule_id || 'not recorded'}
           </span>
         </div>
         <p className="text-[13px] font-bold text-red-950">
@@ -110,7 +125,7 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
       <div className="rounded-[18px] bg-[rgba(255,255,255,0.55)] backdrop-blur-[9px] border border-white p-4 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.13)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="size-[40px] rounded-full bg-[#e4e8f2] border border-white text-[#1f2a44] font-semibold text-[11px] flex items-center justify-center shrink-0">
-            {getInitials(patientName)}
+            {getInitials(name.isAbsent ? undefined : name.text)}
           </div>
           <div>
             <h2 className="text-[14px] font-bold text-[#1d2433]">
@@ -136,7 +151,7 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
               Primary concern
             </h3>
             <p className="text-[13px] text-[#1d2433]">
-              {report.report.primary_concern.value}
+              {primaryConcern.text}
             </p>
           </div>
 
@@ -144,11 +159,9 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
             <h3 className="text-[13px] font-bold text-[#1d2433] mb-1.5">
               Warning flag
             </h3>
-            <div className="inline-block px-3.5 py-1.5 rounded-full bg-[#fde2e2] text-[#a12626] text-[10px] font-semibold mb-2">
-              {report.emergency_rule_id || 'severe_chest_pain'}
-            </div>
-            <p className="text-[13px] text-[#4a5470] italic">
-              “{report.report.emergency?.patient_statement || report.report.primary_concern.value}”
+            <WarningFlags report={report} headingClassName="sr-only" />
+            <p className="text-[13px] text-[#4a5470] italic mt-2">
+              “{report.report.emergency?.patient_statement?.trim() || 'Patient statement not recorded'}”
             </p>
           </div>
 
@@ -159,7 +172,7 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
               Missing information
             </h3>
             <p className="text-[11px] text-[#4a5470]">
-              Duration, severity, relevant history, medications, allergies
+              {missingInformation.text}
             </p>
           </div>
 
@@ -168,7 +181,7 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
               Preliminary routing
             </h3>
             <p className="text-[11px] text-[#4a5470]">
-              Emergency · Dr. Neha Verma
+              {routing.department_name} · {routing.doctor_name}
             </p>
           </div>
         </div>
@@ -181,10 +194,10 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
                 Appointment
               </h3>
               <p className="text-[12px] text-[#4a5470]">
-                No appointment (urgent)
+                None — urgent triage reports are permanently ineligible for routine booking.
               </p>
               <p className="text-[11px] text-[#a12626] mt-2 leading-relaxed bg-[#fde2e2]/60 p-3 rounded-[14px] border border-red-200/50">
-                Demo Safety Invariant: Patient was instructed in plain text to call 112 or visit the nearest ER. Routine appointments are permanently suppressed.
+                Demo Safety Invariant: the patient was instructed in plain text to call 112 or visit the nearest ER. Routine appointments are permanently suppressed.
               </p>
             </div>
 

@@ -60,6 +60,7 @@ describe('Doctor Dashboard Journeys', () => {
     await bookAppointment({
       report_id: rep1.id,
       slot_id: slots[0].id,
+      slot_start: slots[0].start_time,
       doctor_id: rep1.doctor_id,
       patient_name: 'Patient One',
     });

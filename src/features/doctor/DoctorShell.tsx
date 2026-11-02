@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { DoctorProfile, DoctorDashboardStats, Appointment } from '../../types/doctor';
+import { DoctorProfile, DoctorDashboardStats, Appointment, DoctorReportsTab } from '../../types/doctor';
 import { ReportRow } from '../../types/report';
 import {
   getDoctorReports,
   getDoctorAppointments,
   getDoctorDashboardStats,
   doctorLogout,
-  FICTIONAL_DOCTORS,
 } from '../../lib/api';
 
 import { DoctorLogin } from './DoctorLogin';
-import { DoctorDashboardView, FIGMA_REFERENCE_REPORTS } from './DoctorDashboardView';
+import { DoctorDashboardView } from './DoctorDashboardView';
 import { DoctorReportsList } from './DoctorReportsList';
 import { DoctorReportDetail } from './DoctorReportDetail';
 import { DoctorUrgentDetail } from './DoctorUrgentDetail';
@@ -24,83 +23,15 @@ type DoctorView =
   | 'urgent'
   | 'appointments';
 
-const FIGMA_REFERENCE_APPOINTMENTS: Appointment[] = [
-  {
-    id: 'apt-01',
-    report_id: 'figma-rep-03',
-    doctor_id: 'doc-gen-med-01',
-    doctor_name: 'Dr. Aditi Rao',
-    department_name: 'General Medicine',
-    slot_id: 'slot-01',
-    slot_start: '2026-11-05T15:30:00+05:30',
-    slot_end: '2026-11-05T16:00:00+05:30',
-    reference_code: 'APT-2026-0017',
-    patient_name: 'Aarav Sharma',
-    patient_age: 28,
-    patient_gender: 'Male',
-    primary_concern: 'Headache for 3 days',
-    created_at: '2026-11-02T09:58:00Z',
-    status: 'confirmed',
-  },
-  {
-    id: 'apt-02',
-    report_id: 'figma-rep-05',
-    doctor_id: 'doc-gen-med-01',
-    doctor_name: 'Dr. Aditi Rao',
-    department_name: 'General Medicine',
-    slot_id: 'slot-02',
-    slot_start: '2026-11-06T16:00:00+05:30',
-    slot_end: '2026-11-06T16:30:00+05:30',
-    reference_code: 'APT-2026-0018',
-    patient_name: 'Sana Ali',
-    patient_age: 34,
-    patient_gender: 'Female',
-    primary_concern: 'Persistent dry cough',
-    created_at: '2026-11-01T14:30:00Z',
-    status: 'confirmed',
-  },
-  {
-    id: 'apt-03',
-    report_id: 'figma-rep-04',
-    doctor_id: 'doc-gen-med-01',
-    doctor_name: 'Dr. Aditi Rao',
-    department_name: 'General Medicine',
-    slot_id: 'slot-03',
-    slot_start: '2026-10-30T11:00:00+05:30',
-    slot_end: '2026-10-30T11:30:00+05:30',
-    reference_code: 'APT-2026-0015',
-    patient_name: 'Rohan Das',
-    created_at: '2026-10-30T09:00:00Z',
-    status: 'confirmed',
-  },
-];
-
 export const DoctorShell: React.FC = () => {
-  const [currentDoctor, setCurrentDoctor] = useState<DoctorProfile | null>(() => {
-    if (typeof window !== 'undefined' && (window.sessionStorage?.getItem('FIGMA_PARITY_FIXTURE') === '1' || Boolean(window.sessionStorage?.getItem('FIGMA_DOCTOR_VIEW')))) {
-      return FICTIONAL_DOCTORS.general_medicine;
-    }
-    return null;
-  });
-  const [currentView, setCurrentView] = useState<DoctorView>(() => {
-    if (typeof window !== 'undefined') {
-      const v = window.sessionStorage?.getItem('FIGMA_DOCTOR_VIEW');
-      if (v === 'report_detail' || v === 'urgent_detail') return 'report_detail';
-      if (v === 'reports') return 'reports';
-      if (v === 'appointments') return 'appointments';
-      if (v === 'urgent') return 'urgent';
-    }
-    return 'dashboard';
-  });
+  /**
+   * D-08: the doctor portal requires a real Supabase session. There is no fixture
+   * router, no synthetic report table and no credential-free auto-open path.
+   */
+  const [currentDoctor, setCurrentDoctor] = useState<DoctorProfile | null>(null);
+  const [currentView, setCurrentView] = useState<DoctorView>('dashboard');
   const [previousView, setPreviousView] = useState<DoctorView>('dashboard');
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      const v = window.sessionStorage?.getItem('FIGMA_DOCTOR_VIEW');
-      if (v === 'report_detail') return 'figma-rep-03';
-      if (v === 'urgent_detail') return 'figma-rep-01';
-    }
-    return null;
-  });
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
 
   const [reports, setReports] = useState<ReportRow[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -111,45 +42,43 @@ export const DoctorShell: React.FC = () => {
     not_booked: 0,
   });
 
+  // D-25: loading/error are surfaced instead of being swallowed into empty lists.
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // D-29: report list filter state survives opening a report and coming back.
+  const [reportsTab, setReportsTab] = useState<DoctorReportsTab>('all');
+  const [reportsSearch, setReportsSearch] = useState('');
+
   const loadData = async (docId?: string) => {
+    setIsLoadingData(true);
+    setLoadError(null);
     try {
-      const reps = await getDoctorReports(docId);
-      const apts = await getDoctorAppointments(docId);
-      const st = await getDoctorDashboardStats(docId);
+      const [reps, apts, st] = await Promise.all([
+        getDoctorReports(docId),
+        getDoctorAppointments(docId),
+        getDoctorDashboardStats(docId),
+      ]);
       setReports(reps);
       setAppointments(apts);
       setStats(st);
-    } catch (err) {
-      console.error('Failed to load doctor portal data', err);
+    } catch (err: any) {
+      // Keep the last good data on screen; report the failure explicitly.
+      setLoadError(
+        err?.code === 'unauthorized'
+          ? 'Your session has expired. Please log in again.'
+          : 'Could not load the doctor portal data. Check the connection and retry.',
+      );
+    } finally {
+      setIsLoadingData(false);
     }
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const targetView = window.sessionStorage?.getItem('FIGMA_DOCTOR_VIEW');
-      if (targetView === 'reports') {
-        setCurrentView('reports');
-      } else if (targetView === 'report_detail') {
-        setCurrentView('report_detail');
-        setSelectedReportId('figma-rep-03');
-      } else if (targetView === 'urgent_detail') {
-        setCurrentView('report_detail');
-        setSelectedReportId('figma-rep-01');
-      } else if (targetView === 'appointments') {
-        setCurrentView('appointments');
-      } else if (targetView === 'urgent') {
-        setCurrentView('urgent');
-      } else if (targetView === 'dashboard') {
-        setCurrentView('dashboard');
-      }
-    }
-  }, []);
-
-  useEffect(() => {
     if (currentDoctor) {
-      loadData(currentDoctor.id);
+      void loadData(currentDoctor.id);
     }
-  }, [currentDoctor, currentView]);
+  }, [currentDoctor]);
 
   const handleSelectReport = (reportId: string) => {
     setSelectedReportId(reportId);
@@ -160,29 +89,20 @@ export const DoctorShell: React.FC = () => {
   const handleLogout = async () => {
     await doctorLogout();
     setCurrentDoctor(null);
+    setReports([]);
+    setAppointments([]);
+    setSelectedReportId(null);
+    setCurrentView('dashboard');
   };
 
   if (!currentDoctor) {
     return <DoctorLogin onLoginSuccess={(doc) => setCurrentDoctor(doc)} />;
   }
 
-  const isFixtureMode =
-    typeof window !== 'undefined' &&
-    (Boolean((window as any).__FIGMA_PARITY_FIXTURE__) ||
-      window.sessionStorage?.getItem('FIGMA_PARITY_FIXTURE') === '1' ||
-      Boolean(window.sessionStorage?.getItem('FIGMA_DOCTOR_VIEW')));
-
-  const allReports = isFixtureMode
-    ? [...FIGMA_REFERENCE_REPORTS, ...reports]
-    : reports;
-  const allAppointments = isFixtureMode
-    ? [...FIGMA_REFERENCE_APPOINTMENTS, ...appointments]
-    : appointments;
+  const allReports = reports;
   const selectedReport = allReports.find((r) => r.id === selectedReportId);
-  const bookedReportIds = new Set(allAppointments.map((a) => a.report_id));
-  const urgentReports = isFixtureMode
-    ? FIGMA_REFERENCE_REPORTS.filter((r) => r.status === 'urgent_partial')
-    : reports.filter((r) => r.status === 'urgent_partial');
+  const bookedReportIds = new Set(appointments.map((a) => a.report_id));
+  const urgentReports = reports.filter((r) => r.status === 'urgent_partial');
 
   return (
     <div className="w-full flex justify-center py-2 md:py-2.5">
@@ -206,9 +126,6 @@ export const DoctorShell: React.FC = () => {
               <div>
                 <span className="font-bold text-[12px] text-[#1d2433] tracking-tight leading-tight block">
                   Samvad HealthDesk AI
-                </span>
-                <span className="opacity-0 pointer-events-none h-0 w-0 overflow-hidden absolute select-none" aria-hidden="true">
-                  Clinical Desk
                 </span>
               </div>
             </div>
@@ -300,7 +217,7 @@ export const DoctorShell: React.FC = () => {
                   <span>Reports</span>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200/60 text-[#1d2433] font-mono font-semibold">
-                  {isFixtureMode ? 4 : reports.length}
+                  {allReports.length}
                 </span>
               </button>
 
@@ -340,7 +257,7 @@ export const DoctorShell: React.FC = () => {
                   <span>Appointments</span>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200/60 text-[#1d2433] font-mono font-semibold">
-                  {isFixtureMode ? 1 : appointments.length}
+                  {appointments.length}
                 </span>
               </button>
 
@@ -380,7 +297,7 @@ export const DoctorShell: React.FC = () => {
                   <span>Urgent</span>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-mono font-bold">
-                  {isFixtureMode ? 2 : stats.urgent}
+                  {urgentReports.length}
                 </span>
               </button>
             </nav>
@@ -411,6 +328,30 @@ export const DoctorShell: React.FC = () => {
 
         {/* Main Content Area */}
         <main className="relative z-10 flex-1 overflow-y-auto">
+          {/* D-25: explicit load failure with retry, last good data kept behind it */}
+          {loadError && (
+            <div
+              role="alert"
+              className="mb-4 p-3 rounded-[16px] bg-red-50/95 border border-red-200 text-red-900 text-xs flex items-center justify-between gap-3"
+            >
+              <span>{loadError}</span>
+              <button
+                type="button"
+                onClick={() => void loadData(currentDoctor.id)}
+                disabled={isLoadingData}
+                className="px-3 py-1.5 rounded-full bg-[#1f2a44] text-white font-semibold disabled:opacity-50"
+              >
+                {isLoadingData ? 'Retrying…' : 'Retry'}
+              </button>
+            </div>
+          )}
+
+          {isLoadingData && reports.length === 0 && !loadError && (
+            <div role="status" aria-live="polite" className="mb-4 text-[11px] text-[#4a5470]">
+              Loading doctor portal data…
+            </div>
+          )}
+
           {currentView === 'dashboard' && (
             <DoctorDashboardView
               doctor={currentDoctor}
@@ -424,16 +365,20 @@ export const DoctorShell: React.FC = () => {
 
           {currentView === 'reports' && (
             <DoctorReportsList
-              reports={reports}
+              reports={allReports}
               bookedReportIds={bookedReportIds}
               onSelectReport={handleSelectReport}
               onBack={() => setCurrentView('dashboard')}
+              activeTab={reportsTab}
+              searchQuery={reportsSearch}
+              onActiveTabChange={setReportsTab}
+              onSearchChange={setReportsSearch}
             />
           )}
 
           {currentView === 'appointments' && (
             <DoctorAppointmentsView
-              appointments={allAppointments}
+              appointments={appointments}
               onSelectReport={handleSelectReport}
               onBack={() => setCurrentView('dashboard')}
             />
@@ -462,6 +407,19 @@ export const DoctorShell: React.FC = () => {
                 onRefreshReport={() => loadData(currentDoctor.id)}
               />
             )
+          )}
+
+          {currentView === 'report_detail' && !selectedReport && (
+            <div role="alert" className="p-6 rounded-[18px] bg-white/70 text-xs text-[#4a5470]">
+              That report is not available to this account.
+              <button
+                type="button"
+                onClick={() => setCurrentView('reports')}
+                className="ml-2 font-semibold text-[#1f2a44] underline"
+              >
+                Back to reports
+              </button>
+            </div>
           )}
         </main>
       </div>

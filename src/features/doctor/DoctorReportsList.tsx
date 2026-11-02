@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { DoctorReportsTab } from '../../types/doctor';
 import { ReportRow } from '../../types/report';
+import { presentGender } from '../../lib/report-presentation';
+import { formatIstTime } from '../../lib/booking-time';
 import { BackButton } from '../common/BackButton';
 
 interface DoctorReportsListProps {
@@ -8,6 +10,15 @@ interface DoctorReportsListProps {
   bookedReportIds: Set<string>;
   onSelectReport: (reportId: string) => void;
   onBack?: () => void;
+  /**
+   * D-29: tab and search state are owned by the shell so that opening a report and
+   * pressing Back does not reset the doctor's filter. When omitted the list keeps its
+   * own state (standalone/test usage).
+   */
+  activeTab?: DoctorReportsTab;
+  searchQuery?: string;
+  onActiveTabChange?: (tab: DoctorReportsTab) => void;
+  onSearchChange?: (query: string) => void;
 }
 
 export function filterReportsByTab(
@@ -49,9 +60,25 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
   bookedReportIds,
   onSelectReport,
   onBack,
+  activeTab: controlledTab,
+  searchQuery: controlledSearch,
+  onActiveTabChange,
+  onSearchChange,
 }) => {
-  const [activeTab, setActiveTab] = useState<DoctorReportsTab>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [internalTab, setInternalTab] = useState<DoctorReportsTab>('all');
+  const [internalSearch, setInternalSearch] = useState('');
+
+  const activeTab = controlledTab ?? internalTab;
+  const searchQuery = controlledSearch ?? internalSearch;
+
+  const setActiveTab = (tab: DoctorReportsTab) => {
+    if (onActiveTabChange) onActiveTabChange(tab);
+    else setInternalTab(tab);
+  };
+  const setSearchQuery = (query: string) => {
+    if (onSearchChange) onSearchChange(query);
+    else setInternalSearch(query);
+  };
 
   const filteredReports = filterReportsByTab(reports, activeTab, bookedReportIds, searchQuery);
 
@@ -140,11 +167,9 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
                   const isBooked = bookedReportIds.has(r.id);
                   const patientName = r.report.patient.name.value || 'Anonymous Patient';
                   const patientAge = r.report.patient.age.value ? `${r.report.patient.age.value} yrs` : '';
-                  const patientGender = r.report.patient.gender.value || '';
-                  const timeFormatted = new Date(r.created_at).toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                  });
+                  const patientGender = presentGender(r.report.patient.gender);
+                  const genderLabel = patientGender === 'Unavailable' ? '' : patientGender;
+                  const timeFormatted = formatIstTime(r.created_at) ?? 'Time unavailable';
 
                   return (
                     <tr
@@ -172,7 +197,7 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
                               {patientName} {patientAge ? `· ${patientAge}` : ''}
                             </span>
                             <span className="text-[10px] text-[#4a5470]">
-                              {patientGender} {patientGender && r.report.routing_snapshot.department_name ? '· ' : ''}
+                              {genderLabel} {genderLabel && r.report.routing_snapshot.department_name ? '· ' : ''}
                               {r.report.routing_snapshot.department_name}
                             </span>
                           </div>

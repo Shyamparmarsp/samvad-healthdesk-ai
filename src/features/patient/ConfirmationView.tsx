@@ -2,6 +2,7 @@ import React from 'react';
 import { useI18n } from '../../i18n';
 import { Appointment } from '../../types/doctor';
 import { ReportRow } from '../../types/report';
+import { formatAppointmentWhen } from '../../lib/booking-time';
 import { PatientHeader } from './PatientHeader';
 import { BackButton } from '../common/BackButton';
 
@@ -104,10 +105,14 @@ export const ConfirmationView: React.FC<ConfirmationViewProps> = ({
             </div>
 
             {isBooking && appointment && (
-              <div className="py-2.5 flex items-center justify-between">
-                <span className="text-[#4a5470]">{t.confirmation.dateTimeLabel}</span>
-                <span className="font-semibold text-[#1f2a44]">
-                  {formatSlotDateTime(appointment.slot_start)}
+              <div className="py-2.5 flex items-center justify-between gap-3">
+                <span className="text-[#4a5470] flex-shrink-0">{t.confirmation.dateTimeLabel}</span>
+                <span
+                  className={`font-semibold text-right ${
+                    formatAppointmentWhen(appointment.slot_start).valid ? 'text-[#1f2a44]' : 'text-[#a12626]'
+                  }`}
+                >
+                  {formatAppointmentWhen(appointment.slot_start).text}
                 </span>
               </div>
             )}

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { CONSENT_TEXT } from '../../types/consent';
+import { cachedPromptSources } from '../../lib/audio/prompt-audio';
 import { PatientHeader } from './PatientHeader';
 import { BackButton } from '../common/BackButton';
 
@@ -8,25 +9,80 @@ interface ConsentViewProps {
   onAgree: () => void;
   onDecline: () => void;
   onBack?: () => void;
+  /** D-04: no active session (demo_busy) or a request is in flight. */
+  disabled?: boolean;
+  disabledMessage?: string | null;
 }
 
-export const ConsentView: React.FC<ConsentViewProps> = ({ onAgree, onDecline, onBack }) => {
-  const { t, language } = useI18n();
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+type AudioStatus = 'idle' | 'playing' | 'unavailable' | 'blocked';
 
-  const simulatePlayAudio = () => {
-    setIsPlayingAudio(true);
-    try {
-      const audio = new Audio(`/audio/greeting_${language}.wav`);
-      audio.onended = () => setIsPlayingAudio(false);
-      audio.onerror = () => setIsPlayingAudio(false);
-      audio.play().catch(() => {
-        setIsPlayingAudio(false);
-      });
-    } catch {
-      setIsPlayingAudio(false);
+export const ConsentView: React.FC<ConsentViewProps> = ({
+  onAgree,
+  onDecline,
+  onBack,
+  disabled = false,
+  disabledMessage = null,
+}) => {
+  const { t, language } = useI18n();
+  const [audioStatus, setAudioStatus] = useState<AudioStatus>('idle');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  /**
+   * D-06: the greeting is a cached static asset. It is never requested from the paid
+   * TTS provider; when the asset is missing the screen says so instead of pretending
+   * to play it.
+   */
+  const playGreeting = useCallback(async () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
     }
-  };
+    setAudioStatus('playing');
+    // Try the approved static locations in order; never a paid fallback for a fixed prompt.
+    const sources = cachedPromptSources(language, 'greeting');
+    let lastError: unknown = null;
+    for (let index = 0; index < sources.length; index += 1) {
+      const isLastCandidate = index === sources.length - 1;
+      const audio = new Audio(sources[index]);
+      audioRef.current = audio;
+      audio.onended = () => setAudioStatus('idle');
+      // Only the last candidate may report "unavailable"; a late error from an earlier
+      // 404 must not overwrite a successful fallback.
+      audio.onerror = () => {
+        if (isLastCandidate) setAudioStatus('unavailable');
+      };
+      try {
+        await audio.play();
+        return;
+      } catch (err) {
+        lastError = err;
+        audioRef.current = null;
+      }
+    }
+    // Distinguish "the browser blocked autoplay" (recoverable with a tap) from
+    // "the asset is missing or undecodable".
+    const blocked = (lastError as { name?: string } | null)?.name === 'NotAllowedError';
+    setAudioStatus(blocked ? 'blocked' : 'unavailable');
+  }, [language]);
+
+  useEffect(() => {
+    void playGreeting();
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, [playGreeting]);
+
+  const audioLabel =
+    audioStatus === 'unavailable'
+      ? t.chat.audioUnavailable
+      : audioStatus === 'blocked'
+      ? t.chat.audioBlocked
+      : audioStatus === 'playing'
+      ? t.chat.replayQuestion
+      : t.consent.playGreeting;
 
   return (
     <div className="flex flex-col h-full justify-between pb-4 select-none relative">
@@ -83,18 +139,25 @@ export const ConsentView: React.FC<ConsentViewProps> = ({ onAgree, onDecline, on
                 {CONSENT_TEXT[language]}
               </p>
 
-              {/* Audio greeting control */}
-              <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-xs">
+              {/* Cached greeting audio control */}
+              <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between gap-2 text-xs">
                 <button
                   type="button"
-                  onClick={simulatePlayAudio}
-                  aria-label={isPlayingAudio ? 'Playing greeting' : t.chat.replayQuestion}
-                  className="text-[11px] font-medium text-[#1f2a44] flex items-center gap-1.5 hover:underline focus:outline-none"
+                  onClick={playGreeting}
+                  aria-label={audioLabel}
+                  data-audio-status={audioStatus}
+                  className="text-[11px] font-medium text-[#1f2a44] flex items-center gap-1.5 hover:underline focus:outline-none text-left"
                 >
-                  <svg className={`w-3.5 h-3.5 ${isPlayingAudio ? 'animate-spin text-indigo-600' : 'text-[#4a5470]'}`} fill="currentColor" viewBox="0 0 20 20">
+                  <svg
+                    className={`w-3.5 h-3.5 flex-shrink-0 ${
+                      audioStatus === 'playing' ? 'animate-spin text-indigo-600' : 'text-[#4a5470]'
+                    }`}
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
                   </svg>
-                  <span>{isPlayingAudio ? 'Playing...' : t.chat.replayQuestion}</span>
+                  <span>{audioLabel}</span>
                 </button>
                 <span className="text-[10px] text-[#4a5470]/70 font-mono">v1</span>
               </div>
@@ -104,12 +167,20 @@ export const ConsentView: React.FC<ConsentViewProps> = ({ onAgree, onDecline, on
 
         {/* Action Buttons (Figma 72:42) */}
         <div className="space-y-3 pt-2">
+          {disabledMessage && (
+            <p role="alert" className="text-[11px] text-[#a12626] text-center leading-snug">
+              {disabledMessage}
+            </p>
+          )}
+
           {/* Yes, I agree (Primary Action, h=54px) */}
           <button
             type="button"
             onClick={onAgree}
+            disabled={disabled}
             aria-label={t.consent.agree}
-            className="w-full h-[54px] rounded-[27px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
+            aria-busy={disabled}
+            className="w-full h-[54px] rounded-[27px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#1f2a44] disabled:opacity-50"
           >
             {t.consent.agree}
           </button>
@@ -118,8 +189,9 @@ export const ConsentView: React.FC<ConsentViewProps> = ({ onAgree, onDecline, on
           <button
             type="button"
             onClick={onDecline}
+            disabled={disabled}
             aria-label={t.consent.decline}
-            className="w-full h-[54px] rounded-[27px] bg-[rgba(255,255,255,0.74)] backdrop-blur-[9px] border border-white text-[#1f2a44] font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.1)] hover:bg-white active:scale-[0.99] transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
+            className="w-full h-[54px] rounded-[27px] bg-[rgba(255,255,255,0.74)] backdrop-blur-[9px] border border-white text-[#1f2a44] font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.1)] hover:bg-white active:scale-[0.99] transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#1f2a44] disabled:opacity-50"
           >
             {t.consent.decline}
           </button>

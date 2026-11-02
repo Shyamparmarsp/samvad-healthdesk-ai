@@ -107,6 +107,7 @@ describe('Patient Flow Journeys', () => {
       report_id: submitRes.submitted_report.id,
       doctor_id: submitRes.submitted_report.doctor_id,
       slot_id: freeSlot.id,
+      slot_start: freeSlot.start_time,
     });
     assert.ok(bookRes.appointment);
     assert.equal(bookRes.appointment.status, 'confirmed');

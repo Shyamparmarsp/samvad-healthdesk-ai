@@ -15,6 +15,12 @@ import { CorrectableField, ReportDocumentV1, ReportRow } from '../../types/repor
 import { Appointment } from '../../types/doctor';
 import { CONSENT_VERSION } from '../../types/consent';
 import { captureVoiceAnswer, type VoiceAnswer } from '../../lib/audio/voice';
+import {
+  cachedPromptSources,
+  createPromptAudioCache,
+  promptIdForQuestion,
+} from '../../lib/audio/prompt-audio';
+import { PatientScreen, resolveBackNavigation, reviewModeFor } from '../../lib/navigation';
 
 import { WelcomeView } from './WelcomeView';
 import { ConsentView } from './ConsentView';
@@ -26,19 +32,6 @@ import { BookingView } from './BookingView';
 import { ConfirmationView } from './ConfirmationView';
 import { EmergencyView } from './EmergencyView';
 import { SessionEndedView } from './SessionEndedView';
-
-type PatientScreen =
-  | 'welcome'
-  | 'consent'
-  | 'consent_declined'
-  | 'conversation'
-  | 'what_we_heard'
-  | 'review'
-  | 'session_ended'
-  | 'booking'
-  | 'confirmed_booking'
-  | 'confirmed_report_only'
-  | 'emergency';
 
 function sanitizeUserError(err: any): string {
   if (!err) return 'An unexpected error occurred. Please try again.';
@@ -61,77 +54,8 @@ function sanitizeUserError(err: any): string {
   return msg || 'An unexpected error occurred. Please try again.';
 }
 
-const AARAV_SHARMA_REPORT: ReportDocumentV1 = {
-  schema_version: 1,
-  patient: {
-    name: { status: 'provided', value: 'Aarav Sharma' },
-    age: { status: 'provided', value: 28 },
-    gender: { status: 'provided', value: 'male' },
-    language: 'en',
-  },
-  primary_concern: { status: 'provided', value: 'Headache' },
-  clinical_details: {
-    duration: { status: 'provided', value: '3 days' },
-    severity: { status: 'provided', value: 'Moderate' },
-    conditions: { status: 'not_provided', value: null },
-    medications: { status: 'not_provided', value: null },
-    allergies: { status: 'not_provided', value: null },
-    other_symptoms: { status: 'not_provided', value: null },
-  },
-  missing_information: ['conditions', 'medications', 'allergies'],
-  summary: {
-    text: 'Patient-reported headache for about three days, described as moderate.',
-    source: 'template',
-    generated_from: ['primary_concern', 'duration', 'severity'],
-  },
-  routing_snapshot: {
-    department_key: 'general_medicine',
-    department_name: 'General Medicine',
-    doctor_id: 'doc-gen-med-01',
-    doctor_name: 'Dr. Aditi Rao',
-    is_fallback: false,
-    preliminary: true,
-  },
-  emergency: null,
-};
-
-const AARAV_SHARMA_REPORT_ROW: ReportRow = {
-  id: 'figma-rep-03',
-  session_id: 'sess-aarav-01',
-  user_id: 'u-aarav-01',
-  status: 'submitted',
-  schema_version: 1,
-  department_key: 'general_medicine',
-  doctor_id: 'doc-gen-med-01',
-  intake_reference: 'INT-2026-0042',
-  possible_urgent: false,
-  needs_human_review: false,
-  emergency_rule_id: null,
-  submitted_at: '2026-11-02T09:58:00Z',
-  reviewed_at: null,
-  reviewed_by: null,
-  created_at: '2026-11-02T09:58:00Z',
-  updated_at: '2026-11-02T09:58:00Z',
-  report: AARAV_SHARMA_REPORT,
-};
-
-const AARAV_SHARMA_APPOINTMENT: Appointment = {
-  id: 'apt-01',
-  report_id: 'figma-rep-03',
-  doctor_id: 'doc-gen-med-01',
-  doctor_name: 'Dr. Aditi Rao',
-  department_name: 'General Medicine',
-  slot_id: 'slot-01',
-  slot_start: '2026-11-02T15:30:00+05:30',
-  slot_end: '2026-11-02T16:00:00+05:30',
-  reference_code: 'APT-2026-0017',
-  patient_name: 'Aarav Sharma',
-  created_at: '2026-11-02T09:58:00Z',
-  status: 'confirmed',
-};
-
 export const PatientShell: React.FC = () => {
-  const { language } = useI18n();
+  const { language, t } = useI18n();
 
   const [currentScreen, setCurrentScreen] = useState<PatientScreen>('welcome');
   const [screenHistory, setScreenHistory] = useState<PatientScreen[]>([]);
@@ -142,6 +66,12 @@ export const PatientShell: React.FC = () => {
   const [activeAppointment, setActiveAppointment] = useState<Appointment | undefined>(undefined);
   const [endReason, setEndReason] = useState<'dont_submit' | 'incomplete_cap'>('dont_submit');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // D-04: the global daily cap is a distinct state, not a silent no-op consent screen.
+  const [demoBusy, setDemoBusy] = useState<boolean>(false);
+
+  /** Session-scoped TTS cache: replaying an adaptive question never re-buys it (D-06). */
+  const audioCacheRef = useRef(createPromptAudioCache());
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const navigateToScreen = (nextScreen: PatientScreen) => {
     if (nextScreen !== currentScreen) {
@@ -150,191 +80,26 @@ export const PatientShell: React.FC = () => {
     }
   };
 
-  const getFallbackScreen = (screen: PatientScreen): PatientScreen => {
-    switch (screen) {
-      case 'consent':
-        return 'welcome';
-      case 'consent_declined':
-        return 'consent_declined';
-      case 'session_ended':
-        return 'session_ended';
-      case 'emergency':
-        return 'emergency';
-      case 'conversation':
-        return 'consent';
-      case 'what_we_heard':
-        return 'conversation';
-      case 'review':
-        return 'conversation';
-      case 'booking':
-        return 'review';
-      case 'confirmed_booking':
-        return 'confirmed_booking';
-      case 'confirmed_report_only':
-        return 'confirmed_report_only';
-      default:
-        return 'welcome';
-    }
-  };
-
+  /**
+   * D-02 / D-10: Back is blocked on terminal screens (emergency, confirmations,
+   * ended/declined). The screen components also no longer receive an `onBack` handler
+   * for those states, so this is defence in depth.
+   */
   const handleBack = () => {
-    // D-02: Emergency is terminal — guidance and urgent report stay protected, routine intake does not resume
-    // D-10: Confirmed booking / confirmed report only: terminal, cannot re-open the bookable slot grid
-    if (
-      currentScreen === 'emergency' ||
-      currentScreen === 'session_ended' ||
-      currentScreen === 'consent_declined' ||
-      currentScreen === 'confirmed_booking' ||
-      currentScreen === 'confirmed_report_only'
-    ) {
-      return;
-    }
-
-    if (screenHistory.length > 0) {
-      const prev = screenHistory[screenHistory.length - 1];
-      setScreenHistory((prevList) => prevList.slice(0, -1));
-      setCurrentScreen(prev);
-    } else {
-      const fallback = getFallbackScreen(currentScreen);
-      setCurrentScreen(fallback);
-    }
+    const decision = resolveBackNavigation({
+      currentScreen,
+      history: screenHistory,
+      hasSubmittedReport: Boolean(chatState?.submitted_report),
+      hasAppointment: Boolean(activeAppointment),
+    });
+    if (decision.action !== 'navigate') return;
+    setScreenHistory((prev) => prev.slice(0, -1));
+    setCurrentScreen(decision.target);
   };
 
-  // Resume after interruption (sessionStorage check on mount)
+  // Resume after interruption. Fixture routing is development-only (D-08).
   useEffect(() => {
     try {
-      const targetPatientView = sessionStorage.getItem('FIGMA_PATIENT_VIEW');
-      if (targetPatientView) {
-        if (targetPatientView === 'welcome') {
-          setCurrentScreen('welcome');
-          return;
-        }
-        if (targetPatientView === 'consent') {
-          setCurrentScreen('consent');
-          return;
-        }
-        if (targetPatientView === 'what_we_heard') {
-          setCurrentScreen('what_we_heard');
-          setPendingTranscript('I have a headache for three days');
-          return;
-        }
-        if (targetPatientView === 'review') {
-          setCurrentScreen('review');
-          setChatState({
-            session_id: 'sess-aarav-01',
-            session_status: 'in_progress',
-            messages: [],
-            turn_count: 7,
-            max_turns: 15,
-            is_complete: true,
-            emergency_triggered: false,
-            is_cap_reached: false,
-            can_submit: true,
-            draft_report: AARAV_SHARMA_REPORT,
-          });
-          return;
-        }
-        if (targetPatientView === 'booking' || targetPatientView === 'slot_taken' || targetPatientView === 'no_slots') {
-          setCurrentScreen('booking');
-          setChatState({
-            session_id: 'sess-aarav-01',
-            session_status: 'in_progress',
-            messages: [],
-            turn_count: 7,
-            max_turns: 15,
-            is_complete: true,
-            emergency_triggered: false,
-            is_cap_reached: false,
-            can_submit: true,
-            draft_report: AARAV_SHARMA_REPORT,
-            submitted_report: AARAV_SHARMA_REPORT_ROW,
-          });
-          return;
-        }
-        if (targetPatientView === 'confirmed_booking') {
-          setCurrentScreen('confirmed_booking');
-          setChatState({
-            session_id: 'sess-aarav-01',
-            session_status: 'in_progress',
-            messages: [],
-            turn_count: 7,
-            max_turns: 15,
-            is_complete: true,
-            emergency_triggered: false,
-            is_cap_reached: false,
-            can_submit: true,
-            submitted_report: AARAV_SHARMA_REPORT_ROW,
-          });
-          setActiveAppointment(AARAV_SHARMA_APPOINTMENT);
-          return;
-        }
-        if (targetPatientView === 'confirmed_report_only') {
-          setCurrentScreen('confirmed_report_only');
-          setChatState({
-            session_id: 'sess-aarav-01',
-            session_status: 'in_progress',
-            messages: [],
-            turn_count: 7,
-            max_turns: 15,
-            is_complete: true,
-            emergency_triggered: false,
-            is_cap_reached: false,
-            can_submit: true,
-            submitted_report: AARAV_SHARMA_REPORT_ROW,
-          });
-          return;
-        }
-        if (targetPatientView === 'emergency') {
-          setCurrentScreen('emergency');
-          return;
-        }
-        if (targetPatientView === 'consent_declined') {
-          setCurrentScreen('consent_declined');
-          return;
-        }
-      }
-
-      if (sessionStorage.getItem('FIGMA_PARITY_P3_FIXTURE') === '1' || sessionStorage.getItem('FIGMA_PARITY_P3B_FIXTURE') === '1' || sessionStorage.getItem('FIGMA_PARITY_P4_FIXTURE') === '1' || sessionStorage.getItem('FIGMA_PARITY_P4B_FIXTURE') === '1') {
-        setCurrentScreen('conversation');
-        setChatState({
-          session_id: 'sess-p3-fixture',
-          session_status: 'in_progress',
-          messages: [
-            {
-              id: 'm1',
-              session_id: 'sess-p3-fixture',
-              role: 'assistant',
-              content: 'What health concern brings you here?',
-              question_id: 'primary_concern',
-              created_at: '2026-11-02T10:00:00Z',
-              turn_index: 0,
-            },
-            {
-              id: 'm2',
-              session_id: 'sess-p3-fixture',
-              role: 'patient',
-              content: 'I have a headache for three days.',
-              created_at: '2026-11-02T10:00:15Z',
-              turn_index: 1,
-            },
-          ],
-          current_question: {
-            id: 'severity',
-            text: 'How would you describe the pain?',
-            text_hi: 'आप दर्द का वर्णन कैसे करेंगे?',
-            answer_type: 'single_choice',
-            options: ['Mild', 'Moderate', 'Severe'],
-          },
-          turn_count: 3,
-          max_turns: 15,
-          is_complete: false,
-          emergency_triggered: false,
-          is_cap_reached: false,
-          can_submit: false,
-        });
-        return;
-      }
-
       const savedSessionId = sessionStorage.getItem('samvad_session_id');
       if (!savedSessionId) return;
 
@@ -359,7 +124,14 @@ export const PatientShell: React.FC = () => {
             setCurrentScreen('welcome');
           }
         } catch {
-          sessionStorage.removeItem('samvad_session_id');
+          // D-23: say that the session could not be restored instead of silently
+          // dropping the patient on Welcome with no explanation.
+          if (cancelled) return;
+          try {
+            sessionStorage.removeItem('samvad_session_id');
+          } catch {}
+          setErrorMessage(t.chat.restoreFailed);
+          setCurrentScreen('welcome');
         }
       })();
 
@@ -367,31 +139,48 @@ export const PatientShell: React.FC = () => {
         cancelled = true;
       };
     } catch {
-      // Ignore storage access restrictions if any
+      // Ignore storage access restrictions if any.
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const rememberSession = (id: string) => {
+    try {
+      sessionStorage.setItem('samvad_session_id', id);
+    } catch {}
+  };
+
+  const forgetSession = () => {
+    try {
+      sessionStorage.removeItem('samvad_session_id');
+    } catch {}
+  };
 
   // 1. Start talking / typing from welcome screen
   const handleStartIntake = async () => {
+    if (isProcessing) return; // never create two sessions from a double click
     setIsProcessing(true);
     setErrorMessage(null);
+    setDemoBusy(false);
+    setScreenHistory([]);
     try {
       const res = await startSession(language);
-      if (res.demo_busy || (res as any).error === 'demo_busy') {
-        setErrorMessage(
-          language === 'hi'
-            ? 'आज के लिए अस्पताल इनटेक सीमा समाप्त हो चुकी है। कृपया कल पुनः प्रयास करें।'
-            : "Today's intake limit reached. Please try again tomorrow."
-        );
+      if (res.demo_busy || !res.session_id) {
+        // D-04: stay on Welcome with an understandable message and a retry path.
+        setDemoBusy(true);
+        setChatState(res);
+        setSessionId('');
         return;
       }
       setSessionId(res.session_id);
       setChatState(res);
-      try {
-        sessionStorage.setItem('samvad_session_id', res.session_id);
-      } catch {}
+      rememberSession(res.session_id);
       navigateToScreen('consent');
     } catch (err: any) {
+      if (err?.code === 'demo_busy' || /demo_busy/i.test(String(err?.message))) {
+        setDemoBusy(true);
+        return;
+      }
       console.error('Failed to start session', err);
       setErrorMessage(sanitizeUserError(err));
     } finally {
@@ -401,21 +190,18 @@ export const PatientShell: React.FC = () => {
 
   // 2. Consent decisions (passes versioned consent constant CONSENT_VERSION)
   const handleConsentAgree = async () => {
+    if (isProcessing) return;
     if (!sessionId) {
-      setErrorMessage(
-        language === 'hi'
-          ? 'सत्र शुरू करने में असमर्थ। कृपया पुनः प्रयास करें।'
-          : 'Unable to start session. Please try again.'
-      );
+      setErrorMessage(t.consent.sessionUnavailable);
       return;
     }
 
-    // D-11: If user already has conversation progress, restore conversation immediately without resetting state
+    // D-11: do not re-issue record_consent for a session that already consented.
     if (
       chatState &&
       (chatState.session_status === 'in_progress' ||
-        (chatState.messages && chatState.messages.length > 0) ||
-        chatState.turn_count > 0)
+        chatState.session_status === 'consented' ||
+        chatState.messages.length > 0)
     ) {
       navigateToScreen('conversation');
       return;
@@ -428,7 +214,8 @@ export const PatientShell: React.FC = () => {
       setChatState(res);
       navigateToScreen('conversation');
     } catch (err: any) {
-      if (err?.message?.includes('invalid_state') || err?.error === 'invalid_state') {
+      // An already-consented session is not an error the patient must resolve.
+      if (err?.code === 'invalid_state') {
         navigateToScreen('conversation');
         return;
       }
@@ -440,23 +227,41 @@ export const PatientShell: React.FC = () => {
   };
 
   const handleConsentDecline = async () => {
-    if (!sessionId) return;
+    if (isProcessing) return;
+    if (!sessionId) {
+      setErrorMessage(t.consent.sessionUnavailable);
+      return;
+    }
+    setIsProcessing(true);
     setErrorMessage(null);
     try {
       await recordConsent(sessionId, false, language, CONSENT_VERSION);
-      try {
-        sessionStorage.removeItem('samvad_session_id');
-      } catch {}
+      forgetSession();
       navigateToScreen('consent_declined');
     } catch (err: any) {
       console.error('Failed to decline consent', err);
       setErrorMessage(sanitizeUserError(err));
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   // 3. Submitting text answer
-  const handleSendAnswer = async (text: string) => {
-    if (!sessionId || !chatState?.current_question) return;
+  const handleSendAnswer = async (
+    text: string,
+    origin: 'conversation' | 'transcript' = 'conversation',
+  ): Promise<boolean> => {
+    if (!sessionId) {
+      setErrorMessage(t.consent.sessionUnavailable);
+      return false;
+    }
+    // An emergency session never accepts another routine answer.
+    if (chatState?.session_status === 'emergency') {
+      navigateToScreen('emergency');
+      return false;
+    }
+    if (!chatState?.current_question) return false;
+
     setIsProcessing(true);
     setErrorMessage(null);
     try {
@@ -468,24 +273,39 @@ export const PatientShell: React.FC = () => {
       });
       setChatState(res);
 
-      if (res.emergency_triggered) {
+      if (res.emergency_triggered || res.session_status === 'emergency') {
         navigateToScreen('emergency');
       } else if (res.is_complete || (res.is_cap_reached && res.draft_report)) {
         navigateToScreen('review');
+      } else if (origin === 'transcript') {
+        navigateToScreen('conversation');
       }
+      return true;
     } catch (err: any) {
       console.error('Error submitting turn', err);
       setErrorMessage(sanitizeUserError(err));
+      return false;
     } finally {
       setIsProcessing(false);
     }
   };
 
   // 4. Voice turn: capture a contract-valid WAV, let the backend transcribe it, then
-  // show the transcript for confirmation. Never fabricate a transcript locally: if the
-  // provider is unavailable the error banner offers text instead.
-  const handleVoiceRecorded = async (voicePayload?: VoiceAnswer | string) => {
+  // show the transcript for confirmation. Never fabricate a transcript locally.
+  const handleVoiceRecorded = async (voicePayload: VoiceAnswer | string) => {
     if (!sessionId || !chatState?.current_question) return;
+    if (chatState.session_status === 'emergency') {
+      navigateToScreen('emergency');
+      return;
+    }
+
+    // D-40: a string payload used to re-open the microphone with no user gesture.
+    // It is not a confirmed answer, so it is reported instead of being sent.
+    if (typeof voicePayload === 'string') {
+      setErrorMessage(t.chat.recordingFailed);
+      return;
+    }
+
     setIsProcessing(true);
     setErrorMessage(null);
     try {
@@ -502,7 +322,9 @@ export const PatientShell: React.FC = () => {
       });
       setChatState(res);
 
-      if (res.transcript_preview) {
+      if (res.emergency_triggered || res.session_status === 'emergency') {
+        navigateToScreen('emergency');
+      } else if (res.transcript_preview) {
         setPendingTranscript(res.transcript_preview.text);
         navigateToScreen('what_we_heard');
       } else if (res.error) {
@@ -520,51 +342,105 @@ export const PatientShell: React.FC = () => {
     }
   };
 
+  // D-41: navigate only after the confirmed answer was actually accepted.
   const handleConfirmTranscript = async (confirmedText: string) => {
-    navigateToScreen('conversation');
-    await handleSendAnswer(confirmedText);
+    const accepted = await handleSendAnswer(confirmedText, 'transcript');
+    if (accepted) setPendingTranscript('');
   };
 
-  // Audio playback management for question audio replay (D-19 verification)
-  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+  const stopActiveAudio = () => {
+    if (activeAudioRef.current) {
+      activeAudioRef.current.pause();
+      activeAudioRef.current = null;
+    }
+  };
 
-  const handleReplayAudio = async () => {
-    if (!sessionId || !chatState?.current_question) return;
-    try {
-      if (activeAudioRef.current) {
-        activeAudioRef.current.pause();
-        activeAudioRef.current = null;
+  /** Try static candidates in order and play the first one that decodes. */
+  const playFirstAvailable = async (urls: string[]): Promise<boolean> => {
+    for (const url of urls) {
+      stopActiveAudio();
+      const audio = new Audio(url);
+      activeAudioRef.current = audio;
+      audio.onended = () => {
+        if (activeAudioRef.current === audio) activeAudioRef.current = null;
+      };
+      try {
+        await audio.play();
+        return true;
+      } catch {
+        // Try the next candidate.
       }
+    }
+    stopActiveAudio();
+    return false;
+  };
 
-      const res = await speak(sessionId, chatState.current_question.id);
+  const playUrl = async (url: string, onFailure: () => void) => {
+    stopActiveAudio();
+    const audio = new Audio(url);
+    activeAudioRef.current = audio;
+    audio.onended = () => {
+      if (activeAudioRef.current === audio) activeAudioRef.current = null;
+    };
+    audio.onerror = () => {
+      if (activeAudioRef.current === audio) activeAudioRef.current = null;
+      onFailure();
+    };
+    try {
+      await audio.play();
+    } catch {
+      onFailure();
+    }
+  };
+
+  /**
+   * D-06: fixed prompts are served from `public/audio` (no provider call), and adaptive
+   * prompts are fetched at most once per session and then replayed from the cache.
+   */
+  const handleReplayAudio = async () => {
+    const question = chatState?.current_question;
+    if (!sessionId || !question) return;
+
+    const questionId = String(question.id);
+    const promptId = promptIdForQuestion(questionId);
+
+    if (promptId) {
+      const played = await playFirstAvailable(cachedPromptSources(language, promptId));
+      if (!played) setErrorMessage(t.chat.audioUnavailable);
+      return;
+    }
+
+    const cached = audioCacheRef.current.get(language, questionId);
+    if (cached) {
+      await playUrl(cached, () => setErrorMessage(t.chat.audioUnavailable));
+      return;
+    }
+
+    try {
+      const res = await speak(sessionId, questionId);
       if (res.audioUrl) {
-        const audio = new Audio(res.audioUrl);
-        activeAudioRef.current = audio;
-        audio.onended = () => {
-          if (res.audioUrl) URL.revokeObjectURL(res.audioUrl);
-          if (activeAudioRef.current === audio) activeAudioRef.current = null;
-        };
-        audio.onerror = () => {
-          if (res.audioUrl) URL.revokeObjectURL(res.audioUrl);
-          if (activeAudioRef.current === audio) activeAudioRef.current = null;
-        };
-        await audio.play().catch((err) => {
-          console.warn('Audio playback failed or was blocked by browser autoplay policy', err);
-        });
+        audioCacheRef.current.set(language, questionId, res.audioUrl);
+        await playUrl(res.audioUrl, () => setErrorMessage(t.chat.audioUnavailable));
+      } else {
+        setErrorMessage(t.chat.audioUnavailable);
       }
     } catch (err) {
       console.warn('Replay audio request failed', err);
+      setErrorMessage(t.chat.audioUnavailable);
     }
   };
 
   useEffect(() => {
     return () => {
-      if (activeAudioRef.current) {
-        activeAudioRef.current.pause();
-        activeAudioRef.current = null;
-      }
+      stopActiveAudio();
     };
   }, [currentScreen]);
+
+  useEffect(() => {
+    return () => {
+      audioCacheRef.current.clear();
+    };
+  }, []);
 
   // 5. Report corrections
   const handleCorrectField = async (
@@ -573,12 +449,11 @@ export const PatientShell: React.FC = () => {
   ) => {
     if (!sessionId) return;
     setErrorMessage(null);
-    const activeReportId = chatState?.submitted_report?.id || '';
     try {
       const res = await correctDraftReport({
         action: 'correct_draft_report',
         session_id: sessionId,
-        report_id: activeReportId,
+        report_id: '',
         updates: { [field]: patch },
       });
       setChatState(res);
@@ -590,19 +465,18 @@ export const PatientShell: React.FC = () => {
 
   // 6. Submit report to hospital
   const handleSubmitReport = async () => {
-    if (!sessionId) return;
+    if (!sessionId || isProcessing) return;
     if (chatState?.submitted_report) {
       navigateToScreen('booking');
       return;
     }
     setIsProcessing(true);
     setErrorMessage(null);
-    const activeReportId = chatState?.submitted_report?.id || '';
     try {
       const res = await submitReport({
         action: 'submit_report',
         session_id: sessionId,
-        report_id: activeReportId,
+        report_id: '',
       });
       setChatState(res);
       navigateToScreen('booking');
@@ -616,24 +490,20 @@ export const PatientShell: React.FC = () => {
 
   // 7. "Don't submit" option
   const handleDontSubmit = () => {
-    try {
-      sessionStorage.removeItem('samvad_session_id');
-    } catch {}
+    forgetSession();
     setEndReason('dont_submit');
     navigateToScreen('session_ended');
   };
 
   // 8. Incomplete cap end action
   const handleEndSessionCap = () => {
-    try {
-      sessionStorage.removeItem('samvad_session_id');
-    } catch {}
+    forgetSession();
     setEndReason('incomplete_cap');
     navigateToScreen('session_ended');
   };
 
-  // 9. Book appointment
-  const handleBookAppointment = async (slotId: string, slotStartTime?: string) => {
+  // 9. Book appointment. The slot id and the ISO start timestamp are separate values.
+  const handleBookAppointment = async (slotId: string, slotStart: string) => {
     if (!chatState?.submitted_report) return;
     if (activeAppointment) {
       navigateToScreen('confirmed_booking');
@@ -649,37 +519,39 @@ export const PatientShell: React.FC = () => {
     const res = await bookAppointment({
       report_id: chatState.submitted_report.id,
       slot_id: slotId,
-      slot_start: resolvedSlotStart,
+      slot_start: slotStart,
       doctor_id: chatState.submitted_report.doctor_id,
       patient_name: chatState.submitted_report.report.patient.name.value || undefined,
     });
     setActiveAppointment(res.appointment);
-    try {
-      sessionStorage.removeItem('samvad_session_id');
-    } catch {}
+    forgetSession();
     navigateToScreen('confirmed_booking');
   };
 
   // 10. "Not now" booking path
   const handleNotNowBooking = () => {
-    try {
-      sessionStorage.removeItem('samvad_session_id');
-    } catch {}
+    forgetSession();
     navigateToScreen('confirmed_report_only');
   };
 
   // 11. Restart session
   const handleRestart = () => {
-    try {
-      sessionStorage.removeItem('samvad_session_id');
-    } catch {}
+    forgetSession();
+    stopActiveAudio();
+    audioCacheRef.current.clear();
     setSessionId('');
     setChatState(null);
     setActiveAppointment(undefined);
     setErrorMessage(null);
+    setDemoBusy(false);
     setScreenHistory([]);
     setCurrentScreen('welcome');
   };
+
+  const hasSubmittedReport = Boolean(chatState?.submitted_report);
+  const reviewDocument: ReportDocumentV1 | undefined =
+    (chatState?.draft_report as ReportDocumentV1 | undefined) ??
+    (chatState?.submitted_report?.report as ReportDocumentV1 | undefined);
 
   return (
     <div className="w-[390px] max-w-[390px] h-[844px] bg-[#dde3ee] relative overflow-hidden flex flex-col select-none">
@@ -689,31 +561,34 @@ export const PatientShell: React.FC = () => {
 
       {/* Content Shell Layer */}
       <div className="relative z-10 flex flex-col h-full w-full">
-          {/* Accessible Error / Network Alert Banner */}
-          {errorMessage && (
-            <div
-              role="alert"
-              className="absolute top-3 left-4 right-4 z-50 p-3 rounded-2xl bg-red-600 text-white text-xs font-semibold shadow-xl flex items-center justify-between"
-            >
-              <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <span className="leading-tight">{errorMessage}</span>
-              </div>
-              <button
-                onClick={() => setErrorMessage(null)}
-                aria-label="Dismiss error notification"
-                className="ml-2 text-white/80 hover:text-white font-bold p-1 rounded-full hover:bg-white/20 transition-colors"
-              >
-                ✕
-              </button>
+        {/* Accessible Error / Network Alert Banner */}
+        {errorMessage && (
+          <div
+            role="alert"
+            className="absolute top-3 left-4 right-4 z-50 p-3 rounded-2xl bg-red-600 text-white text-xs font-semibold shadow-xl flex items-center justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-white flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span className="leading-tight">{errorMessage}</span>
             </div>
-          )}
+            <button
+              onClick={() => setErrorMessage(null)}
+              aria-label="Dismiss error notification"
+              className="ml-2 text-white/80 hover:text-white font-bold p-1 rounded-full hover:bg-white/20 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {currentScreen === 'welcome' && (
           <WelcomeView
             onStartTalking={handleStartIntake}
             onTypeInstead={handleStartIntake}
+            demoBusy={demoBusy}
+            isStarting={isProcessing}
           />
         )}
 
@@ -722,14 +597,13 @@ export const PatientShell: React.FC = () => {
             onAgree={handleConsentAgree}
             onDecline={handleConsentDecline}
             onBack={handleBack}
+            disabled={!sessionId || isProcessing || demoBusy}
+            disabledMessage={!sessionId || demoBusy ? t.consent.sessionUnavailable : null}
           />
         )}
 
         {currentScreen === 'consent_declined' && (
-          <ConsentDeclinedView
-            onRestart={handleRestart}
-            onBack={handleBack}
-          />
+          <ConsentDeclinedView onRestart={handleRestart} />
         )}
 
         {currentScreen === 'conversation' && (
@@ -739,12 +613,13 @@ export const PatientShell: React.FC = () => {
             turnCount={chatState?.turn_count || 0}
             maxTurns={chatState?.max_turns || 15}
             demoBusy={chatState?.demo_busy}
+            sessionStatus={chatState?.session_status}
             onSendText={handleSendAnswer}
             onVoiceRecorded={handleVoiceRecorded}
-            onVoiceTranscribed={handleVoiceRecorded}
             onReplayAudio={handleReplayAudio}
             onBack={handleBack}
             isProcessing={isProcessing}
+            onEndSession={handleEndSessionCap}
           />
         )}
 
@@ -754,30 +629,30 @@ export const PatientShell: React.FC = () => {
             onConfirm={handleConfirmTranscript}
             onCancel={handleBack}
             onBack={handleBack}
-            onReplayAudio={handleReplayAudio}
+            onReplayQuestion={handleReplayAudio}
+            isSubmitting={isProcessing}
           />
         )}
 
-        {currentScreen === 'review' && chatState?.draft_report && (
+        {currentScreen === 'review' && reviewDocument && (
           <ReportReviewView
-            report={chatState.draft_report as ReportDocumentV1}
-            isCapReached={chatState.is_cap_reached}
-            canSubmit={chatState.can_submit}
-            isProcessing={isProcessing}
+            report={reviewDocument}
+            isCapReached={chatState?.is_cap_reached}
+            canSubmit={hasSubmittedReport ? true : chatState?.can_submit}
+            mode={reviewModeFor(hasSubmittedReport)}
             onCorrectField={handleCorrectField}
             onSubmit={handleSubmitReport}
             onDontSubmit={handleDontSubmit}
             onEndSessionCap={handleEndSessionCap}
             onBack={handleBack}
+            onContinueBooking={hasSubmittedReport ? () => navigateToScreen('booking') : undefined}
+            onFinish={hasSubmittedReport ? handleRestart : undefined}
+            isSubmitting={isProcessing}
           />
         )}
 
         {currentScreen === 'session_ended' && (
-          <SessionEndedView
-            reason={endReason}
-            onRestart={handleRestart}
-            onBack={handleBack}
-          />
+          <SessionEndedView reason={endReason} onRestart={handleRestart} />
         )}
 
         {currentScreen === 'booking' && chatState?.submitted_report && (
@@ -795,7 +670,6 @@ export const PatientShell: React.FC = () => {
             report={chatState.submitted_report as ReportRow}
             appointment={activeAppointment}
             onHome={handleRestart}
-            onBack={handleBack}
           />
         )}
 
@@ -804,16 +678,10 @@ export const PatientShell: React.FC = () => {
             type="report_only"
             report={chatState.submitted_report as ReportRow}
             onHome={handleRestart}
-            onBack={handleBack}
           />
         )}
 
-        {currentScreen === 'emergency' && (
-          <EmergencyView
-            onEndDemo={handleRestart}
-            onBack={handleBack}
-          />
-        )}
+        {currentScreen === 'emergency' && <EmergencyView onEndDemo={handleRestart} />}
       </div>
     </div>
   );

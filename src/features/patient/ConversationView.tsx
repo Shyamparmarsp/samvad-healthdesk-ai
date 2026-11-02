@@ -5,6 +5,7 @@ import { PatientHeader } from './PatientHeader';
 import { BackButton } from '../common/BackButton';
 import { AudioRecorder } from '../../lib/audio';
 import { convertBlobToVoiceAnswer, syntheticWavBase64, type VoiceAnswer } from '../../lib/audio/voice';
+import { isConversationDeadEnd } from '../../lib/navigation';
 
 export type AnswerType = 'free_text' | 'yes_no' | 'single_choice';
 
@@ -129,6 +130,10 @@ interface ConversationViewProps {
   onReplayAudio: () => void;
   onBack?: () => void;
   isProcessing: boolean;
+  /** D-39: explicit way out of a documented dead-end session. */
+  onEndSession?: () => void;
+  /** Server-owned session status, used only to detect the dead-end state. */
+  sessionStatus?: string;
 }
 
 export const ConversationView: React.FC<ConversationViewProps> = ({
@@ -143,12 +148,10 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   onReplayAudio,
   onBack,
   isProcessing,
+  onEndSession,
+  sessionStatus,
 }) => {
   const { t, language } = useI18n();
-  const isP3Fixture = typeof window !== 'undefined' && window.sessionStorage?.getItem('FIGMA_PARITY_P3_FIXTURE') === '1';
-  const isP3bFixture = typeof window !== 'undefined' && window.sessionStorage?.getItem('FIGMA_PARITY_P3B_FIXTURE') === '1';
-  const isP4Fixture = typeof window !== 'undefined' && window.sessionStorage?.getItem('FIGMA_PARITY_P4_FIXTURE') === '1';
-  const isP4bFixture = typeof window !== 'undefined' && window.sessionStorage?.getItem('FIGMA_PARITY_P4B_FIXTURE') === '1';
 
   const [inputMode, setInputMode] = useState<'voice' | 'text'>('voice');
   const [typedText, setTypedText] = useState('');
@@ -156,8 +159,10 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   const [recordingStatus, setRecordingStatus] = useState<'idle' | 'recording' | 'completed' | 'error'>('idle');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [micError, setMicError] = useState<string | null>(null);
-  const [isMicDenied, setIsMicDenied] = useState<boolean>(false);
-  const [selectedChip, setSelectedChip] = useState<string | null>(isP3Fixture ? 'Moderate' : null);
+  // D-05: a denied/unavailable microphone is a real state with a text fallback.
+  const [micDenied, setMicDenied] = useState(false);
+  // D-50: the active severity/option chip reflects the patient's selection.
+  const [selectedChip, setSelectedChip] = useState<string | null>(null);
 
   const chatScrollContainerRef = useRef<HTMLDivElement>(null);
   const recordingStartTimeRef = useRef<number | null>(null);
@@ -165,12 +170,30 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   const isStoppingRef = useRef<boolean>(false);
   const audioRecorderRef = useRef<AudioRecorder | null>(null);
 
+  const optionsToRender = getOptionsForQuestion(currentQuestion, language);
+
+  // D-39: the backend can return an incomplete session with no next question. That
+  // used to dead-end with sends silently ignored; it now offers an explicit End.
+  const isDeadEnd =
+    messages.length > 0 &&
+    isConversationDeadEnd({
+      hasCurrentQuestion: Boolean(currentQuestion),
+      isProcessing,
+      demoBusy,
+      sessionStatus,
+    });
+
+
+  const progressFraction = Math.min(1, Math.max(0.08, turnCount / (maxTurns || 15)));
+
+  // Keep the newest turn visible.
   useEffect(() => {
     if (chatScrollContainerRef.current) {
       chatScrollContainerRef.current.scrollTop = chatScrollContainerRef.current.scrollHeight;
     }
   }, [messages, currentQuestion]);
 
+  // Release the recorder and timer when the screen unmounts.
   useEffect(() => {
     return () => {
       if (timerIntervalRef.current) {
@@ -184,147 +207,6 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
       isStoppingRef.current = false;
     };
   }, []);
-
-  const effectiveQuestion = isP4Fixture
-    ? {
-        id: 'gender',
-        text: 'What is your gender?',
-        answer_type: 'single_choice' as AnswerType,
-        options: ['Male', 'Female', 'Other', 'Prefer not to say'],
-      }
-    : currentQuestion;
-
-  const optionsToRender = getOptionsForQuestion(effectiveQuestion, language);
-
-  if (isP3bFixture) {
-    return (
-      <div className="relative w-[390px] h-[844px] overflow-hidden select-none flex flex-col justify-between p-5">
-        <PatientHeader />
-        {onBack && (
-          <div className="pt-0.5 pb-1">
-            <BackButton onClick={onBack} />
-          </div>
-        )}
-        {/* Figma 72:192 Processing View */}
-        <div className="my-auto backdrop-blur-[9px] bg-[rgba(255,255,255,0.65)] border border-white rounded-[28px] p-8 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)] text-center flex flex-col items-center">
-          <div className="flex items-center gap-2.5 mb-5">
-            <span className="w-3 h-3 rounded-full bg-[#1f2a44] animate-bounce"></span>
-            <span className="w-3 h-3 rounded-full bg-[#1f2a44] animate-bounce [animation-delay:0.2s]"></span>
-            <span className="w-3 h-3 rounded-full bg-[#1f2a44] animate-bounce [animation-delay:0.4s]"></span>
-          </div>
-          <h2 className="text-[17px] font-bold text-[#1d2433]">
-            {language === 'hi' ? 'आपके उत्तर को समझा जा रहा है...' : 'Understanding your answer...'}
-          </h2>
-        </div>
-        <p className="text-[9px] text-center text-[#4a5470] pb-2 leading-tight font-normal">
-          {t.welcome.disclaimer}
-        </p>
-      </div>
-    );
-  }
-
-  if (isP4bFixture || isMicDenied) {
-    return (
-      <div className="relative w-[390px] h-[844px] overflow-hidden select-none flex flex-col justify-between p-5">
-        <PatientHeader />
-        {onBack && (
-          <div className="pt-0.5 pb-1">
-            <BackButton onClick={onBack} />
-          </div>
-        )}
-
-        {/* Mic Permission Denied / Error Banner */}
-        {micError && (
-          <div
-            role="alert"
-            aria-live="polite"
-            className="mb-2 p-2.5 rounded-[16px] bg-amber-50/90 border border-amber-200 text-xs text-amber-900 shadow-sm flex items-center justify-between z-10"
-          >
-            <span>{micError}</span>
-            <button
-              onClick={() => {
-                setMicError(null);
-                setIsMicDenied(false);
-              }}
-              aria-label="Dismiss error"
-              className="text-amber-700 hover:text-amber-900 font-bold ml-2 text-xs"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
-        {/* Figma 72:209 Mic Denied / Text Mode */}
-        <div className="my-auto backdrop-blur-[9px] bg-[rgba(255,255,255,0.65)] border border-white rounded-[28px] p-6 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)] space-y-5">
-          <p className="text-[15px] font-bold text-[#1d2433] leading-snug">
-            {language === 'hi'
-              ? 'माइक्रोफ़ोन बंद है। आप अपने उत्तर टाइप कर सकते हैं।'
-              : 'Microphone is off. You can type your answers instead.'}
-          </p>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (typedText.trim()) {
-                const text = typedText.trim();
-                setTypedText('');
-                setIsMicDenied(false);
-                onSendText(text);
-              }
-            }}
-            className="relative"
-          >
-            <input
-              type="text"
-              value={typedText}
-              onChange={(e) => setTypedText(e.target.value)}
-              placeholder={language === 'hi' ? 'अपना उत्तर यहाँ टाइप करें...' : 'Type your answer here...'}
-              className="w-full h-[48px] pl-4 pr-11 rounded-[14px] bg-white/85 border border-white text-sm text-[#1d2433] placeholder:text-[#4a5470]/60 focus:outline-none focus:ring-2 focus:ring-[#1f2a44] shadow-inner"
-            />
-            <button
-              type="submit"
-              disabled={!typedText.trim() || isProcessing}
-              aria-label="Send"
-              className="absolute right-2 top-2 size-8 rounded-[10px] bg-[#1f2a44] text-white flex items-center justify-center disabled:opacity-50"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-              </svg>
-            </button>
-          </form>
-          <button
-            type="button"
-            onClick={() => {
-              setIsMicDenied(false);
-              setMicError(null);
-              void handleStartListening();
-            }}
-            className="w-full h-[54px] rounded-[27px] bg-[#1f2a44] text-white font-semibold text-[14px] shadow-sm hover:bg-[#2a3a5c] flex items-center justify-center gap-2"
-          >
-            <span className="w-2 h-2 rounded-full bg-white"></span>
-            <span>{language === 'hi' ? 'माइक्रोफ़ोन पुनः आज़माएँ' : 'Try microphone again'}</span>
-          </button>
-        </div>
-        <p className="text-[9px] text-center text-[#4a5470] pb-2 leading-tight font-normal">
-          {t.welcome.disclaimer}
-        </p>
-      </div>
-    );
-  }
-
-  const displayMessages = isP4Fixture
-    ? [
-        {
-          id: 'msg-p4-q',
-          session_id: 'parity-session',
-          role: 'assistant' as const,
-          content: 'What is your gender?',
-          turn_index: 2,
-          created_at: new Date().toISOString(),
-        },
-      ]
-    : messages;
-
-  const progressFraction = Math.min(1, Math.max(0.08, turnCount / (maxTurns || 15)));
 
   const handleStartListening = async () => {
     if (isProcessing || demoBusy || isListening || isStoppingRef.current) return;
@@ -387,7 +269,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
       setIsListening(false);
       setRecordingStatus('error');
       setElapsedSeconds(0);
-      setIsMicDenied(true);
+      setMicDenied(true);
       setMicError(
         t.chat.micUnavailable ||
           'Microphone access is unavailable. Please check permissions or switch to text mode.'
@@ -439,21 +321,13 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
       }
     } else {
       isStoppingRef.current = false;
-      // Fallback for mocked fixtures or unit tests
-      if (currentQuestion && onVoiceTranscribed) {
-        const sampleTranscript =
-          language === 'hi'
-            ? 'मुझे पिछले तीन दिनों से तेज सिरदर्द है।'
-            : 'I have had a headache for about three days.';
-        onVoiceTranscribed(sampleTranscript);
-      }
+      // No recorder was active. Never fabricate a transcript and never re-open the
+      // microphone without a user gesture (D-40): report the failure honestly.
+      setMicError(t.chat.recordingFailed);
     }
   };
 
   const getTimerStatusText = () => {
-    if (isP3Fixture) {
-      return 'Listening... 0:12 / 0:30';
-    }
     if (isListening) {
       const elapsedMinutes = Math.floor(elapsedSeconds / 60);
       const elapsedSecs = elapsedSeconds % 60;
@@ -481,6 +355,93 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     if (isProcessing || demoBusy) return;
     onSendText(value);
   };
+
+  // D-05: the approved microphone-denied state (text fallback + retry + back).
+  // Placed after the handlers so the retry control uses an initialised callback.
+  if (micDenied) {
+    return (
+      <div className="relative w-[390px] h-[844px] overflow-hidden select-none flex flex-col justify-between p-5">
+        <PatientHeader />
+        {onBack && (
+          <div className="pt-0.5 pb-1">
+            <BackButton onClick={onBack} />
+          </div>
+        )}
+
+        {micError && (
+          <div
+            role="alert"
+            aria-live="polite"
+            className="mb-2 p-2.5 rounded-[16px] bg-amber-50/90 border border-amber-200 text-xs text-amber-900 shadow-sm flex items-center justify-between z-10"
+          >
+            <span>{micError}</span>
+            <button
+              onClick={() => setMicError(null)}
+              aria-label="Dismiss error"
+              className="text-amber-700 hover:text-amber-900 font-bold ml-2 text-xs"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Figma 72:209 Mic Denied / Text Mode */}
+        <div className="my-auto backdrop-blur-[9px] bg-[rgba(255,255,255,0.65)] border border-white rounded-[28px] p-6 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)] space-y-5">
+          <p className="text-[15px] font-bold text-[#1d2433] leading-snug">
+            {t.chat.micDeniedTitle}
+          </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!typedText.trim() || isProcessing || demoBusy) return;
+              const text = typedText.trim();
+              setTypedText('');
+              setMicDenied(false);
+              onSendText(text);
+            }}
+            className="relative"
+          >
+            <input
+              type="text"
+              value={typedText}
+              onChange={(e) => setTypedText(e.target.value)}
+              placeholder={t.chat.inputPlaceholder}
+              aria-label={t.chat.inputPlaceholder}
+              disabled={isProcessing || demoBusy}
+              className="w-full h-[48px] pl-4 pr-11 rounded-[14px] bg-white/85 border border-white text-sm text-[#1d2433] placeholder:text-[#4a5470]/60 focus:outline-none focus:ring-2 focus:ring-[#1f2a44] shadow-inner"
+            />
+            <button
+              type="submit"
+              disabled={!typedText.trim() || isProcessing || demoBusy}
+              aria-label={t.chat.send}
+              className="absolute right-2 top-2 size-8 rounded-[10px] bg-[#1f2a44] text-white flex items-center justify-center disabled:opacity-50"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+              </svg>
+            </button>
+          </form>
+          <button
+            type="button"
+            onClick={() => {
+              setMicDenied(false);
+              setMicError(null);
+              void handleStartListening();
+            }}
+            disabled={isProcessing || demoBusy}
+            className="w-full h-[54px] rounded-[27px] bg-[#1f2a44] text-white font-semibold text-[14px] shadow-sm hover:bg-[#2a3a5c] disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            <span className="w-2 h-2 rounded-full bg-white"></span>
+            <span>{t.chat.tryMicrophoneAgain}</span>
+          </button>
+        </div>
+
+        <p className="text-[9px] text-center text-[#4a5470] pb-2 leading-tight font-normal">
+          {t.welcome.disclaimer}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-[390px] h-[844px] overflow-hidden select-none flex flex-col justify-between">
@@ -523,7 +484,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           <button
             onClick={() => {
               setMicError(null);
-              setIsMicDenied(false);
+              setMicDenied(false);
             }}
             aria-label="Dismiss error"
             className="text-amber-700 hover:text-amber-900 font-bold ml-2 text-xs"
@@ -540,13 +501,13 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         aria-live="polite"
         className="flex-1 overflow-y-auto px-5 py-2 space-y-3 z-10"
       >
-        {(onBack || isP3Fixture) && (
+        {onBack && (
           <div className="pt-0.5 pb-1">
-            <BackButton onClick={onBack || (() => {})} />
+            <BackButton onClick={onBack} />
           </div>
         )}
 
-        {displayMessages.map((msg) => {
+        {messages.map((msg) => {
           const isAssistant = msg.role === 'assistant';
           const displayedContent =
             isAssistant && msg.question_id && msg.question_id === currentQuestion?.id && language === 'hi' && currentQuestion.text_hi
@@ -658,6 +619,23 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
             <span>{t.chat.processing}</span>
           </div>
         )}
+
+        {/* D-39: explicit terminal state instead of a silent dead end */}
+        {isDeadEnd && (
+          <div role="alert" className="mx-1 my-2 p-3.5 rounded-[18px] bg-amber-50/90 border border-amber-200 text-xs text-amber-900">
+            <p className="font-bold text-[12px]">{t.chat.deadEndTitle}</p>
+            <p className="mt-1 text-[11px] leading-snug">{t.chat.deadEndMessage}</p>
+            {onEndSession && (
+              <button
+                type="button"
+                onClick={onEndSession}
+                className="mt-2.5 w-full h-[40px] rounded-[20px] bg-[#1f2a44] text-white text-[12px] font-semibold"
+              >
+                {t.review.endSession}
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Option Chips (Figma 81:85 - 81:90: Mild, Moderate, Severe chips, or Gender 2x2 grid) */}
@@ -672,9 +650,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           }
         >
           {optionsToRender.map((opt) => {
-            const isChipSelected = selectedChip
-              ? selectedChip === opt.value
-              : (isP3Fixture && opt.value === 'Moderate');
+            const isChipSelected = selectedChip === opt.value;
             return (
               <button
                 key={opt.value}
@@ -730,6 +706,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
       {/* Bottom Voice / Text Control Card (Figma 81:91: w=350, h=266 at x=20, y=500) */}
       <div className="px-5 pb-3 z-10">
         {inputMode === 'voice' ? (
+
           /* Voice Control Card (Figma 81:91) */
           <div className="w-[350px] h-[266px] mx-auto rounded-[28px] backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)] p-4 flex flex-col justify-between items-center relative">
             {/* Waveform Visualization (Figma 81:92: 35 bars) */}
