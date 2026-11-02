@@ -1,22 +1,35 @@
+# Samvad HealthDesk AI — Educational Demo
 # Samvad HealthDesk AI — AI-Powered Patient Intake & Smart Referral
 
+AI-powered pre-visit patient intake and smart referral demonstration.
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-5.x-646cff.svg)](https://vitejs.dev/)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind-3.x-38b2ac.svg)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-Auth%20%7C%20Postgres%20%7C%20Edge%20Functions-3ecf8e.svg)](https://supabase.com/)
 
+## Stack
 **Samvad HealthDesk AI** is an educational demonstration of a bilingual (English / Hindi), voice-first and text-accessible pre-visit hospital intake and clinical referral system.
 
+- React + Vite + TypeScript + Tailwind
+- Supabase Auth, PostgreSQL, RLS and Edge Functions
+- Gnani Prisma for speech-to-text
+- Gnani Timbre for text-to-speech
+- Groq for constrained reasoning and structured extraction
+- Vercel for the frontend
 It bridges the pre-registration gap by gathering structured patient history, adapting follow-up clarifications, synthesizing clinical summaries for physicians, and facilitating atomic appointment booking—while strictly enforcing non-diagnostic boundaries and deterministic emergency triaging.
 
+## Scope
 > [!IMPORTANT]
 > **Educational Demonstration Only.** This software is an educational prototype and technology demonstration. It uses synthetic patient records and fictional doctor profiles only. It **never diagnoses illnesses, calculates disease probabilities, prescribes medications, or suggests treatments**. All emergency presentations route to plain-text 112 guidance with permanent outpatient slot suppression.
 
+Welcome and consent → voice/text intake → structured report → patient review and submit → doctor dashboard → optional patient-confirmed booking. Emergency demo rules use a separate 112 guidance path. The patient interface is Hindi/English; the doctor interface is English. This is not a clinical product; synthetic data only.
 ---
 
+One website: patients use `/`, doctors log in at `/doctor`.
 ## Architecture & System Flow
 
+See `AGENTS.md` for workspace rules and `docs/` for report, demo safety, seed data, failure behaviour and design exports.
 ```
                                       +------------------------------------+
                                       |         Patient Interface          |
@@ -72,6 +85,7 @@ It bridges the pre-registration gap by gathering structured patient history, ada
                                                               +---------------------------------------------+
 ```
 
+## Local development
 ---
 
 ## Key Capabilities & Safety Invariants
@@ -113,11 +127,14 @@ cd samvad-healthdesk-ai
 
 # Install dependencies
 npm install
+npm run dev      # start the frontend
+npm run build    # production build
 
 # Start local development server (Default: Mock Mode)
 npm run dev
 ```
 
+Copy `.env.example` to `.env.local` and fill `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` (the public key only). Server-side provider keys belong in Supabase Function Secrets under the exact variable names verified from the current provider documentation and implementation. Never place provider secrets in `VITE_` variables or commit them.
 ### Environment Configuration
 Copy `.env.example` to `.env.local` to configure connection parameters:
 ```env
@@ -125,47 +142,21 @@ Copy `.env.example` to `.env.local` to configure connection parameters:
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_KEY=your-supabase-publishable-or-anon-key
 
+Backend (Supabase CLI): migrations and Edge Functions are deployed separately from the frontend; `git push` alone does not deploy them. Seed data is applied deliberately, not automatically.
 # Provider secrets (GNANI_API_KEY, GROQ_API_KEY, SERVICE_ROLE_KEY)
 # MUST ONLY be set in Supabase Function Secrets — NEVER in the frontend!
 ```
 
-### Production Environment & Deployment
-1. **Frontend Hosting (Vercel):**
-   - Connect repository to Vercel.
-   - Configure Environment Variables: `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` (public anon/publishable key only).
-   - Build Command: `npm run build`
-   - Output Directory: `dist`
-2. **Backend & Database (Supabase Cloud):**
-   - Apply timestamped migrations in `supabase/migrations/` and seed data from `supabase/seed.sql`.
-   - Set Function Secrets using Supabase CLI:
-     ```bash
-     supabase secrets set GROQ_API_KEY=... GNANI_API_KEY=...
-     ```
-   - Deploy Edge Functions:
-     ```bash
-     supabase functions deploy chat-turn
-     supabase functions deploy speak
-     ```
-   - Provision Doctor Auth accounts in Supabase Dashboard and apply profile mappings via [`docs/final-owner-setup.md`](docs/final-owner-setup.md).
-
+## Evaluator access
 ---
 
-## Known Limitations & Clinical Governance
-
-> [!CAUTION]
-> **Prototype & Non-Clinical Disclaimers:**
-> - **Synthetic Personas Only:** Utilizes fictional doctor identities and synthetic patient inputs. Real patient PHI must never be entered.
-> - **Non-Diagnostic:** Strictly provides intake synthesis and departmental referral routing; never diagnoses illnesses, assesses clinical probability, or prescribes treatment.
-> - **Illustrative Emergency Rules:** Keyword emergency triggers are demonstration safety filters and not clinically certified medical triage algorithms.
-> - **No Emergency Dispatch:** Displaying plain-text 112 advice does not summon emergency services or dial 112 automatically.
-> - **Linguistic Certification Pending:** Hindi translations are approved for educational demo purposes and require clinical review by qualified medical linguists before healthcare use.
-
----
-
+The doctor dashboard is restricted. Working evaluator credentials are **not published** in this repository, this README, screenshots, Figma, source code or public posts. The doctor login card explains that credentials are shared privately with reviewers.
 ## Test Suites & Quality Verification
 
+The registration terms refer to a participant workspace, but the current programme page FAQ and challenge blog say there is no participant dashboard and the submission form is sent to the registered email. The project owner will follow the current email instructions and inspect the actual link received for this registration. Evaluator access will be provided only through a field explicitly confirmed as private/reviewer-only or another private method approved by the challenge organisers. Do not assume such a field exists. Never commit a working password.
 The repository includes a comprehensive 5-layer test pyramid:
 
+Two synthetic doctor identities are provisioned for testing: General Medicine (Dr. Aditi Rao) and Emergency (Dr. Neha Verma). Their passwords are held privately by the project owner; Auth users are created through Supabase Dashboard, never inserted into `auth.users` with SQL. The public app is an educational demo: use synthetic patient inputs only.
 | Suite | Command | Coverage |
 | :--- | :--- | :--- |
 | **Unit & Integration** | `npm test` | 84 tests (26 Mock, 7 Supabase RPC, 51 API integration) |

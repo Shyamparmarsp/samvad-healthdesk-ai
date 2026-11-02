@@ -255,6 +255,8 @@ async function runVisualQA() {
     await sleep(400);
     await cdp.waitForText(/नाम/);
     await cdp.captureScreenshot('conversation-screen-390x844.png');
+    await cdp.captureScreenshot('patient-intake-mobile-390x844.png');
+    console.log('  ✓ Captured patient-intake-mobile-390x844.png on mobile viewport');
 
     // Helper for sending text
     const sendAnswer = async (text) => {
@@ -342,6 +344,28 @@ async function runVisualQA() {
     await cdp.captureScreenshot('emergency-screen-390x844.png');
     console.log('  ✓ Captured emergency-screen-390x844.png with plain-text 112');
 
+    // 5b. Patient intake on desktop (1280x820)
+    console.log(`[5b] Capturing Patient Intake on Desktop (1280x820)`);
+    await cdp.setViewport(1280, 820, false);
+    await cdp.navigate(`http://127.0.0.1:${PORT}/`);
+    await cdp.eval(`
+      (() => {
+        const btn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Type Instead'));
+        if (btn) btn.click();
+      })()
+    `);
+    await sleep(350);
+    await cdp.eval(`
+      (() => {
+        const btn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('agree') || b.innerText.includes('Agree'));
+        if (btn) btn.click();
+      })()
+    `);
+    await sleep(350);
+    await cdp.waitForText(/name|Name/i);
+    await cdp.captureScreenshot('patient-intake-desktop-1280x820.png');
+    console.log('  ✓ Captured patient-intake-desktop-1280x820.png on desktop viewport');
+
     // 5. Desktop Doctor Portal (1280x820 and 1440x900)
     console.log(`[6] Capturing Doctor Portal across Desktop Viewports`);
     await cdp.setViewport(1280, 820, false);
@@ -407,6 +431,17 @@ async function runVisualQA() {
     await cdp.captureScreenshot('doctor-report-detail-1280x820.png');
     console.log('  ✓ Captured doctor-report-detail-1280x820.png showing compact conversation history note');
 
+    // Expand verbatim conversation history
+    await cdp.eval(`
+      (() => {
+        const expandBtn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Expand Conversation') || b.innerText.includes('Verbatim Intake Conversation'));
+        if (expandBtn) expandBtn.click();
+      })()
+    `);
+    await sleep(400);
+    await cdp.captureScreenshot('doctor-conversation-history-1280x820.png');
+    console.log('  ✓ Captured doctor-conversation-history-1280x820.png showing expanded verbatim conversation history');
+
     // Urgent Triage Queue
     await cdp.eval(`
       (() => {
@@ -428,6 +463,19 @@ async function runVisualQA() {
     await sleep(500);
     await cdp.waitForText(/Clinical Appointments/i);
     await cdp.captureScreenshot('doctor-appointments-1280x820.png');
+
+    // 6. Doctor dashboard on mobile (390x844)
+    console.log(`[7] Capturing Doctor Dashboard on Mobile (390x844)`);
+    await cdp.setViewport(390, 844, true);
+    await cdp.eval(`
+      (() => {
+        const dashNav = Array.from(document.querySelectorAll('button, a')).find(b => b.innerText.toLowerCase().includes('dashboard') || b.innerText.includes('overview'));
+        if (dashNav) dashNav.click();
+      })()
+    `);
+    await sleep(500);
+    await cdp.captureScreenshot('doctor-dashboard-mobile-390x844.png');
+    console.log('  ✓ Captured doctor-dashboard-mobile-390x844.png on mobile viewport');
 
     console.log('  ✓ Captured doctor dashboard, reports, urgent triage, and appointments at 1280x820');
 
