@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Appointment, DoctorAppointmentsTab } from '../../types/doctor';
+import { formatIstDate, formatIstTime, parseInstant } from '../../lib/booking-time';
 import { BackButton } from '../common/BackButton';
 
 interface DoctorAppointmentsViewProps {
@@ -20,8 +21,11 @@ export function filterAppointmentsByTab(
   const todayDateStr = getIstDateStr(now);
 
   return appointments.filter((apt) => {
-    const slotStartDate = new Date(apt.slot_start);
-    const slotDateStr = getIstDateStr(slotStartDate);
+    const slotStart = parseInstant(apt.slot_start);
+    // An unreadable slot timestamp must stay visible (rendered as unavailable) rather
+    // than silently disappearing from every tab.
+    if (!slotStart) return true;
+    const slotDateStr = getIstDateStr(slotStart);
 
     if (tab === 'today') {
       return slotDateStr === todayDateStr;
@@ -39,7 +43,7 @@ export const DoctorAppointmentsView: React.FC<DoctorAppointmentsViewProps> = ({
   onSelectReport,
   onBack,
 }) => {
-  const [activeTab, setActiveTab] = useState<DoctorAppointmentsTab>('today');
+  const [activeTab, setActiveTab] = useState<DoctorAppointmentsTab>('upcoming');
   const now = new Date();
 
   // Derive Today, Upcoming, Past based on slot_start in Asia/Kolkata
@@ -101,25 +105,18 @@ export const DoctorAppointmentsView: React.FC<DoctorAppointmentsViewProps> = ({
                   <th className="pb-3 px-4">Date</th>
                   <th className="pb-3 px-4">Time</th>
                   <th className="pb-3 px-4">Patient</th>
-                  <th className="pb-3 px-4">Age / Gender</th>
-                  <th className="pb-3 px-4">Concern</th>
+                  <th className="pb-3 px-4">Department</th>
+                  <th className="pb-3 px-4">Reference</th>
                   <th className="pb-3 px-4">Status</th>
                   {onSelectReport && <th className="pb-3 px-4 text-right">Intake</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#dde3ee]/60 text-[#1d2433]">
                 {filteredAppointments.map((apt) => {
-                  const isCompleted = new Date(apt.slot_end).getTime() < now.getTime();
-                  const slotDate = new Date(apt.slot_start);
-                  const dateStr = slotDate.toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    day: '2-digit',
-                    month: 'short',
-                  });
-                  const timeStr = slotDate.toLocaleTimeString('en-US', {
-                    hour: 'numeric',
-                    minute: '2-digit',
-                  });
+                  const slotEnd = parseInstant(apt.slot_end);
+                  const isCompleted = slotEnd ? slotEnd.getTime() < now.getTime() : false;
+                  const dateStr = formatIstDate(apt.slot_start) ?? 'Date unavailable';
+                  const timeStr = formatIstTime(apt.slot_start) ?? 'Time unavailable';
 
                   return (
                     <tr

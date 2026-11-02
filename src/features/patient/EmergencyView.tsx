@@ -1,24 +1,25 @@
 import React from 'react';
 import { useI18n } from '../../i18n';
 import { PatientHeader } from './PatientHeader';
-import { BackButton } from '../common/BackButton';
 
 interface EmergencyViewProps {
   onEndDemo: () => void;
-  onBack?: () => void;
 }
 
-export const EmergencyView: React.FC<EmergencyViewProps> = ({ onEndDemo, onBack }) => {
+/**
+ * Deterministic emergency state (D-02).
+ *
+ * This screen is terminal for the session: there is no Back control, because leaving
+ * it would restore routine intake and discard the 112 guidance. The only action ends
+ * the demo. 112 is plain selectable text — never a `tel:` link.
+ */
+export const EmergencyView: React.FC<EmergencyViewProps> = ({ onEndDemo }) => {
   const { t } = useI18n();
 
   return (
     <div className="flex flex-col h-full justify-between pb-4 select-none relative overflow-hidden">
       {/* Top Header & Language Toggle (Figma 72:436) */}
       <PatientHeader />
-
-      <div className="px-5 pt-0.5 pb-1 flex items-center">
-        <BackButton onClick={onBack ?? onEndDemo} />
-      </div>
 
       {/* Main Urgent Guidance Card (Figma 72:436) */}
       <div className="flex-1 flex flex-col justify-between px-5 py-4">
@@ -29,13 +30,17 @@ export const EmergencyView: React.FC<EmergencyViewProps> = ({ onEndDemo, onBack 
           </h1>
 
           <p className="text-[13px] text-[#1d2433] leading-relaxed mb-6 font-normal">
-            Your answer may indicate an urgent situation. This demonstration cannot assess or treat emergencies. Please call 112 now or go to the nearest emergency department. Do not wait for a routine appointment.
+            {t.emergency.guidance}
           </p>
 
           {/* Plain Text 112 Display — NO tap-to-call link per G3 / docs */}
           <div className="text-[64px] font-black text-red-600 tracking-wider font-mono select-text leading-none py-2">
-            112
+            {t.emergency.plainEmergencyNumber}
           </div>
+
+          <p className="text-[11px] text-[#4a5470] mt-4 leading-snug">
+            {t.emergency.notice}
+          </p>
         </div>
 
         {/* Footer End Demo Action */}

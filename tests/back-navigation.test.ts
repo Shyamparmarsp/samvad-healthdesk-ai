@@ -257,14 +257,17 @@ describe('Application-Wide Back Navigation Suite', () => {
       assert.ok(html.includes('aria-label="Go back"'));
     });
 
-    it('EmergencyView renders BackButton', () => {
+    it('EmergencyView is terminal: no Back control, and 112 guidance is present', () => {
+      // D-02: leaving the emergency state would restore routine intake and discard the
+      // 112 guidance, so the emergency screen must not offer a back affordance.
       const html = renderToStaticMarkup(
         React.createElement(EmergencyView, {
           onEndDemo: () => {},
-          onBack: () => {},
         })
       );
-      assert.ok(html.includes('aria-label="Go back"'));
+      assert.ok(!html.includes('aria-label="Go back"'));
+      assert.ok(!html.includes('viewBox="0 0 25 25"'));
+      assert.ok(html.includes('112'));
     });
 
     it('SessionEndedView renders BackButton', () => {

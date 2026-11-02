@@ -310,6 +310,10 @@ async function runVisualQA() {
 
     // 4. Emergency Screen
     console.log(`[5] Capturing Emergency Screen`);
+    // Mock mode is documented as not reload-safe; a fresh flow needs a clean store
+    // (otherwise the "could not restore session" notice is shown, by design).
+    await cdp.eval(`(() => { try { sessionStorage.clear(); localStorage.clear(); } catch {} })()`);
+    await sleep(200);
     await cdp.navigate(`http://127.0.0.1:${PORT}/`);
     await cdp.eval(`
       (() => {
@@ -347,10 +351,12 @@ async function runVisualQA() {
     // 5b. Patient intake on desktop (1280x820)
     console.log(`[5b] Capturing Patient Intake on Desktop (1280x820)`);
     await cdp.setViewport(1280, 820, false);
+    await cdp.eval(`(() => { try { sessionStorage.clear(); localStorage.clear(); } catch {} })()`);
+    await sleep(200);
     await cdp.navigate(`http://127.0.0.1:${PORT}/`);
     await cdp.eval(`
       (() => {
-        const btn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Type Instead'));
+        const btn = Array.from(document.querySelectorAll('button')).find(b => b.innerText.includes('Type Instead') || b.innerText.includes('लिखकर'));
         if (btn) btn.click();
       })()
     `);
@@ -428,7 +434,7 @@ async function runVisualQA() {
       })()
     `);
     await sleep(600);
-    await cdp.waitForText(/Clinical Intake Summary/i);
+    await cdp.waitForText(/Patient Report/i);
     await cdp.captureScreenshot('doctor-report-detail-1280x820.png');
     console.log('  ✓ Captured doctor-report-detail-1280x820.png showing compact conversation history note');
 

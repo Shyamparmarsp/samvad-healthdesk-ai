@@ -11,10 +11,14 @@ export const App: React.FC = () => {
   return (
     <I18nProvider>
       <BrowserRouter>
-        {/* Screen-reader / programmatic navigation for test suites */}
-        <header className="opacity-0 pointer-events-auto h-0 w-0 overflow-hidden absolute top-0 left-0" aria-label="Portal Navigation">
-          <Link to="/">Patient Intake</Link>
-          <Link to="/doctor">Doctor Portal</Link>
+        {/* Programmatic navigation hooks for the automated suites. They are removed
+            from the tab order so the first Tab stop is a real, visible control (D-24). */}
+        <header
+          className="opacity-0 pointer-events-auto h-0 w-0 overflow-hidden absolute top-0 left-0"
+          aria-hidden="true"
+        >
+          <Link to="/" tabIndex={-1}>Patient Intake</Link>
+          <Link to="/doctor" tabIndex={-1}>Doctor Portal</Link>
         </header>
 
         <div className="min-h-screen bg-[#dde3ee] text-[#1d2433] antialiased flex flex-col items-center justify-center">

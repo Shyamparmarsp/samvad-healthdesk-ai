@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useI18n } from '../../i18n';
-import { CorrectableField, ReportDocumentV1 } from '../../types/report';
+import { CorrectableField, InfoStatus, ReportDocumentV1 } from '../../types/report';
+import { presentField } from '../../lib/report-presentation';
 import { PatientHeader } from './PatientHeader';
 import { BackButton } from '../common/BackButton';
 
@@ -8,26 +9,41 @@ interface ReportReviewViewProps {
   report: ReportDocumentV1;
   isCapReached?: boolean;
   canSubmit?: boolean;
+  /**
+   * D-37: once the report is submitted, the same screen renders a read-only summary so
+   * Back from the booking screen cannot re-open the draft editor.
+   */
+  mode?: 'draft' | 'submitted';
   onCorrectField: (field: CorrectableField, patch: { value: any; status: 'provided' | 'declined' }) => void;
   onSubmit: () => void;
   onDontSubmit: () => void;
   onEndSessionCap: () => void;
   onBack?: () => void;
+  onContinueBooking?: () => void;
+  onFinish?: () => void;
+  /** D-28: disable the actions while a request is in flight. */
+  isSubmitting?: boolean;
 }
 
 export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
   report,
   isCapReached = false,
   canSubmit = true,
+  mode = 'draft',
   onCorrectField,
   onSubmit,
   onDontSubmit,
   onEndSessionCap,
   onBack,
+  onContinueBooking,
+  onFinish,
+  isSubmitting = false,
 }) => {
   const { t, language } = useI18n();
   const [editingField, setEditingField] = useState<CorrectableField | null>(null);
   const [editValue, setEditValue] = useState<string>('');
+
+  const isReadOnly = mode === 'submitted';
 
   const startEdit = (field: CorrectableField, currentVal: any) => {
     setEditingField(field);
@@ -58,6 +74,64 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
     }
   };
 
+  /** D-14: every information status keeps its own label. */
+  const statusLabel = (status: InfoStatus | 'unavailable'): string => {
+    switch (status) {
+      case 'declined':
+        return t.review.statusDeclined;
+      case 'unknown':
+        return t.review.statusUnknown;
+      case 'unclear':
+        return t.review.statusUnclear;
+      case 'not_asked':
+        return t.review.statusNotAsked;
+      case 'not_provided':
+        return t.review.notProvided;
+      default:
+        return t.review.unavailable;
+    }
+  };
+
+  const fieldText = (field: unknown): { text: string; isAbsent: boolean } => {
+    const presented = presentField(field);
+    if (presented.status === 'provided') return { text: presented.text, isAbsent: false };
+    return { text: statusLabel(presented.status), isAbsent: true };
+  };
+
+  const name = fieldText(report.patient.name);
+  const age = fieldText(report.patient.age);
+  const gender = report.patient.gender?.status === 'declined'
+    ? { text: t.review.statusDeclined, isAbsent: true }
+    : fieldText(report.patient.gender);
+  const primaryConcern = fieldText(report.primary_concern);
+  const duration = fieldText(report.clinical_details.duration);
+  const severity = fieldText(report.clinical_details.severity);
+  const conditions = fieldText(report.clinical_details.conditions);
+  const medications = fieldText(report.clinical_details.medications);
+  const allergies = fieldText(report.clinical_details.allergies);
+  const otherSymptoms = fieldText(report.clinical_details.other_symptoms);
+
+  const rows: {
+    key: string;
+    label: string;
+    text: string;
+    isAbsent: boolean;
+    field: CorrectableField;
+    value: any;
+  }[] = [
+    { key: 'name', label: t.review.name, text: name.text, isAbsent: name.isAbsent, field: 'patient.name', value: report.patient.name.value },
+    { key: 'age', label: t.review.age, text: age.isAbsent ? age.text : `${age.text} ${language === 'hi' ? 'वर्ष' : 'yrs'}`, isAbsent: age.isAbsent, field: 'patient.age', value: report.patient.age.value },
+    { key: 'gender', label: t.review.gender, text: gender.text, isAbsent: gender.isAbsent, field: 'patient.gender', value: report.patient.gender.value },
+    { key: 'concern', label: t.review.primaryConcern, text: primaryConcern.text, isAbsent: primaryConcern.isAbsent, field: 'primary_concern', value: report.primary_concern.value },
+    { key: 'duration', label: t.review.duration, text: duration.text, isAbsent: duration.isAbsent, field: 'clinical_details.duration', value: report.clinical_details.duration.value },
+    { key: 'severity', label: t.review.severity, text: severity.text, isAbsent: severity.isAbsent, field: 'clinical_details.severity', value: report.clinical_details.severity.value },
+    { key: 'conditions', label: t.review.conditions, text: conditions.text, isAbsent: conditions.isAbsent, field: 'clinical_details.conditions', value: report.clinical_details.conditions.value },
+    { key: 'medications', label: t.review.medications, text: medications.text, isAbsent: medications.isAbsent, field: 'clinical_details.medications', value: report.clinical_details.medications.value },
+    { key: 'allergies', label: t.review.allergies, text: allergies.text, isAbsent: allergies.isAbsent, field: 'clinical_details.allergies', value: report.clinical_details.allergies.value },
+    // D-12: other_symptoms is allow-listed by the backend and must be correctable.
+    { key: 'other_symptoms', label: t.review.otherSymptoms, text: otherSymptoms.text, isAbsent: otherSymptoms.isAbsent, field: 'clinical_details.other_symptoms', value: report.clinical_details.other_symptoms.value },
+  ];
+
   return (
     <div className="flex flex-col h-full justify-between pb-4 select-none relative overflow-hidden">
       {/* Top Header & Language Toggle & Progress (Figma 72:235) */}
@@ -75,20 +149,22 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
         <div className="flex items-start justify-between gap-2 pt-1">
           <div>
             <h1 className="text-[20px] font-bold text-[#1d2433] tracking-tight">
-              <span>{language === 'hi' ? 'अपनी इनटेक रिपोर्ट की समीक्षा करें' : 'Your Health Report'}</span>
+              <span>{isReadOnly ? t.review.submittedTitle : language === 'hi' ? 'अपनी इनटेक रिपोर्ट की समीक्षा करें' : 'Your Health Report'}</span>
               <span className="sr-only"> · Review Your Intake Report</span>
             </h1>
             <p className="text-[12px] text-[#4a5470] mt-0.5">
-              {t.review.subtitle}
+              {isReadOnly ? t.review.submittedNote : t.review.subtitle}
             </p>
           </div>
-          <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold uppercase tracking-wider flex-shrink-0 mt-1">
-            Draft Preview
-          </span>
+          {!isReadOnly && (
+            <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold uppercase tracking-wider flex-shrink-0 mt-1">
+              Draft Preview
+            </span>
+          )}
         </div>
 
         {/* Incomplete 15-Turn Cap Banner (D9 Copy) */}
-        {isCapReached && !canSubmit && (
+        {!isReadOnly && isCapReached && !canSubmit && (
           <div className="p-3.5 rounded-[18px] bg-amber-50/90 border border-amber-200 text-xs text-amber-900 shadow-sm leading-relaxed">
             <p className="font-bold text-sm mb-1">{t.review.incompleteCapTitle}</p>
             <p>{t.review.incompleteCapMessage}</p>
@@ -98,164 +174,30 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
         {/* Allowlisted Patient Details Card (Figma 81:306) */}
         <div className="backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[24px] p-4 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)]">
           <div className="divide-y divide-slate-200/60 text-xs">
-            {/* Name */}
-            <div className="py-2.5 flex items-center justify-between">
-              <div>
-                <span className="text-[11px] text-[#4a5470] block">{t.review.name}</span>
-                <span className="font-semibold text-[13px] text-[#1d2433]">
-                  {report.patient.name.value || t.review.notProvided}
-                </span>
+            {rows.map((row) => (
+              <div key={row.key} className="py-2.5 flex items-start justify-between gap-2">
+                <div>
+                  <span className="text-[11px] text-[#4a5470] block">{row.label}</span>
+                  <span
+                    className={`font-semibold text-[13px] ${
+                      row.isAbsent ? 'text-[#4a5470] italic' : 'text-[#1d2433]'
+                    }`}
+                  >
+                    {row.text}
+                  </span>
+                </div>
+                {!isReadOnly && (
+                  <button
+                    type="button"
+                    onClick={() => startEdit(row.field, row.value)}
+                    disabled={isSubmitting}
+                    className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1 disabled:opacity-50"
+                  >
+                    {t.common.edit}
+                  </button>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={() => startEdit('patient.name', report.patient.name.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
-              >
-                {t.common.edit}
-              </button>
-            </div>
-
-            {/* Age */}
-            <div className="py-2.5 flex items-center justify-between">
-              <div>
-                <span className="text-[11px] text-[#4a5470] block">{t.review.age}</span>
-                <span className="font-semibold text-[13px] text-[#1d2433]">
-                  {report.patient.age.value ? `${report.patient.age.value} yrs` : t.review.notProvided}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => startEdit('patient.age', report.patient.age.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
-              >
-                {t.common.edit}
-              </button>
-            </div>
-
-            {/* Gender */}
-            <div className="py-2.5 flex items-center justify-between">
-              <div>
-                <span className="text-[11px] text-[#4a5470] block">{t.review.gender}</span>
-                <span className="font-semibold text-[13px] text-[#1d2433] capitalize">
-                  {report.patient.gender.status === 'declined' ? 'Prefer not to say' : (report.patient.gender.value || t.review.notProvided)}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => startEdit('patient.gender', report.patient.gender.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
-              >
-                {t.common.edit}
-              </button>
-            </div>
-
-            {/* Primary Concern */}
-            <div className="py-2.5 flex items-start justify-between gap-2">
-              <div>
-                <span className="text-[11px] text-[#4a5470] block">{t.review.primaryConcern}</span>
-                <span className="font-semibold text-[13px] text-[#1d2433] leading-snug">
-                  {report.primary_concern.value || t.review.notProvided}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => startEdit('primary_concern', report.primary_concern.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
-              >
-                {t.common.edit}
-              </button>
-            </div>
-
-            {/* Duration */}
-            <div className="py-2.5 flex items-center justify-between">
-              <div>
-                <span className="text-[11px] text-[#4a5470] block">{t.review.duration}</span>
-                <span className="font-medium text-[13px] text-[#1d2433]">
-                  {report.clinical_details.duration.value || t.review.notProvided}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => startEdit('clinical_details.duration', report.clinical_details.duration.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
-              >
-                {t.common.edit}
-              </button>
-            </div>
-
-            {/* Severity */}
-            <div className="py-2.5 flex items-center justify-between">
-              <div>
-                <span className="text-[11px] text-[#4a5470] block">{t.review.severity}</span>
-                <span className="font-medium text-[13px] text-[#1d2433]">
-                  {report.clinical_details.severity.value || t.review.notProvided}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => startEdit('clinical_details.severity', report.clinical_details.severity.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
-              >
-                {t.common.edit}
-              </button>
-            </div>
-
-            {/* Conditions */}
-            <div className="py-2.5 flex items-start justify-between gap-2">
-              <div>
-                <span className="text-[11px] text-[#4a5470] block">{t.review.conditions}</span>
-                <span className="font-medium text-[12px] text-[#1d2433]">
-                  {report.clinical_details.conditions.value?.length
-                    ? report.clinical_details.conditions.value.join(', ')
-                    : t.review.notProvided}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => startEdit('clinical_details.conditions', report.clinical_details.conditions.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
-              >
-                {t.common.edit}
-              </button>
-            </div>
-
-            {/* Medications */}
-            <div className="py-2.5 flex items-start justify-between gap-2">
-              <div>
-                <span className="text-[11px] text-[#4a5470] block">{t.review.medications}</span>
-                <span className="font-medium text-[12px] text-[#1d2433]">
-                  {report.clinical_details.medications.value?.length
-                    ? report.clinical_details.medications.value.join(', ')
-                    : t.review.notProvided}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => startEdit('clinical_details.medications', report.clinical_details.medications.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
-              >
-                {t.common.edit}
-              </button>
-            </div>
-
-            {/* Allergies */}
-            <div className="py-2.5 flex items-start justify-between gap-2">
-              <div>
-                <span className="text-[11px] text-[#4a5470] block">{t.review.allergies}</span>
-                <span className="font-medium text-[12px] text-[#1d2433]">
-                  {report.clinical_details.allergies.value?.length
-                    ? report.clinical_details.allergies.value.join(', ')
-                    : t.review.notProvided}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => startEdit('clinical_details.allergies', report.clinical_details.allergies.value)}
-                className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1"
-              >
-                {t.common.edit}
-              </button>
-            </div>
+            ))}
           </div>
         </div>
 
@@ -276,7 +218,7 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
       </div>
 
       {/* Inline Field Edit Modal / Sheet */}
-      {editingField && (
+      {editingField && !isReadOnly && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4">
           <form
             onSubmit={handleSaveEdit}
@@ -324,27 +266,49 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
 
       {/* Action Footer (Figma 81:365 & 81:367) */}
       <div className="px-5 pt-2 space-y-2">
-        {canSubmit ? (
+        {isReadOnly ? (
+          <>
+            {onContinueBooking && (
+              <button
+                type="button"
+                onClick={onContinueBooking}
+                className="w-full h-[50px] rounded-[25px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
+              >
+                {t.review.viewBooking}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onFinish ?? onDontSubmit}
+              className="w-full h-[40px] rounded-[20px] bg-transparent text-[#4a5470] hover:text-[#1d2433] font-semibold text-[13px] transition-colors flex items-center justify-center focus:outline-none"
+            >
+              {t.review.endAndFinish}
+            </button>
+          </>
+        ) : canSubmit ? (
           <>
             {/* Submit to hospital (Figma 81:365) */}
             <button
               type="button"
               onClick={onSubmit}
+              disabled={isSubmitting}
               aria-label={t.review.submitToHospital}
-              className="w-full h-[50px] rounded-[25px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
+              aria-busy={isSubmitting}
+              className="w-full h-[50px] rounded-[25px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44] disabled:opacity-50"
             >
               <svg className="w-4 h-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
-              <span>{t.review.submitToHospital}</span>
+              <span>{isSubmitting ? t.common.loading : t.review.submitToHospital}</span>
             </button>
 
             {/* Don't submit (Figma 81:367) */}
             <button
               type="button"
               onClick={onDontSubmit}
+              disabled={isSubmitting}
               aria-label={t.review.dontSubmit}
-              className="w-full h-[40px] rounded-[20px] bg-transparent text-[#4a5470] hover:text-[#1d2433] font-semibold text-[13px] transition-colors flex items-center justify-center focus:outline-none"
+              className="w-full h-[40px] rounded-[20px] bg-transparent text-[#4a5470] hover:text-[#1d2433] font-semibold text-[13px] transition-colors flex items-center justify-center focus:outline-none disabled:opacity-50"
             >
               {t.review.dontSubmit}
             </button>

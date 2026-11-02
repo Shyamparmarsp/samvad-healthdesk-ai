@@ -342,6 +342,19 @@ async function runVerification() {
     console.log('  ✓ Hindi Devanagari script rendered legibly without corruption');
     verificationResults.push({ step: 'Readable Hindi Devanagari rendering', status: 'PASS' });
 
+    // Language now persists across navigation (D-38), so return to English before the
+    // later steps that assert English copy.
+    await cdp.eval(`
+      (() => {
+        const backToEnglish = Array.from(document.querySelectorAll('button')).find(b => {
+          const text = (b.innerText || '').trim();
+          return text.includes('Talk in English') || text === 'English';
+        });
+        if (backToEnglish) backToEnglish.click();
+      })()
+    `);
+    await sleep(400);
+
     // 10. Responsive layout dimensions (390x844 patient, 1280x820 doctor, zero overflow)
     console.log('[10/10] Verifying responsive layouts (390x844 mobile, 1280x820 desktop)');
     // Patient layout container check
@@ -372,7 +385,7 @@ async function runVerification() {
         }
       })()
     `);
-    await cdp.waitForText(/Clinical Desk/i);
+    await cdp.waitForText(/Samvad HealthDesk AI/i);
 
     const doctorDims = await cdp.eval(`
       (() => {
@@ -591,7 +604,7 @@ async function runVerification() {
     `);
     await sleep(600);
 
-    await cdp.waitForText(/Clinical Intake Summary/i);
+    await cdp.waitForText(/Patient Report/i);
     const detailContent = await cdp.eval('document.body.innerText');
     assert.ok(
       detailContent.includes('Some intake responses may be available only in the conversation history and may not appear in the structured report.'),

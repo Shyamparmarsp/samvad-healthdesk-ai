@@ -33,6 +33,7 @@ import {
   Appointment,
   DoctorDashboardStats,
 } from '../types/doctor';
+import { formatIstTime, istDateKey, parseInstant, addMinutes } from './booking-time';
 
 import { CONSENT_VERSION } from '../types/consent';
 import {
@@ -1006,6 +1007,12 @@ export async function recordConsent(
     throw new Error('Session not found');
   }
 
+  // D-11: consent is idempotent. Re-agreeing after Back must never reset the question
+  // pointer or duplicate the first assistant message.
+  if (consent && (session.sessionStatus === 'in_progress' || session.sessionStatus === 'consented')) {
+    return resumeSession(sessionId);
+  }
+
   session.language = language;
   session.consentGranted = consent;
   session.consentVersion = consentVersion;
@@ -1699,17 +1706,14 @@ export async function getAvailableSlots(
 
     let rawSlots = (data || []) as { slot_start: string; slot_end: string }[];
     if (typeof dateStrOrDays === 'string') {
-      rawSlots = rawSlots.filter((row) => row.slot_start.startsWith(dateStrOrDays));
+      // Compare Asia/Kolkata date keys, never the raw UTC string prefix (D-21).
+      rawSlots = rawSlots.filter((row) => istDateKey(row.slot_start) === dateStrOrDays);
     }
 
     return rawSlots.map((row) => {
-      const d = new Date(row.slot_start);
-      const dateStr = row.slot_start.slice(0, 10);
-      const h = d.getHours();
-      const m = d.getMinutes();
-      const period = h < 12 ? 'AM' : 'PM';
-      const displayH = h % 12 === 0 ? 12 : h % 12;
-      const displayStr = `${displayH}:${String(m).padStart(2, '0')} ${period}`;
+      // Format in Asia/Kolkata explicitly; the browser zone must not change the time.
+      const dateStr = istDateKey(row.slot_start) ?? '';
+      const displayStr = formatIstTime(row.slot_start) ?? '';
 
       return {
         id: row.slot_start,
@@ -1729,9 +1733,9 @@ export async function getAvailableSlots(
   }
 
   const slots: AppointmentSlot[] = [];
-  const dateStr = typeof dateStrOrDays === 'string' ? dateStrOrDays : new Date().toISOString().slice(0, 10);
-  const targetDate = new Date(dateStr);
-  const dayOfWeek = targetDate.getDay();
+  const dateStr = typeof dateStrOrDays === 'string' ? dateStrOrDays : istDateKey(new Date()) ?? '';
+  const targetDate = new Date(`${dateStr}T12:00:00+05:30`);
+  const dayOfWeek = Number.isNaN(targetDate.getTime()) ? 1 : targetDate.getUTCDay();
 
   // Weekdays only
   if (dayOfWeek === 0 || dayOfWeek === 6) {
@@ -1743,12 +1747,11 @@ export async function getAvailableSlots(
   for (const h of hours) {
     for (const m of [0, 30]) {
       const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-      const period = h < 12 ? 'AM' : 'PM';
-      const displayH = h > 12 ? h - 12 : h;
-      const displayStr = `${displayH}:${String(m).padStart(2, '0')} ${period}`;
+      const startTime = `${dateStr}T${timeStr}:00+05:30`;
+      const endTime = addMinutes(startTime, 30) ?? startTime;
 
       const slotId = `slot-${doctorId}-${dateStr}-${timeStr}`;
-      
+
       const isBooked = Array.from(mockAppointments.values()).some(
         (a) => a.doctor_id === doctorId && a.slot_id === slotId
       );
@@ -1756,10 +1759,10 @@ export async function getAvailableSlots(
       slots.push({
         id: slotId,
         doctor_id: doctorId,
-        start_time: `${dateStr}T${timeStr}:00+05:30`,
-        end_time: `${dateStr}T${h}:${m === 0 ? '30' : '59'}:00+05:30`,
+        start_time: startTime,
+        end_time: endTime,
         date: dateStr,
-        time_display: displayStr,
+        time_display: formatIstTime(startTime) ?? '',
         is_available: !isBooked,
       });
     }
@@ -1769,9 +1772,16 @@ export async function getAvailableSlots(
 }
 
 export async function bookAppointment(req: BookAppointmentRequest): Promise<BookAppointmentResponse> {
+  // D-03: `slot_start` must be a real ISO instant. A slot id (e.g. `slot-doc-...`) is
+  // never a timestamp, and submitting one corrupts the confirmation date.
+  const requestedStart = req.slot_start;
+  if (requestedStart !== undefined && !parseInstant(requestedStart)) {
+    throw new ApiError('The selected slot time is invalid. Please reselect a slot.', 'invalid_slot', 400);
+  }
+
   if (currentAppMode === 'supabase') {
     const client = getSupabaseClient();
-    const slotStart = req.slot_start || req.slot_id;
+    const slotStart = requestedStart;
     if (!slotStart) {
       throw new ApiError('Missing slot timestamp for booking', 'invalid_request', 400);
     }
@@ -1853,11 +1863,31 @@ export async function bookAppointment(req: BookAppointmentRequest): Promise<Book
     throw new Error('Booking paused pending doctor review');
   }
 
-  const existingApt = Array.from(mockAppointments.values()).find(
-    (a) => a.doctor_id === req.doctor_id && a.slot_id === req.slot_id
+  const slotStart = requestedStart;
+  if (!slotStart) {
+    throw new ApiError('Missing slot timestamp for booking', 'invalid_request', 400);
+  }
+
+  // One confirmed appointment per report, mirroring book_appointment's unique constraint.
+  const alreadyForReport = Array.from(mockAppointments.values()).find(
+    (a) => a.report_id === req.report_id && a.status === 'confirmed',
   );
-  if (existingApt) {
-    throw new Error('Slot was just taken');
+  if (alreadyForReport) {
+    throw new ApiError(
+      'This report already has a confirmed appointment.',
+      'already_booked',
+      409,
+    );
+  }
+
+  const conflictByStart = Array.from(mockAppointments.values()).find(
+    (a) => a.doctor_id === req.doctor_id && a.slot_start === slotStart,
+  );
+  const conflictById = req.slot_id
+    ? Array.from(mockAppointments.values()).find((a) => a.slot_id === req.slot_id)
+    : undefined;
+  if (conflictByStart || conflictById) {
+    throw new ApiError('That slot was just taken. Please select another slot.', 'slot_taken', 409);
   }
 
   const refCode = generateReferenceCode('APT');
@@ -1869,9 +1899,9 @@ export async function bookAppointment(req: BookAppointmentRequest): Promise<Book
     doctor_id: req.doctor_id || doctor.id,
     doctor_name: doctor.name,
     department_name: doctor.department_name,
-    slot_id: req.slot_id || 'slot-default',
-    slot_start: req.slot_start || new Date().toISOString(),
-    slot_end: new Date(Date.now() + 1800000).toISOString(),
+    slot_id: req.slot_id || slotStart,
+    slot_start: slotStart,
+    slot_end: addMinutes(slotStart, 30) ?? slotStart,
     reference_code: refCode,
     patient_name: report.report.patient.name.value || 'Patient',
     created_at: new Date().toISOString(),
@@ -2038,6 +2068,21 @@ export async function getDoctorReports(doctorId?: string): Promise<ReportRow[]> 
     }
     return false;
   });
+}
+
+/**
+ * Resolve a doctor display name from an id (used for the "Reviewed by …" label).
+ * Returns null when the name is not available, so callers fall back to a neutral label
+ * instead of hardcoding a doctor's name (D-32).
+ */
+export async function getDoctorDisplayName(doctorId?: string | null): Promise<string | null> {
+  if (!doctorId) return null;
+  if (currentAppMode === 'supabase') {
+    const doctor = await lookupDoctor(doctorId);
+    return doctor?.display_name ?? null;
+  }
+  const fictional = Object.values(FICTIONAL_DOCTORS).find((d) => d.id === doctorId);
+  return fictional?.name ?? null;
 }
 
 export async function getDoctorReportDetail(reportId: string): Promise<ReportRow | null> {

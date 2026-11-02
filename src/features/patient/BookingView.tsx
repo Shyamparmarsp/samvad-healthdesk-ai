@@ -1,14 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { AppointmentSlot } from '../../types/doctor';
 import { ReportRow } from '../../types/report';
 import { getAvailableSlots } from '../../lib/api';
+import { buildWeekdayDateOptions, DateOption, formatIstTime } from '../../lib/booking-time';
 import { PatientHeader } from './PatientHeader';
 import { BackButton } from '../common/BackButton';
 
 interface BookingViewProps {
   report: ReportRow;
-  onBookAppointment: (slotId: string) => Promise<void>;
+  /**
+   * D-03: the booked slot is passed as both its id and its authoritative ISO start
+   * timestamp. A slot id is never used as a date.
+   */
+  onBookAppointment: (slotId: string, slotStart: string) => Promise<void>;
   onNotNow: () => void;
   onBack?: () => void;
 }
@@ -21,34 +26,15 @@ export const BookingView: React.FC<BookingViewProps> = ({
 }) => {
   const { t, language } = useI18n();
 
-  // Generate next 7 weekdays
-  const generateDates = () => {
-    const dates: { dateStr: string; label: string; dayName: string }[] = [];
-    const now = new Date();
-    let count = 0;
-    let offset = 1;
-
-    while (count < 7) {
-      const d = new Date(now.getTime() + offset * 86400000);
-      const day = d.getDay();
-      if (day !== 0 && day !== 6) {
-        // Weekday
-        const dateStr = d.toISOString().slice(0, 10);
-        const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-        const label = `${d.getDate()} ${d.toLocaleDateString('en-US', { month: 'short' })}`;
-        dates.push({ dateStr, label, dayName });
-        count++;
-      }
-      offset++;
-    }
-    return dates;
-  };
-
-  const dates = generateDates();
-  const [selectedDate, setSelectedDate] = useState<string>(dates[0]?.dateStr || '');
+  // Asia/Kolkata weekday options (D-21).
+  const dates: DateOption[] = useMemo(() => buildWeekdayDateOptions(new Date(), 14, 1), []);
+  const [visibleDateCount, setVisibleDateCount] = useState(7);
+  const [selectedDate, setSelectedDate] = useState<string>(dates[0]?.dateKey || '');
   const [slots, setSlots] = useState<AppointmentSlot[]>([]);
-  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<AppointmentSlot | null>(null);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  const [slotLoadError, setSlotLoadError] = useState(false);
+  const [noOtherDates, setNoOtherDates] = useState(false);
   const [slotTakenError, setSlotTakenError] = useState(false);
   const [bookingErrorMessage, setBookingErrorMessage] = useState<string | null>(null);
   const [isBooking, setIsBooking] = useState(false);
@@ -58,56 +44,87 @@ export const BookingView: React.FC<BookingViewProps> = ({
 
   useEffect(() => {
     if (selectedDate && !isBookingBlocked) {
-      loadSlots(selectedDate);
+      void loadSlots(selectedDate);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, report.doctor_id, isBookingBlocked]);
 
   const loadSlots = async (date: string) => {
     setIsLoadingSlots(true);
     setSlotTakenError(false);
     setBookingErrorMessage(null);
-
-    if (typeof window !== 'undefined' && window.sessionStorage?.getItem('FIGMA_PARITY_NO_SLOTS') === '1') {
-      setSlots([]);
-      setIsLoadingSlots(false);
-      return;
-    }
+    setSlotLoadError(false);
+    setNoOtherDates(false);
 
     try {
       const data = await getAvailableSlots(report.id, date);
       setSlots(data);
-      // Select first available slot
-      const firstFree = data.find((s) => s.is_available);
-      setSelectedSlotId(firstFree ? firstFree.id : null);
-      if (typeof window !== 'undefined' && window.sessionStorage?.getItem('FIGMA_PARITY_SLOT_TAKEN') === '1') {
-        setSlotTakenError(true);
-      }
+      const firstFree = data.find((s) => s.is_available) ?? null;
+      setSelectedSlot(firstFree);
     } catch {
+      // D-22: a load failure is not the same as "no free slots".
       setSlots([]);
+      setSelectedSlot(null);
+      setSlotLoadError(true);
     } finally {
       setIsLoadingSlots(false);
     }
   };
 
   const handleBook = async () => {
-    if (!selectedSlotId || isBooking) return;
+    if (!selectedSlot || isBooking) return;
     setIsBooking(true);
     setSlotTakenError(false);
     setBookingErrorMessage(null);
     try {
-      await onBookAppointment(selectedSlotId);
+      await onBookAppointment(selectedSlot.id, selectedSlot.start_time);
     } catch (err: any) {
-      if (err?.message?.includes('taken') || err?.message?.includes('23505')) {
+      const code = err?.code;
+      if (code === 'already_booked') {
+        setBookingErrorMessage(t.booking.alreadyBooked);
+      } else if (code === 'slot_taken' || err?.message?.includes('taken') || err?.message?.includes('23505')) {
         setSlotTakenError(true);
-        // Refresh slots
         await loadSlots(selectedDate);
       } else {
-        setBookingErrorMessage(err?.message || 'Unable to complete appointment booking. Please try another slot or consult staff.');
+        setBookingErrorMessage(err?.message || t.booking.bookingErrorTitle);
       }
     } finally {
       setIsBooking(false);
     }
   };
+
+  /** D-13: move to the next date that actually has a free slot. */
+  const handleTryAnotherDate = async () => {
+    if (isLoadingSlots) return;
+    const currentIndex = dates.findIndex((d) => d.dateKey === selectedDate);
+    const candidates = dates.slice(Math.max(0, currentIndex + 1));
+    if (candidates.length === 0) {
+      setNoOtherDates(true);
+      return;
+    }
+
+    setIsLoadingSlots(true);
+    setSlotLoadError(false);
+    setNoOtherDates(false);
+    try {
+      for (const candidate of candidates) {
+        const data = await getAvailableSlots(report.id, candidate.dateKey);
+        if (data.some((slot) => slot.is_available)) {
+          setVisibleDateCount(dates.length);
+          setSelectedDate(candidate.dateKey);
+          return;
+        }
+      }
+      setNoOtherDates(true);
+    } catch {
+      setSlotLoadError(true);
+    } finally {
+      setIsLoadingSlots(false);
+    }
+  };
+
+  const visibleDates = dates.slice(0, visibleDateCount);
+  const canShowMoreDates = visibleDateCount < dates.length;
 
   return (
     <div className="flex flex-col h-full justify-between pb-4 select-none relative overflow-hidden">
@@ -183,7 +200,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
             <div
               role="alert"
               aria-live="assertive"
-              className="p-3 rounded-[16px] bg-amber-50/95 border border-amber-300 text-xs text-amber-900 flex items-start gap-2 shadow-sm animate-pulse"
+              className="p-3 rounded-[16px] bg-amber-50/95 border border-amber-300 text-xs text-amber-900 flex items-start gap-2 shadow-sm"
             >
               <svg className="w-4 h-4 text-amber-700 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -206,7 +223,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               <div>
-                <p className="font-bold">Booking Error</p>
+                <p className="font-bold">{t.booking.bookingErrorTitle}</p>
                 <p className="text-[11px] mt-0.5">{bookingErrorMessage}</p>
               </div>
             </div>
@@ -218,13 +235,13 @@ export const BookingView: React.FC<BookingViewProps> = ({
               {t.booking.selectDate}
             </label>
             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" role="group" aria-label="Consultation dates">
-              {dates.map((d) => {
-                const isSelected = d.dateStr === selectedDate;
+              {visibleDates.map((d) => {
+                const isSelected = d.dateKey === selectedDate;
                 return (
                   <button
-                    key={d.dateStr}
+                    key={d.dateKey}
                     type="button"
-                    onClick={() => setSelectedDate(d.dateStr)}
+                    onClick={() => setSelectedDate(d.dateKey)}
                     aria-label={`Select date ${d.dayName} ${d.label}`}
                     aria-pressed={isSelected}
                     className={`flex-shrink-0 w-[94px] py-2.5 rounded-[16px] text-center border transition-all focus:outline-none focus:ring-2 focus:ring-[#1f2a44] ${
@@ -243,6 +260,15 @@ export const BookingView: React.FC<BookingViewProps> = ({
                 );
               })}
             </div>
+            {canShowMoreDates && (
+              <button
+                type="button"
+                onClick={() => setVisibleDateCount(dates.length)}
+                className="mt-2 text-[11px] font-semibold text-[#1f2a44] hover:underline focus:outline-none"
+              >
+                {t.booking.moreDates}
+              </button>
+            )}
           </div>
 
           {/* Time Slot Chips Card (Figma 81:396) */}
@@ -260,6 +286,19 @@ export const BookingView: React.FC<BookingViewProps> = ({
               <div role="status" aria-live="polite" className="py-8 text-center text-xs text-[#4a5470]">
                 {t.common.loading}
               </div>
+            ) : slotLoadError ? (
+              /* D-22: a failed load is distinct from "no free slots" and offers retry. */
+              <div role="alert" className="py-6 text-center">
+                <h4 className="text-xs font-bold text-[#a12626]">{t.booking.loadErrorTitle}</h4>
+                <p className="text-[11px] text-[#4a5470] mt-0.5">{t.booking.loadErrorMessage}</p>
+                <button
+                  type="button"
+                  onClick={() => void loadSlots(selectedDate)}
+                  className="mt-3 px-4 py-1.5 rounded-full bg-[#1f2a44] text-white text-[11px] font-semibold"
+                >
+                  {t.common.retry}
+                </button>
+              </div>
             ) : slots.length === 0 ? (
               /* No Slots Card (Figma P8b) */
               <div className="py-6 text-center">
@@ -270,21 +309,22 @@ export const BookingView: React.FC<BookingViewProps> = ({
                   {t.booking.noSlotsTitle}
                 </h4>
                 <p className="text-[11px] text-[#4a5470] mt-0.5">
-                  {t.booking.noSlotsMessage}
+                  {noOtherDates ? t.booking.noOtherDates : t.booking.noSlotsMessage}
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-2" role="group" aria-label="Available appointment times">
                 {slots.map((s) => {
-                  const isSelected = s.id === selectedSlotId;
+                  const isSelected = selectedSlot?.id === s.id;
                   const isFree = s.is_available;
+                  const timeLabel = formatIstTime(s.start_time) ?? s.time_display;
                   return (
                     <button
                       key={s.id}
                       type="button"
                       disabled={!isFree}
-                      onClick={() => setSelectedSlotId(s.id)}
-                      aria-label={`${s.time_display}${isFree ? ', available' : ', unavailable'}`}
+                      onClick={() => setSelectedSlot(s)}
+                      aria-label={`${timeLabel}${isFree ? ', available' : ', unavailable'}`}
                       aria-pressed={isSelected}
                       className={`h-[44px] rounded-[14px] text-xs font-semibold border transition-all focus:outline-none focus:ring-2 focus:ring-[#1f2a44] ${
                         isSelected
@@ -294,7 +334,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
                           : 'bg-slate-200/50 border-transparent text-[#4a5470]/50 line-through cursor-not-allowed'
                       }`}
                     >
-                      {s.time_display}
+                      {timeLabel}
                     </button>
                   );
                 })}
@@ -310,13 +350,15 @@ export const BookingView: React.FC<BookingViewProps> = ({
           {/* Confirm Appointment or Try another date Button */}
           <button
             type="button"
-            onClick={slots.length === 0 ? () => {} : handleBook}
-            disabled={(!selectedSlotId && slots.length > 0) || isBooking}
+            onClick={slots.length === 0 || slotLoadError ? () => void handleTryAnotherDate() : handleBook}
+            disabled={isLoadingSlots || isBooking || (slots.length > 0 && !selectedSlot)}
             className="w-full h-[54px] rounded-[27px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] disabled:opacity-50 active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
           >
-            {slots.length === 0
-              ? 'Try another date'
-              : (isBooking ? t.common.loading : t.booking.bookSlot)}
+            {slots.length === 0 || slotLoadError
+              ? t.booking.tryAnotherDate
+              : isBooking
+              ? t.common.loading
+              : `${t.booking.bookSlot}${selectedSlot ? ` · ${formatIstTime(selectedSlot.start_time) ?? ''}` : ''}`}
           </button>
 
           {/* Not Now button */}
@@ -324,7 +366,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
             type="button"
             onClick={onNotNow}
             disabled={isBooking}
-            className="w-full h-[38px] rounded-[19px] bg-transparent text-[#4a5470] hover:text-[#1d2433] font-semibold text-[13px] transition-colors flex items-center justify-center focus:outline-none"
+            className="w-full h-[38px] rounded-[19px] bg-transparent text-[#4a5470] hover:text-[#1d2433] font-semibold text-[13px] transition-colors flex items-center justify-center focus:outline-none disabled:opacity-50"
           >
             {t.booking.notNow}
           </button>

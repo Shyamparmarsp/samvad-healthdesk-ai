@@ -1,8 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { ReportRow } from '../../types/report';
 import { DoctorConversationMessage } from '../../types/api';
-import { getDoctorMessages, markReportReviewed } from '../../lib/api';
+import { getDoctorDisplayName, getDoctorMessages, markReportReviewed } from '../../lib/api';
+import {
+  describeReviewer,
+  describeSourceChip,
+  presentField,
+  presentGender,
+  presentMissingInformation,
+} from '../../lib/report-presentation';
 import { BackButton } from '../common/BackButton';
+import { WarningFlags } from './WarningFlags';
 
 interface DoctorReportDetailProps {
   report: ReportRow;
@@ -45,10 +53,6 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
   onBack,
   onRefreshReport,
 }) => {
-  const isFixtureMode =
-    typeof window !== 'undefined' &&
-    (Boolean((window as any).__FIGMA_PARITY_FIXTURE__) ||
-      window.sessionStorage?.getItem('FIGMA_PARITY_FIXTURE') === '1');
   const [isMarking, setIsMarking] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [isConversationExpanded, setIsConversationExpanded] = useState(false);
@@ -56,6 +60,7 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
   const [conversationStatus, setConversationStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [conversationError, setConversationError] = useState<string | null>(null);
   const [conversationAttempt, setConversationAttempt] = useState(0);
+  const [reviewerName, setReviewerName] = useState<string | null>(null);
 
   useEffect(() => {
     // A different report must never show the previous patient's answers.
@@ -64,7 +69,29 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
     setConversationStatus('idle');
     setConversationError(null);
     setConversationAttempt(0);
+    setReviewerName(null);
   }, [report.id]);
+
+  // Reviewer identity is derived from `reviewed_by`; it is never hardcoded (D-32).
+  useEffect(() => {
+    let cancelled = false;
+    if (!report.reviewed_at || !report.reviewed_by) {
+      setReviewerName(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+    getDoctorDisplayName(report.reviewed_by)
+      .then((name) => {
+        if (!cancelled) setReviewerName(name);
+      })
+      .catch(() => {
+        if (!cancelled) setReviewerName(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [report.reviewed_at, report.reviewed_by]);
 
   useEffect(() => {
     if (!isConversationExpanded) return;
@@ -111,15 +138,44 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
   const patient = report.report.patient;
   const clinical = report.report.clinical_details;
   const routing = report.report.routing_snapshot;
-  const patientName = patient.name.value || 'Anonymous Patient';
-  const patientAge = patient.age.value ? `${patient.age.value} years` : 'Age unstated';
-  const patientGender = patient.gender.value || 'Gender unstated';
 
-  // Format conditions, meds, allergies
-  const formatList = (val?: string[] | null) => {
-    if (!val || val.length === 0) return 'Not provided';
-    return val.join(', ');
-  };
+  const name = presentField(patient.name);
+  const age = presentField(patient.age);
+  const primaryConcern = presentField(report.report.primary_concern);
+  const duration = presentField(clinical.duration);
+  const severity = presentField(clinical.severity);
+  const conditions = presentField(clinical.conditions);
+  const medications = presentField(clinical.medications);
+  const allergies = presentField(clinical.allergies);
+  const otherSymptoms = presentField(clinical.other_symptoms);
+
+  const patientName = name.isAbsent ? 'Name unavailable' : name.text;
+  const patientAge = age.isAbsent ? 'Age unavailable' : `${age.text} years`;
+  const patientGender = presentGender(patient.gender);
+
+  const missingInformation = presentMissingInformation(report.report);
+
+  const submittedLabel =
+    typeof report.created_at === 'string' && report.created_at.trim() !== ''
+      ? new Date(report.created_at).toLocaleString('en-US', {
+          weekday: 'short',
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Asia/Kolkata',
+        })
+      : null;
+
+  const sourceChip = describeSourceChip(
+    report.report,
+    conversationStatus === 'ready' ? conversation.map((message) => message.input_mode) : [],
+  );
+
+  const reportedSymptoms = [duration.isAbsent ? null : duration.text, severity.isAbsent ? null : severity.text, otherSymptoms.isAbsent ? null : otherSymptoms.text]
+    .filter(Boolean)
+    .join(', ');
 
   return (
     <div className="space-y-6">
@@ -132,16 +188,8 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
               Patient Report
             </h1>
             <p className="text-[11px] text-[#4a5470] mt-0.5">
-              {isFixtureMode
-                ? 'INT-2026-0042 · Submitted Mon 02 Nov 2026, 09:58 AM'
-                : `${report.intake_reference} · Submitted ${new Date(report.created_at).toLocaleString('en-US', {
-                    weekday: 'short',
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}`}
+              {report.intake_reference || 'Reference unavailable'}
+              {submittedLabel ? ` · Submitted ${submittedLabel} IST` : ' · Submitted time unavailable'}
             </p>
           </div>
         </div>
@@ -149,7 +197,7 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
         {/* Source & Review status chips */}
         <div className="flex items-center gap-2">
           <div className="h-[28px] px-3.5 rounded-full bg-[#e1ebfd] text-[#284c91] text-[10px] font-semibold flex items-center justify-center">
-            Voice · English
+            {sourceChip}
           </div>
           {isReviewed ? (
             <div className="h-[28px] px-3.5 rounded-full bg-[#dcf3e6] text-[#176a3b] text-[10px] font-semibold flex items-center justify-center">
@@ -177,12 +225,9 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
       <div className="rounded-[19px] bg-[rgba(255,255,255,0.55)] backdrop-blur-[9px] border border-white p-4 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.13)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="size-[40px] rounded-full bg-[#e4e8f2] border border-white text-[#1f2a44] font-semibold text-[11px] flex items-center justify-center shrink-0">
-            {getInitials(patientName)}
+            {getInitials(name.isAbsent ? undefined : name.text)}
           </div>
           <div>
-            <span className="opacity-0 pointer-events-none h-0 w-0 overflow-hidden absolute select-none" aria-hidden="true">
-              Clinical Intake Summary
-            </span>
             <h2 className="text-[14px] font-bold text-[#1d2433] leading-snug">
               {patientName}
             </h2>
@@ -197,7 +242,7 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
             {routing.department_name} (preliminary)
           </div>
           <div className="h-[29px] px-3.5 rounded-full bg-[#dcf3e6] text-[#176a3b] text-[10px] font-semibold flex items-center justify-center">
-            {isFixtureMode ? 'Booked' : (report.status === 'submitted' ? 'Submitted' : report.status)}
+            {report.status === 'urgent_partial' ? 'Urgent partial' : report.status === 'submitted' ? 'Submitted' : report.status}
           </div>
         </div>
       </div>
@@ -208,12 +253,13 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
         <div className="rounded-[22px] bg-[rgba(255,255,255,0.55)] backdrop-blur-[9px] border border-white p-6 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.13)] space-y-4">
           <div>
             <p className="text-[13px] font-semibold text-[#1d2433]">
-              Primary concern: <span className="font-normal text-[#4a5470]">{report.report.primary_concern.value || 'Not provided'}</span>
+              Primary concern:{' '}
+              <span className={`font-normal ${primaryConcern.isAbsent ? 'text-[#4a5470] italic' : 'text-[#4a5470]'}`}>
+                {primaryConcern.text}
+              </span>
             </p>
             <p className="text-[12px] text-[#4a5470] mt-1">
-              Reported symptoms: {clinical.duration.value ? `${clinical.duration.value}` : ''}
-              {clinical.severity.value ? `, ${clinical.severity.value}` : ''}
-              {clinical.other_symptoms.value?.length ? `, ${clinical.other_symptoms.value.join(', ')}` : ''}
+              Reported symptoms: {reportedSymptoms || 'Unavailable'}
             </p>
           </div>
 
@@ -225,54 +271,40 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
               Relevant history
             </h3>
             <div className="space-y-2 text-[11px]">
-              <div className="flex items-center justify-between">
-                <span className="text-[#4a5470]">Conditions</span>
-                <span className="px-3 py-0.5 rounded-full bg-[#e4e8f2] text-[#3a4468] font-semibold text-[10px]">
-                  {formatList(clinical.conditions.value)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#4a5470]">Medications</span>
-                <span className="px-3 py-0.5 rounded-full bg-[#e4e8f2] text-[#3a4468] font-semibold text-[10px]">
-                  {formatList(clinical.medications.value)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[#4a5470]">Allergies</span>
-                <span className="px-3 py-0.5 rounded-full bg-[#e4e8f2] text-[#3a4468] font-semibold text-[10px]">
-                  {formatList(clinical.allergies.value)}
-                </span>
-              </div>
+              {[
+                { label: 'Conditions', field: conditions },
+                { label: 'Medications', field: medications },
+                { label: 'Allergies', field: allergies },
+                { label: 'Other symptoms', field: otherSymptoms },
+              ].map(({ label, field }) => (
+                <div key={label} className="flex items-center justify-between gap-3">
+                  <span className="text-[#4a5470]">{label}</span>
+                  <span
+                    className={`px-3 py-0.5 rounded-full font-semibold text-[10px] text-right ${
+                      field.isAbsent ? 'bg-[#e4e8f2] text-[#3a4468]' : 'bg-[#e4e8f2] text-[#3a4468]'
+                    }`}
+                  >
+                    {field.text}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
           <div className="border-b border-[#dde3ee]/80" />
 
-          {/* Missing info */}
+          {/* Missing info — read from the report, not recomputed (D-15) */}
           <div>
             <h3 className="text-[13px] font-bold text-[#1d2433] mb-1">
               Missing information
             </h3>
             <p className="text-[11px] text-[#4a5470]">
-              {[
-                !clinical.conditions.value && 'Existing conditions',
-                !clinical.medications.value && 'medications',
-                !clinical.allergies.value && 'allergies',
-              ]
-                .filter(Boolean)
-                .join(', ') || 'None'}
+              {missingInformation.text}
             </p>
           </div>
 
-          {/* Warning flags */}
-          <div>
-            <h3 className="text-[12px] font-bold text-[#1d2433] mb-1">
-              Warning flags
-            </h3>
-            <p className="text-[11px] text-[#4a5470]">
-              None
-            </p>
-          </div>
+          {/* Warning flags — read from the report row (P0 D-01) */}
+          <WarningFlags report={report} />
 
           {/* Preliminary routing */}
           <div>
@@ -290,7 +322,9 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
               Appointment
             </h3>
             <p className="text-[11px] text-[#4a5470]">
-              {isFixtureMode ? 'Mon 02 Nov, 03:30 PM' : (report.status === 'submitted' ? 'Routine slot pending patient confirmation' : 'Confirmed')}
+              {report.status === 'urgent_partial'
+                ? 'None — urgent report, routine booking permanently suppressed'
+                : 'See Appointments for the confirmed slot, if the patient booked one'}
             </p>
           </div>
         </div>
@@ -310,10 +344,9 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
             {/* Summary text card */}
             <div className="rounded-[16px] bg-[rgba(255,255,255,0.65)] backdrop-blur-[6px] border border-white p-4 shadow-sm">
               <p className="text-[12px] text-[#1d2433] leading-relaxed">
-                {isFixtureMode
-                  ? 'Patient-reported headache for about three days, described as moderate.'
-                  : (report.report.summary?.text ||
-                    `Patient reports ${report.report.primary_concern.value || 'symptoms'}, duration ${clinical.duration.value || 'unspecified'}.`)}
+                {report.report.summary?.text?.trim()
+                  ? report.report.summary.text
+                  : 'No summary was generated for this report.'}
               </p>
             </div>
 
@@ -432,7 +465,7 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
                 <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
-                <span>Reviewed by Dr. Aditi Rao</span>
+                <span>{describeReviewer(report, reviewerName)}</span>
               </div>
             ) : (
               <button
