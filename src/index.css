@@ -45,14 +45,14 @@
 }
 
 .glow-lilac {
-  background: radial-gradient(circle, rgba(196, 181, 253, 0.5) 0%, rgba(196, 181, 253, 0) 70%);
-  filter: blur(35px);
+  background: radial-gradient(circle, rgba(182, 197, 236, 0.75) 0%, rgba(182, 197, 236, 0.3) 45%, rgba(182, 197, 236, 0) 70%);
+  filter: blur(28px);
   pointer-events: none;
 }
 
 .glow-sand {
-  background: radial-gradient(circle, rgba(254, 215, 170, 0.45) 0%, rgba(254, 215, 170, 0) 70%);
-  filter: blur(35px);
+  background: radial-gradient(circle, rgba(237, 217, 191, 0.75) 0%, rgba(237, 217, 191, 0.3) 45%, rgba(237, 217, 191, 0) 70%);
+  filter: blur(28px);
   pointer-events: none;
 }
 

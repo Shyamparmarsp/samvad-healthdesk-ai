@@ -15,13 +15,13 @@ export const en = {
     emergencyNumber: '112',
   },
   welcome: {
-    title: 'Hello! I am Samvad HealthDesk',
-    subtitle: 'Your preliminary AI hospital intake assistant',
+    title: 'Welcome to Samvad HealthDesk AI',
+    subtitle: 'Talk to our assistant, share your concern, and book an appointment.',
     description: 'I will ask a few simple questions about your symptoms to help prepare a pre-visit summary for the hospital doctor.',
     startTalking: 'Start Talking',
     typeInstead: 'Type Instead',
     languageToggle: 'हिंदी में बात करें',
-    disclaimer: 'Educational demonstration only. Not for medical diagnosis or clinical treatment.',
+    disclaimer: 'AI assistant, not a doctor. Demo with fictional data.',
   },
   consent: {
     title: 'Consent for AI Intake',

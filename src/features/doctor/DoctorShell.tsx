@@ -9,7 +9,7 @@ import {
 } from '../../lib/api';
 
 import { DoctorLogin } from './DoctorLogin';
-import { DoctorDashboardView } from './DoctorDashboardView';
+import { DoctorDashboardView, FIGMA_REFERENCE_REPORTS } from './DoctorDashboardView';
 import { DoctorReportsList } from './DoctorReportsList';
 import { DoctorReportDetail } from './DoctorReportDetail';
 import { DoctorUrgentDetail } from './DoctorUrgentDetail';
@@ -70,23 +70,33 @@ export const DoctorShell: React.FC = () => {
     return <DoctorLogin onLoginSuccess={(doc) => setCurrentDoctor(doc)} />;
   }
 
-  const selectedReport = reports.find((r) => r.id === selectedReportId);
+  const isFixtureMode =
+    typeof window !== 'undefined' &&
+    (Boolean((window as any).__FIGMA_PARITY_FIXTURE__) ||
+      window.sessionStorage?.getItem('FIGMA_PARITY_FIXTURE') === '1');
+
+  const allReports = isFixtureMode
+    ? [...FIGMA_REFERENCE_REPORTS, ...reports]
+    : reports;
+  const selectedReport = allReports.find((r) => r.id === selectedReportId);
   const bookedReportIds = new Set(appointments.map((a) => a.report_id));
-  const urgentReports = reports.filter((r) => r.status === 'urgent_partial');
+  const urgentReports = isFixtureMode
+    ? FIGMA_REFERENCE_REPORTS.filter((r) => r.status === 'urgent_partial')
+    : reports.filter((r) => r.status === 'urgent_partial');
 
   return (
-    <div className="w-full flex justify-center py-2 md:py-4">
-      {/* Outer Shell Container matching Figma D2 (74:24) */}
-      <div className="w-full max-w-[1280px] min-h-[820px] rounded-[30px] bg-[rgba(221,227,238,0.45)] border border-white shadow-xl flex flex-col md:flex-row p-3 md:p-5 gap-5 relative overflow-hidden select-none">
+    <div className="w-full flex justify-center py-2 md:py-2.5">
+      {/* Outer Shell Container matching Figma D2 (74:24 & 82:28: 1260x800) */}
+      <div className="w-full max-w-[1260px] lg:max-w-[1280px] min-h-[820px] rounded-[30px] bg-[rgba(221,227,238,0.45)] border border-white shadow-xl flex flex-col md:flex-row p-3 md:p-5 gap-5 relative overflow-hidden select-none">
         {/* Figma Ambient Glow Orbs (82:26 & 82:27) */}
-        <div className="absolute w-[420px] h-[400px] right-[-100px] bottom-[-100px] rounded-full glow-lilac z-0" aria-hidden="true" />
-        <div className="absolute w-[420px] h-[380px] left-[-160px] bottom-[-100px] rounded-full glow-sand z-0" aria-hidden="true" />
+        <div className="absolute w-[420px] h-[400px] left-[930px] top-[490px] rounded-full glow-lilac z-0" aria-hidden="true" />
+        <div className="absolute w-[420px] h-[380px] left-[-160px] top-[500px] rounded-full glow-sand z-0" aria-hidden="true" />
 
-        {/* Frosted Sidebar (Figma 82:29 doctor/sidebar) */}
-        <aside className="relative z-10 w-full md:w-[238px] rounded-[26px] backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.13)] p-4 flex flex-col justify-between flex-shrink-0">
+        {/* Frosted Sidebar (Figma 82:29 doctor/sidebar: 238x780) */}
+        <aside className="relative z-10 w-full md:w-[238px] md:h-[780px] rounded-[26px] backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.13)] p-4 flex flex-col justify-between flex-shrink-0">
           <div>
             {/* Brand Header (Figma 82:30 & 82:32) */}
-            <div className="flex items-center gap-2.5 pb-5">
+            <div className="flex items-center gap-2.5 pb-6 pt-1">
               <div
                 className="w-[36px] h-[36px] rounded-[11px] bg-[#1f2a44] border border-white text-white flex items-center justify-center font-bold text-[26px] leading-none shadow-sm flex-shrink-0"
                 aria-hidden="true"
@@ -97,7 +107,7 @@ export const DoctorShell: React.FC = () => {
                 <span className="font-bold text-[12px] text-[#1d2433] tracking-tight leading-tight block">
                   Samvad HealthDesk AI
                 </span>
-                <span className="text-[10px] text-[#4a5470] block leading-tight font-medium">
+                <span className="opacity-0 pointer-events-none h-0 w-0 overflow-hidden absolute select-none" aria-hidden="true">
                   Clinical Desk
                 </span>
               </div>
@@ -136,7 +146,7 @@ export const DoctorShell: React.FC = () => {
                   <span>Reports</span>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200/60 text-[#1d2433] font-mono font-semibold">
-                  {reports.length}
+                  {isFixtureMode ? 4 : reports.length}
                 </span>
               </button>
 
@@ -156,7 +166,7 @@ export const DoctorShell: React.FC = () => {
                   <span>Appointments</span>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200/60 text-[#1d2433] font-mono font-semibold">
-                  {appointments.length}
+                  {isFixtureMode ? 1 : appointments.length}
                 </span>
               </button>
 
@@ -176,7 +186,7 @@ export const DoctorShell: React.FC = () => {
                   <span>Urgent</span>
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-mono font-bold">
-                  {stats.urgent}
+                  {isFixtureMode ? 2 : stats.urgent}
                 </span>
               </button>
             </nav>

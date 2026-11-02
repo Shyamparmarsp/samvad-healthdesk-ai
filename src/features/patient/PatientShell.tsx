@@ -76,6 +76,47 @@ export const PatientShell: React.FC = () => {
   // Resume after interruption (sessionStorage check on mount)
   useEffect(() => {
     try {
+      if (sessionStorage.getItem('FIGMA_PARITY_P3_FIXTURE') === '1') {
+        setCurrentScreen('conversation');
+        setChatState({
+          session_id: 'sess-p3-fixture',
+          session_status: 'in_progress',
+          messages: [
+            {
+              id: 'm1',
+              session_id: 'sess-p3-fixture',
+              role: 'assistant',
+              content: 'What health concern brings you here?',
+              question_id: 'primary_concern',
+              created_at: '2026-11-02T10:00:00Z',
+              turn_index: 0,
+            },
+            {
+              id: 'm2',
+              session_id: 'sess-p3-fixture',
+              role: 'patient',
+              content: 'I have a headache for three days.',
+              created_at: '2026-11-02T10:00:15Z',
+              turn_index: 1,
+            },
+          ],
+          current_question: {
+            id: 'severity',
+            text: 'How would you describe the pain?',
+            text_hi: 'आप दर्द का वर्णन कैसे करेंगे?',
+            answer_type: 'single_choice',
+            options: ['Mild', 'Moderate', 'Severe'],
+          },
+          turn_count: 3,
+          max_turns: 15,
+          is_complete: false,
+          emergency_triggered: false,
+          is_cap_reached: false,
+          can_submit: false,
+        });
+        return;
+      }
+
       const savedSessionId = sessionStorage.getItem('samvad_session_id');
       if (!savedSessionId) return;
 
@@ -373,15 +414,13 @@ export const PatientShell: React.FC = () => {
   };
 
   return (
-    <div className="w-full flex justify-center py-2 sm:py-6">
-      {/* Mobile Frame Container (390 x 844 viewport matching Figma V2) */}
-      <div className="w-full max-w-[390px] h-[844px] bg-[#dde3ee] rounded-[36px] shadow-2xl border border-white/80 overflow-hidden flex flex-col relative">
-        {/* Figma Ambient Glow Orbs (81:2 & 81:3) */}
-        <div className="absolute w-[260px] h-[310px] right-[-30px] bottom-[-20px] rounded-full glow-lilac z-0" aria-hidden="true" />
-        <div className="absolute w-[280px] h-[260px] left-[-60px] bottom-[-10px] rounded-full glow-sand z-0" aria-hidden="true" />
+    <div className="w-[390px] max-w-[390px] h-[844px] bg-[#dde3ee] relative overflow-hidden flex flex-col select-none">
+      {/* Figma Ambient Glow Orbs (81:2 & 81:3) */}
+      <div className="absolute w-[260px] h-[310px] left-[215px] top-[580px] rounded-full glow-lilac z-0" aria-hidden="true" />
+      <div className="absolute w-[280px] h-[260px] left-[-100px] top-[610px] rounded-full glow-sand z-0" aria-hidden="true" />
 
-        {/* Content Shell Layer */}
-        <div className="relative z-10 flex flex-col h-full w-full">
+      {/* Content Shell Layer */}
+      <div className="relative z-10 flex flex-col h-full w-full">
           {/* Accessible Error / Network Alert Banner */}
           {errorMessage && (
             <div
@@ -490,7 +529,6 @@ export const PatientShell: React.FC = () => {
         {currentScreen === 'emergency' && (
           <EmergencyView onEndDemo={handleRestart} />
         )}
-        </div>
       </div>
     </div>
   );

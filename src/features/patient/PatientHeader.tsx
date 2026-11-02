@@ -10,9 +10,9 @@ export const PatientHeader: React.FC<PatientHeaderProps> = ({ progress, onBack }
   const { language, setLanguage } = useI18n();
 
   return (
-    <div className="w-full flex-shrink-0 pt-4 px-4 pb-2">
+    <div className="w-full flex-shrink-0 pt-4 px-5 pb-2 relative z-20">
       <div className="flex items-center justify-between">
-        {/* Brand Mark + Name */}
+        {/* Brand Mark + Name (Figma 81:4 - 81:6) */}
         <div className="flex items-center gap-2.5">
           {onBack && (
             <button
@@ -69,9 +69,9 @@ export const PatientHeader: React.FC<PatientHeaderProps> = ({ progress, onBack }
         </div>
       </div>
 
-      {/* Progress Track & Value (Figma 81:67 & 81:68) */}
+      {/* Progress Track & Value (Figma 81:67 & 81:68: w=346, h=4 at y=72) */}
       {typeof progress === 'number' && (
-        <div className="w-full bg-[#e0e5f0] h-[4px] rounded-[2px] mt-3.5 overflow-hidden">
+        <div className="w-[346px] mx-auto bg-[#e0e5f0] h-[4px] rounded-[2px] mt-3.5 overflow-hidden">
           <div
             className="bg-[#1f2a44] h-full rounded-[2px] transition-all duration-300"
             style={{ width: `${Math.min(100, Math.max(0, Math.round(progress * 100)))}%` }}
