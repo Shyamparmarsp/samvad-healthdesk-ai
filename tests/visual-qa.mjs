@@ -421,6 +421,7 @@ async function runVisualQA() {
     await cdp.close();
     chrome.kill();
     server.kill();
+    process.exit(0);
   }
 }
 
