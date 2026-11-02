@@ -1,0 +1,28 @@
+BEGIN
+CREATE TABLE
+INSERT 0 1
+DO
+INSERT 0 4
+INSERT 0 4
+INSERT 0 4
+NOTICE:  PASS: General Medicine sees assigned submitted + urgent cross-visibility, never drafts
+DO
+NOTICE:  PASS: Emergency doctor sees the urgent report and its conversation only
+DO
+NOTICE:  PASS: another department cannot read the urgent report
+DO
+DO
+NOTICE:  PASS: patient cannot read reports, messages, sessions or appointments
+NOTICE:  PASS: anon has no clinical read path
+DO
+DO
+NOTICE:  PASS: no browser write path to reports, messages, sessions or appointments
+NOTICE:  PASS: Mark Reviewed matrix + permanent emergency ineligibility
+DO
+NOTICE:  PASS: urgent_partial content, routing and flags are immutable
+DO
+NOTICE:  PASS: policy, grant, enum, limit, schema-version and function guarantees hold
+DO
+ROLLBACK
+Emergency authorization certification completed. Any FAIL would have raised an exception.
+exit=0

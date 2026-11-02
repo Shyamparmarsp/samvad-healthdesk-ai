@@ -23,7 +23,7 @@ export type LogFields = Record<string, string | number | boolean | null>;
 
 /** Keys that may never appear in a log line, even if a caller passes them. */
 const FORBIDDEN_KEY_PATTERN =
-  /(text|transcript|audio|message|answer|content|name|concern|symptom|medic|allerg|token|key|secret|authorization|password|cookie)/i;
+  /(text|transcript|audio|message|answer|content|name|concern|symptom|medic|allerg|statement|patient|token|key|secret|authorization|password|cookie)/i;
 
 /**
  * Returns a safe copy of the fields: forbidden keys are removed, strings are truncated,

@@ -1,0 +1,8 @@
+{
+  "base_commit": "e5d77e53100f62d3ac5954cce7d4e9c5872f3053",
+  "algorithm": "sha256",
+  "what": "canonical JSON of EMERGENCY_RULES (ids, clear, clearHi, ambiguous, ambiguousHi, romanized)",
+  "base_sha256": "8d8f719f45a4b9c3128d174172f87d7256fddd093c73dd66a3fad4e0a574abcc",
+  "current_sha256": "8d8f719f45a4b9c3128d174172f87d7256fddd093c73dd66a3fad4e0a574abcc",
+  "identical": true
+}

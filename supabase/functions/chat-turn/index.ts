@@ -433,9 +433,40 @@ async function createEmergencyReport(
 
   await admin
     .from("sessions")
-    .update({ status: "emergency", ended_at: new Date().toISOString() })
+    .update({
+      status: "emergency",
+      // Stop routine intake: no stale question survives the emergency transition.
+      current_question_id: null,
+      ended_at: new Date().toISOString(),
+    })
     .eq("id", session.id)
     .eq("user_id", session.user_id);
+}
+
+/**
+ * Single response shape for every deterministic emergency trigger, whether the trigger
+ * arrived as a normal answer or as the answer to the ambiguous-emergency clarification.
+ */
+async function respondWithEmergency(
+  admin: Admin,
+  session: SessionRow,
+  fields: FieldMap,
+  ruleId: string,
+  statement: string,
+  userId: string,
+): Promise<Response> {
+  await createEmergencyReport(admin, session, fields, ruleId, statement);
+  const updated = await loadSession(admin, session.id, userId);
+  const response = baseResponse(updated, await loadMessages(admin, session.id));
+  const { data: urgentReport } = await admin
+    .from("reports")
+    .select("report")
+    .eq("session_id", session.id)
+    .maybeSingle();
+  if (urgentReport?.report) response.draft_report = urgentReport.report as ReportDocumentV1;
+  response.emergency_triggered = true;
+  response.can_submit = false;
+  return json(response);
 }
 
 async function handleStartSession(admin: Admin, userId: string, language: "en" | "hi"): Promise<Response> {
@@ -594,7 +625,13 @@ async function handleSubmitTurn(
 ): Promise<Response> {
   const session = await loadSession(admin, request.session_id, userId);
   if (!canAcceptAnswer(session.answer_turn_count, session.status)) {
-    return json({ ...baseResponse(session, await loadMessages(admin, session.id)), error: "turn_cap_reached" });
+    const response = baseResponse(session, await loadMessages(admin, session.id));
+    // The cap and a terminal state are different failures. Reporting the cap for an
+    // emergency/ended session made a client show the End-only cap state.
+    if (session.answer_turn_count >= MAX_ANSWER_TURNS) {
+      return json({ ...response, error: "turn_cap_reached" });
+    }
+    return json({ ...response, error: "invalid_state" }, 409);
   }
 
   // ---- Audio phase: transcribe only. No turn is accepted until the patient confirms. ----
@@ -667,14 +704,31 @@ async function handleSubmitTurn(
 
   // Clarification answer for an ambiguous emergency statement.
   if (request.question_id === "emergency_clarification" && session.pending_clarification_rule_id) {
+    // The clarification answer is still a patient answer. A clear deterministic trigger
+    // in it must enter the urgent path instead of being treated as unclear free text.
+    const clearInClarification = classifyAnswer(text);
+    if (clearInClarification.kind === "clear") {
+      return await respondWithEmergency(
+        admin,
+        session,
+        fields,
+        clearInClarification.ruleId,
+        text,
+        userId,
+      );
+    }
+
     const resolution = resolveClarification(text);
     const lastPatientText = [...messages].reverse().find((message) => message.role === "patient")?.final_text ?? text;
     if (resolution === "yes") {
-      await createEmergencyReport(admin, session, fields, session.pending_clarification_rule_id, lastPatientText);
-      const updated = await loadSession(admin, session.id, userId);
-      const response = baseResponse(updated, await loadMessages(admin, session.id));
-      response.emergency_triggered = true;
-      return json(response);
+      return await respondWithEmergency(
+        admin,
+        session,
+        fields,
+        session.pending_clarification_rule_id,
+        lastPatientText,
+        userId,
+      );
     }
     if (resolution === "unresolved") {
       // Neither confirmed nor negated. Keep the evidence, keep asking, and never
@@ -710,18 +764,7 @@ async function handleSubmitTurn(
   // Deterministic emergency evaluation on the patient-confirmed text only.
   const match = classifyAnswer(text);
   if (match.kind === "clear") {
-    await createEmergencyReport(admin, session, fields, match.ruleId, text);
-    const updated = await loadSession(admin, session.id, userId);
-    const response = baseResponse(updated, await loadMessages(admin, session.id));
-    const { data: urgentReport } = await admin
-      .from("reports")
-      .select("report")
-      .eq("session_id", session.id)
-      .maybeSingle();
-    if (urgentReport?.report) response.draft_report = urgentReport.report as ReportDocumentV1;
-    response.emergency_triggered = true;
-    response.can_submit = false;
-    return json(response);
+    return await respondWithEmergency(admin, session, fields, match.ruleId, text, userId);
   }
   if (match.kind === "ambiguous") {
     // The patient's statement is stored first: it is evidence for the doctor and must

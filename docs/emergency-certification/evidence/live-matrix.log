@@ -1,0 +1,216 @@
+Emergency certification — local stack http://127.0.0.1:54321
+Commit under test: e5d77e53100f62d3ac5954cce7d4e9c5872f3053
+
+PASS M-CLEAR-EN-breathing_emergency-1 — English clear phrase triggers breathing_emergency
+PASS M-CLEAR-EN-breathing_emergency-2 — English clear phrase triggers breathing_emergency
+PASS M-CLEAR-EN-breathing_emergency-3 — English clear phrase triggers breathing_emergency
+PASS M-CLEAR-EN-breathing_emergency-4 — English clear phrase triggers breathing_emergency
+PASS M-CLEAR-EN-breathing_emergency-5 — English clear phrase triggers breathing_emergency
+PASS M-CLEAR-EN-breathing_emergency-6 — English clear phrase triggers breathing_emergency
+PASS M-CLEAR-EN-breathing_emergency-7 — English clear phrase triggers breathing_emergency
+PASS M-CLEAR-EN-breathing_emergency-8 — English clear phrase triggers breathing_emergency
+PASS M-CLEAR-HI-breathing_emergency-1 — Hindi clear phrase triggers breathing_emergency
+PASS M-CLEAR-HI-breathing_emergency-2 — Hindi clear phrase triggers breathing_emergency
+PASS M-CLEAR-HI-breathing_emergency-3 — Hindi clear phrase triggers breathing_emergency
+PASS M-CLEAR-HI-breathing_emergency-4 — Hindi clear phrase triggers breathing_emergency
+PASS M-CLEAR-HI-breathing_emergency-5 — Hindi clear phrase triggers breathing_emergency
+PASS M-AMB-breathing_emergency-1 — Ambiguous phrase requests clarification for breathing_emergency
+PASS M-AMB-breathing_emergency-2 — Ambiguous phrase requests clarification for breathing_emergency
+PASS M-AMB-breathing_emergency-3 — Ambiguous phrase requests clarification for breathing_emergency
+PASS M-AMB-breathing_emergency-4 — Ambiguous phrase requests clarification for breathing_emergency
+PASS M-AMB-breathing_emergency-5 — Ambiguous phrase requests clarification for breathing_emergency
+PASS M-AMB-breathing_emergency-6 — Ambiguous phrase requests clarification for breathing_emergency
+PASS M-AMB-breathing_emergency-7 — Ambiguous phrase requests clarification for breathing_emergency
+PASS M-ROM-breathing_emergency-1 — Romanised variant is opt-in (Tier C) for breathing_emergency
+PASS M-ROM-breathing_emergency-2 — Romanised variant is opt-in (Tier C) for breathing_emergency
+PASS M-CLEAR-EN-severe_chest_pain-1 — English clear phrase triggers severe_chest_pain
+PASS M-CLEAR-EN-severe_chest_pain-2 — English clear phrase triggers severe_chest_pain
+PASS M-CLEAR-EN-severe_chest_pain-3 — English clear phrase triggers severe_chest_pain
+PASS M-CLEAR-EN-severe_chest_pain-4 — English clear phrase triggers severe_chest_pain
+PASS M-CLEAR-HI-severe_chest_pain-1 — Hindi clear phrase triggers severe_chest_pain
+PASS M-CLEAR-HI-severe_chest_pain-2 — Hindi clear phrase triggers severe_chest_pain
+PASS M-CLEAR-HI-severe_chest_pain-3 — Hindi clear phrase triggers severe_chest_pain
+PASS M-AMB-severe_chest_pain-1 — Ambiguous phrase requests clarification for severe_chest_pain
+PASS M-AMB-severe_chest_pain-2 — Ambiguous phrase requests clarification for severe_chest_pain
+PASS M-AMB-severe_chest_pain-3 — Ambiguous phrase requests clarification for severe_chest_pain
+PASS M-AMB-severe_chest_pain-4 — Ambiguous phrase requests clarification for severe_chest_pain
+PASS M-AMB-severe_chest_pain-5 — Ambiguous phrase requests clarification for severe_chest_pain
+PASS M-AMB-severe_chest_pain-6 — Ambiguous phrase requests clarification for severe_chest_pain
+PASS M-AMB-severe_chest_pain-7 — Ambiguous phrase requests clarification for severe_chest_pain
+PASS M-ROM-severe_chest_pain-1 — Romanised variant is opt-in (Tier C) for severe_chest_pain
+PASS M-ROM-severe_chest_pain-2 — Romanised variant is opt-in (Tier C) for severe_chest_pain
+PASS M-CLEAR-EN-stroke_signs-1 — English clear phrase triggers stroke_signs
+PASS M-CLEAR-EN-stroke_signs-2 — English clear phrase triggers stroke_signs
+PASS M-CLEAR-EN-stroke_signs-3 — English clear phrase triggers stroke_signs
+PASS M-CLEAR-EN-stroke_signs-4 — English clear phrase triggers stroke_signs
+PASS M-CLEAR-HI-stroke_signs-1 — Hindi clear phrase triggers stroke_signs
+PASS M-CLEAR-HI-stroke_signs-2 — Hindi clear phrase triggers stroke_signs
+PASS M-CLEAR-HI-stroke_signs-3 — Hindi clear phrase triggers stroke_signs
+PASS M-AMB-stroke_signs-1 — Ambiguous phrase requests clarification for stroke_signs
+PASS M-AMB-stroke_signs-2 — Ambiguous phrase requests clarification for stroke_signs
+PASS M-AMB-stroke_signs-3 — Ambiguous phrase requests clarification for stroke_signs
+PASS M-AMB-stroke_signs-4 — Ambiguous phrase requests clarification for stroke_signs
+PASS M-AMB-stroke_signs-5 — Ambiguous phrase requests clarification for stroke_signs
+PASS M-AMB-stroke_signs-6 — Ambiguous phrase requests clarification for stroke_signs
+PASS M-ROM-stroke_signs-1 — Romanised variant is opt-in (Tier C) for stroke_signs
+PASS M-ROM-stroke_signs-2 — Romanised variant is opt-in (Tier C) for stroke_signs
+PASS M-CLEAR-EN-unresponsive_or_unconscious-1 — English clear phrase triggers unresponsive_or_unconscious
+PASS M-CLEAR-EN-unresponsive_or_unconscious-2 — English clear phrase triggers unresponsive_or_unconscious
+PASS M-CLEAR-EN-unresponsive_or_unconscious-3 — English clear phrase triggers unresponsive_or_unconscious
+PASS M-CLEAR-EN-unresponsive_or_unconscious-4 — English clear phrase triggers unresponsive_or_unconscious
+PASS M-CLEAR-EN-unresponsive_or_unconscious-5 — English clear phrase triggers unresponsive_or_unconscious
+PASS M-CLEAR-HI-unresponsive_or_unconscious-1 — Hindi clear phrase triggers unresponsive_or_unconscious
+PASS M-CLEAR-HI-unresponsive_or_unconscious-2 — Hindi clear phrase triggers unresponsive_or_unconscious
+PASS M-CLEAR-HI-unresponsive_or_unconscious-3 — Hindi clear phrase triggers unresponsive_or_unconscious
+PASS M-AMB-unresponsive_or_unconscious-1 — Ambiguous phrase requests clarification for unresponsive_or_unconscious
+PASS M-AMB-unresponsive_or_unconscious-2 — Ambiguous phrase requests clarification for unresponsive_or_unconscious
+PASS M-AMB-unresponsive_or_unconscious-3 — Ambiguous phrase requests clarification for unresponsive_or_unconscious
+PASS M-AMB-unresponsive_or_unconscious-4 — Ambiguous phrase requests clarification for unresponsive_or_unconscious
+PASS M-AMB-unresponsive_or_unconscious-5 — Ambiguous phrase requests clarification for unresponsive_or_unconscious
+PASS M-ROM-unresponsive_or_unconscious-1 — Romanised variant is opt-in (Tier C) for unresponsive_or_unconscious
+PASS M-ROM-unresponsive_or_unconscious-2 — Romanised variant is opt-in (Tier C) for unresponsive_or_unconscious
+PASS M-CLEAR-EN-uncontrolled_bleeding-1 — English clear phrase triggers uncontrolled_bleeding
+PASS M-CLEAR-EN-uncontrolled_bleeding-2 — English clear phrase triggers uncontrolled_bleeding
+PASS M-CLEAR-EN-uncontrolled_bleeding-3 — English clear phrase triggers uncontrolled_bleeding
+PASS M-CLEAR-EN-uncontrolled_bleeding-4 — English clear phrase triggers uncontrolled_bleeding
+PASS M-CLEAR-HI-uncontrolled_bleeding-1 — Hindi clear phrase triggers uncontrolled_bleeding
+PASS M-CLEAR-HI-uncontrolled_bleeding-2 — Hindi clear phrase triggers uncontrolled_bleeding
+PASS M-CLEAR-HI-uncontrolled_bleeding-3 — Hindi clear phrase triggers uncontrolled_bleeding
+PASS M-AMB-uncontrolled_bleeding-1 — Ambiguous phrase requests clarification for uncontrolled_bleeding
+PASS M-AMB-uncontrolled_bleeding-2 — Ambiguous phrase requests clarification for uncontrolled_bleeding
+PASS M-AMB-uncontrolled_bleeding-3 — Ambiguous phrase requests clarification for uncontrolled_bleeding
+PASS M-AMB-uncontrolled_bleeding-4 — Ambiguous phrase requests clarification for uncontrolled_bleeding
+PASS M-ROM-uncontrolled_bleeding-1 — Romanised variant is opt-in (Tier C) for uncontrolled_bleeding
+PASS M-CLEAR-EN-seizure_or_convulsion-1 — English clear phrase triggers seizure_or_convulsion
+PASS M-CLEAR-EN-seizure_or_convulsion-2 — English clear phrase triggers seizure_or_convulsion
+PASS M-CLEAR-EN-seizure_or_convulsion-3 — English clear phrase triggers seizure_or_convulsion
+PASS M-CLEAR-HI-seizure_or_convulsion-1 — Hindi clear phrase triggers seizure_or_convulsion
+PASS M-CLEAR-HI-seizure_or_convulsion-2 — Hindi clear phrase triggers seizure_or_convulsion
+PASS M-CLEAR-HI-seizure_or_convulsion-3 — Hindi clear phrase triggers seizure_or_convulsion
+PASS M-AMB-seizure_or_convulsion-1 — Ambiguous phrase requests clarification for seizure_or_convulsion
+PASS M-AMB-seizure_or_convulsion-2 — Ambiguous phrase requests clarification for seizure_or_convulsion
+PASS M-AMB-seizure_or_convulsion-3 — Ambiguous phrase requests clarification for seizure_or_convulsion
+PASS M-AMB-seizure_or_convulsion-4 — Ambiguous phrase requests clarification for seizure_or_convulsion
+PASS M-AMB-seizure_or_convulsion-5 — Ambiguous phrase requests clarification for seizure_or_convulsion
+PASS M-AMB-seizure_or_convulsion-6 — Ambiguous phrase requests clarification for seizure_or_convulsion
+PASS M-ROM-seizure_or_convulsion-1 — Romanised variant is opt-in (Tier C) for seizure_or_convulsion
+PASS M-CLEAR-EN-severe_allergic_reaction-1 — English clear phrase triggers severe_allergic_reaction
+PASS M-CLEAR-EN-severe_allergic_reaction-2 — English clear phrase triggers severe_allergic_reaction
+PASS M-CLEAR-EN-severe_allergic_reaction-3 — English clear phrase triggers severe_allergic_reaction
+PASS M-CLEAR-HI-severe_allergic_reaction-1 — Hindi clear phrase triggers severe_allergic_reaction
+PASS M-CLEAR-HI-severe_allergic_reaction-2 — Hindi clear phrase triggers severe_allergic_reaction
+PASS M-CLEAR-HI-severe_allergic_reaction-3 — Hindi clear phrase triggers severe_allergic_reaction
+PASS M-AMB-severe_allergic_reaction-1 — Ambiguous phrase requests clarification for severe_allergic_reaction
+PASS M-AMB-severe_allergic_reaction-2 — Ambiguous phrase requests clarification for severe_allergic_reaction
+PASS M-AMB-severe_allergic_reaction-3 — Ambiguous phrase requests clarification for severe_allergic_reaction
+PASS M-AMB-severe_allergic_reaction-4 — Ambiguous phrase requests clarification for severe_allergic_reaction
+PASS M-AMB-severe_allergic_reaction-5 — Ambiguous phrase requests clarification for severe_allergic_reaction
+PASS M-AMB-severe_allergic_reaction-6 — Ambiguous phrase requests clarification for severe_allergic_reaction
+PASS M-CLEAR-EN-poisoning_or_overdose-1 — English clear phrase triggers poisoning_or_overdose
+PASS M-CLEAR-EN-poisoning_or_overdose-2 — English clear phrase triggers poisoning_or_overdose
+PASS M-CLEAR-EN-poisoning_or_overdose-3 — English clear phrase triggers poisoning_or_overdose
+PASS M-CLEAR-EN-poisoning_or_overdose-4 — English clear phrase triggers poisoning_or_overdose
+PASS M-CLEAR-HI-poisoning_or_overdose-1 — Hindi clear phrase triggers poisoning_or_overdose
+PASS M-CLEAR-HI-poisoning_or_overdose-2 — Hindi clear phrase triggers poisoning_or_overdose
+PASS M-CLEAR-HI-poisoning_or_overdose-3 — Hindi clear phrase triggers poisoning_or_overdose
+PASS M-CLEAR-HI-poisoning_or_overdose-4 — Hindi clear phrase triggers poisoning_or_overdose
+PASS M-AMB-poisoning_or_overdose-1 — Ambiguous phrase requests clarification for poisoning_or_overdose
+PASS M-AMB-poisoning_or_overdose-2 — Ambiguous phrase requests clarification for poisoning_or_overdose
+PASS M-AMB-poisoning_or_overdose-3 — Ambiguous phrase requests clarification for poisoning_or_overdose
+PASS M-ROM-poisoning_or_overdose-1 — Romanised variant is opt-in (Tier C) for poisoning_or_overdose
+PASS M-NEG-01 — Ordinary statement does not trigger the emergency path
+PASS M-NEG-02 — Ordinary statement does not trigger the emergency path
+PASS M-NEG-03 — Ordinary statement does not trigger the emergency path
+PASS M-NEG-04 — Ordinary statement does not trigger the emergency path
+PASS M-NEG-05 — Ordinary statement does not trigger the emergency path
+PASS M-NEG-06 — Ordinary statement does not trigger the emergency path
+PASS M-NEG-07 — Ordinary statement does not trigger the emergency path
+PASS M-NEG-08 — Ordinary statement does not trigger the emergency path
+PASS M-NEG-09 — Ordinary statement does not trigger the emergency path
+PASS M-NEG-10 — Ordinary statement does not trigger the emergency path
+PASS M-NEGP-01 — Negated mention of the trigger phrase does not trigger
+PASS M-NEGP-02 — Negated mention of the trigger phrase does not trigger
+PASS M-NEGP-03 — Negated mention of the trigger phrase does not trigger
+PASS M-NEGP-04 — Negated mention of the trigger phrase does not trigger
+PASS M-NEGP-05 — Negated mention of the trigger phrase does not trigger
+PASS M-NEGP-06 — Negated mention of the trigger phrase does not trigger
+PASS M-NEGP-07 — Negated mention of the trigger phrase does not trigger
+PASS M-NORM-01 — Case/whitespace/punctuation/orthography variant still matches
+PASS M-NORM-02 — Case/whitespace/punctuation/orthography variant still matches
+PASS M-NORM-03 — Case/whitespace/punctuation/orthography variant still matches
+PASS M-NORM-04 — Case/whitespace/punctuation/orthography variant still matches
+PASS M-NORM-05 — Case/whitespace/punctuation/orthography variant still matches
+PASS M-NORM-06 — Case/whitespace/punctuation/orthography variant still matches
+PASS M-NORM-07 — Case/whitespace/punctuation/orthography variant still matches
+PASS M-NORM-08 — Case/whitespace/punctuation/orthography variant still matches
+PASS M-QUOTE-01 — Double-quoted example does not trigger
+PASS M-QUOTE-02 — Double-quoted example does not trigger
+PASS M-QUOTE-03 — Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1)
+PASS M-QUOTE-04 — Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1)
+PASS M-QUOTE-05 — Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1)
+PASS M-NEGSCOPE-01 — A negation of an unrelated symptom does not cancel the trigger mention
+PASS M-NEGSCOPE-02 — A negation of an unrelated symptom does not cancel the trigger mention
+PASS M-NEGSCOPE-03 — A negation of an unrelated symptom does not cancel the trigger mention
+PASS M-NEGSCOPE-04 — A negation of an unrelated symptom does not cancel the trigger mention
+PASS M-NEGSCOPE-05 — A negation of an unrelated symptom does not cancel the trigger mention
+PASS M-NEGSCOPE-06 — A negation of an unrelated symptom does not cancel the trigger mention
+PASS M-NEGSCOPE-07 — A negation of an unrelated symptom does not cancel the trigger mention
+PASS M-NEGSCOPE-08 — A negation of an unrelated symptom does not cancel the trigger mention
+PASS M-EMPTY-01 — Empty/whitespace answer is not a match
+PASS M-ORDER-01 — Declared rule order decides the rule id when two rules match
+PASS M-DET-01 — Classification is deterministic across repeated calls
+PASS M-CLAR-01 — Fixed clarification resolution
+PASS L-NORMAL-01 — Normal non-emergency intake still advances the fixed question order
+PASS L-NORMAL-02 — Normal concern answer advances to the scripted adaptive block
+PASS L-NORMAL-03 — Normal non-emergency intake completes and produces a normal draft
+PASS L-NORMAL-04 — The ordinary final adaptive answer reaches the provider stage (same-turn control)
+PASS L-PREC-03 — A trigger on the final scripted turn preempts adaptive selection and the provider call
+PASS L-PREC-04 — The same-turn trigger still preserves the statement and the partial report
+PASS L-EMERG-01 — Clear trigger returns the emergency state and no submit path
+PASS L-EMERG-02 — Urgent report status is urgent_partial with no generated summary
+PASS L-EMERG-03 — Persisted report row is urgent_partial, emergency department, not submitted
+PASS L-EMERG-04 — The triggering patient statement is preserved verbatim
+PASS L-EMERG-05 — Emergency routing uses the seeded Emergency doctor and stays preliminary
+PASS L-EMERG-06 — Only reported information is present; unreached fields stay explicit
+PASS L-EMERG-07 — No provider call is made on the trigger turn
+PASS L-EMERG-08 — The trigger turn is not accepted as a normal answer and no further question is selected
+PASS L-EMERG-09 — After an emergency, the response advertises no further question
+PASS L-EMERG-10 — A further answer after the emergency is refused
+PASS L-EMERG-11 — The refusal uses a state error, not a turn-cap error
+PASS L-EMERG-12 — submit_report rejects an emergency session
+PASS L-EMERG-13 — Routine slots and booking are suppressed for an urgent report
+PASS L-EMERG-14 — Resume restores the emergency state and report without re-offering Submit
+PASS L-HI-01 — Hindi Devanagari clear trigger enters the urgent path at any question
+PASS L-HI-02 — The unanswered name field stays explicit in a Hindi urgent report
+PASS L-AMB-01 — Ambiguous mention asks the fixed Yes/No clarification
+PASS L-AMB-02 — The ambiguous statement is preserved in the conversation log
+PASS L-AMB-03 — No report is created while the clarification is unresolved
+PASS L-AMB-04 — An unclear clarification is never treated as safe
+PASS L-AMB-05 — 'No' negates only that candidate and never clears the review flag
+PASS L-AMB-06 — 'Yes' confirms the candidate and creates the urgent report
+PASS L-PREC-01 — A clear trigger in a clarification answer still enters the urgent path
+PASS L-PREC-02 — A present clear trigger is not cancelled by an unrelated negation
+PASS L-PREC-05 — A negation in an earlier clause segment does not cancel a later trigger
+PASS L-PREC-06 — An unrelated later negation no longer suppresses the clarification
+PASS L-PREC-07 — A later positive occurrence is evaluated after an earlier negated one
+PASS L-OWN-01 — Another patient cannot resume or read the urgent session
+PASS L-OWN-02 — The patient cannot read server-owned reports or messages directly
+PASS L-CLAIM-01 — The response does not claim any emergency service was contacted or dispatched
+PASS L-CLAIM-02 — Approved plain-text 112 guidance is present in both languages
+PASS L-SPEAK-01 — No paid TTS call is made for an emergency session
+PASS L-LIMIT-01 — Answer-turn and adaptive-question limits are unchanged
+PASS L-SCHEMA-01 — Report schema version is unchanged
+PASS L-VERSION-01 — Report contract v1.2 remains the documented version
+PASS L-PHRASE-01 — No emergency trigger phrase was added, removed or rewritten
+PASS L-BANK-01 — Question bank files are byte-for-byte unchanged from e5d77e5
+PASS L-LOG-01 — Diagnostic log calls never carry patient statements or transcripts
+PASS L-CLEANUP-01 — The harness deletes only the identities it created
+PASS L-DOC-01 — General Medicine and Emergency doctors can read the urgent report; another department cannot
+PASS L-DOC-02 — Conversation access follows report access
+PASS L-DOC-03 — Unauthorized writes are rejected
+PASS L-DOC-04 — Mark Reviewed authorisation (OD-03 interim)
+PASS L-DOC-05 — Review never unlocks an emergency report
+
+Summary: {"total":209,"pass":209,"fail":0,"notTested":0}
+Verdict: PASS
+Evidence written to emergency-certification-result.json

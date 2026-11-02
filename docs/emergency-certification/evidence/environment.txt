@@ -1,0 +1,33 @@
+base_commit=e5d77e53100f62d3ac5954cce7d4e9c5872f3053
+certified_branch=feat/emergency-certification-v3
+certification_parent=86f7d5e (previous certification artifacts; no application change)
+worktree=/Users/shyamparmar/Desktop/gnani ai project/samvad-emergency-certification-v3
+date=2026-11-02T13:40:28Z
+deno=deno 2.9.7 (stable, release, aarch64-apple-darwin)
+platform=Darwin arm64
+target=http://127.0.0.1:54321 (PostgREST/Auth/DB) + parallel edge runtime for corrected functions
+migrations:
+20261101120000
+20261101120100
+20261101120200
+20261101120300
+20261101120400
+20261102120000
+20261102130000
+20261102140000
+20261102150000
+20261102160000
+20261102170000
+application_changes_vs_base:
+ .../functions/_shared/emergency-workflow.test.ts   | 292 ++++++++++++++++++++
+ supabase/functions/_shared/logging.ts              |   2 +-
+ .../functions/_shared/safety.certification.test.ts | 297 +++++++++++++++++++++
+ supabase/functions/_shared/safety.ts               |  84 ++++--
+ supabase/functions/chat-turn/index.ts              |  81 ++++--
+ 5 files changed, 709 insertions(+), 47 deletions(-)
+report_contract: docs/report-design.md version 1.2; report schema_version 1
+question_bank: byte-for-byte unchanged (see question-bank-hashes.json)
+emergency_rules: canonical hash unchanged (see emergency-rule-hashes.json)
+live_providers=NOT RUN (local stub only)
+hosted_infrastructure=NOT TOUCHED
+frontend=NOT MODIFIED (read-only inspection)

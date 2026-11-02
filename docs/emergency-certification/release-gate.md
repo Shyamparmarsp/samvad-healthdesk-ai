@@ -1,0 +1,106 @@
+# Emergency Certification — Release Gate
+
+**Certified state:** `feat/backend` @ `e5d77e5`
+**Certification branch:** `feat/emergency-certification-v3`
+**Run:** 2 November 2026, local stack only, corrected functions served from a parallel local
+edge-runtime container; the shared runtime and all other worktrees were untouched.
+**Live providers:** NOT RUN. **Hosted infrastructure:** NOT TOUCHED.
+
+## Verdict
+
+| | |
+|---|---|
+| Backend emergency workflow | **CERTIFIED** |
+| Automated emergency matrix | **209 / 209 PASS** |
+| Backend unit suite | **219 / 219 PASS** |
+| SQL authorization / RLS / immutability | **9 / 9 blocks PASS** |
+| Integration (corrected runtime) | **52 / 52 PASS** |
+| Adaptive (corrected runtime) | **29 / 29 PASS** |
+| Standard release gate | **21 PASS, 0 FAIL, 0 BLOCKED, 1 NOT TESTED** |
+| Rendered UI / voice path | **NOT TESTED** (scope limitation) |
+
+## Gate results
+
+| # | Gate | Result | Evidence |
+|---|---|---|---|
+| G1 | Emergency detection — every configured trigger, negative controls, normalisation, both languages | **PASS** | 164/164. Triggers unchanged (`L-PHRASE-01`); D-1/D-2 corrected |
+| G2 | Execution precedence — matcher before parsing/selection/model; no further questions; no override | **PASS** | 14/14. Zero-provider proof; D-3/D-4/D-5 corrected |
+| G3 | Urgent report — status, statement, supported content, no booking, 112 guidance, no false claims | **PASS** | 15/15 |
+| G4 | Doctor access and RLS — authorized visibility, GM/EM boundaries, unauthorized reads/writes rejected | **PASS** | 7/7 live + 9/9 SQL |
+| G5 | Regression — normal intake, 3 adaptive questions, 15 answers, report v1.2, question bank, conversation access, log privacy | **PASS** | 8/8 + 219 unit + 52/52 + 29/29 |
+| G6 | Hygiene — self-only test identities, no counter reset, no sensitive logging | **PASS** | 1/1 + log privacy tests |
+| — | Standard backend gate | **PASS** | 21 PASS / 0 FAIL / 0 BLOCKED / 1 NOT TESTED (frontend) |
+
+**BLOCKED: 0.** The single NOT TESTED in the standard gate is the frontend build, which
+is only requested with `--frontend`.
+
+## Corrections included
+
+| ID | Severity | Correction | Verified by |
+|---|---|---|---|
+| D-1 | medium | Quote-aware stripping for single-quoted examples; contractions preserved | `M-QUOTE-01…05`, safety tests |
+| D-2 | high | Negation scoped to the clause segment; all occurrences checked | `M-NEGSCOPE-01…08`, `L-PREC-02/05/06/07` |
+| D-3 | low | Emergency transition clears `current_question_id` | `L-EMERG-09`, `L-PREC-03` |
+| D-4 | low | Terminal session returns `409 invalid_state`, cap unchanged | `L-EMERG-11` |
+| D-5 | medium | Clarification answer classified before yes/no | `L-PREC-01` |
+| D-6 | low | Log sanitizer rejects `patient_statement`/`patient_*` | `logging-privacy.test.ts`, `L-LOG-01` |
+
+No trigger phrase, threshold, question, schema, policy or frontend file changed.
+
+## Not tested
+
+Rendered patient UI and 112 screen, Hindi UI guidance (frontend **F-1**), microphone and
+Prisma voice path, live Groq/Prisma/Timbre, hosted deployment/CORS, clinical validity,
+identity persistence after refresh, accessibility, and the doctor-reader UI.
+See [`not-tested.md`](not-tested.md).
+
+The backend workflow is certified; the **product is not certified end-to-end** until the
+UI and voice owners exercise those paths.
+
+## Evidence map
+
+| File | Contents |
+|---|---|
+| [`evidence/live-matrix.log`](evidence/live-matrix.log) | 209-case matrix against the corrected runtime |
+| [`../../emergency-certification-result.json`](../../emergency-certification-result.json) | Machine-readable cases and verdict |
+| [`evidence/authorization-sql.log`](evidence/authorization-sql.log) | 9 SQL authorization blocks, rolled back |
+| [`evidence/deno-test.log`](evidence/deno-test.log) | 219 unit/regression/log tests |
+| [`evidence/integration-corrected.log`](evidence/integration-corrected.log) | 52/52 integration scenarios |
+| [`evidence/adaptive-corrected.log`](evidence/adaptive-corrected.log) | 29/29 adaptive scenarios |
+| [`evidence/release-check.log`](evidence/release-check.log) | Standard gate console output |
+| [`evidence/release-check-result.json`](evidence/release-check-result.json) | Standard gate JSON |
+| [`evidence/question-bank-hashes.json`](evidence/question-bank-hashes.json) | SHA-256 of the bank files vs `e5d77e5` |
+| [`evidence/emergency-rule-hashes.json`](evidence/emergency-rule-hashes.json) | Canonical `EMERGENCY_RULES` hash vs `e5d77e5` |
+| [`evidence/environment.txt`](evidence/environment.txt) | Commit, branch, toolchain, migrations, change scope |
+
+## Reproduce
+
+```bash
+# offline
+(cd supabase/functions/_shared && deno test --allow-read)
+
+# database authorization (rolls back)
+docker exec -i supabase_db_<project> psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
+  < supabase/tests/emergency_authorization.sql
+
+# emergency matrix against this worktree's functions
+LOCAL_URL=http://127.0.0.1:54321 \
+FUNCTIONS_URL=http://127.0.0.1:<runtime-port> FUNCTIONS_PREFIX='' \
+LOCAL_ANON_KEY=… LOCAL_SERVICE_KEY=… LOCAL_JWT_SECRET=… \
+CERT_COMMIT=e5d77e5 \
+deno run --allow-net --allow-env --allow-read --allow-write \
+  supabase/tests/emergency-certification.ts
+
+# standard gate
+LOCAL_URL=http://127.0.0.1:54321 LOCAL_ANON_KEY=… LOCAL_SERVICE_KEY=… \
+deno run --allow-all scripts/release-check.ts
+```
+
+## Sign-off
+
+| | |
+|---|---|
+| Evidence | Complete for the backend scope |
+| Critical behaviours untested | None in the backend scope; UI/voice explicitly out of scope |
+| Application semantics | Phrase list, thresholds, report v1.2, question bank unchanged |
+| Release recommendation | Backend emergency workflow certified; complete UI/voice verification before claiming product certification |
