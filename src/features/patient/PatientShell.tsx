@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useI18n } from '../../i18n';
 import {
   startSession,
@@ -8,6 +8,7 @@ import {
   correctDraftReport,
   submitReport,
   bookAppointment,
+  speak,
 } from '../../lib/api';
 import { ChatTurnResponse } from '../../types/api';
 import { CorrectableField, ReportDocumentV1, ReportRow } from '../../types/report';
@@ -231,6 +232,47 @@ export const PatientShell: React.FC = () => {
     await handleSendAnswer(confirmedText);
   };
 
+  // Audio playback management for question audio replay (D-19 verification)
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const handleReplayAudio = async () => {
+    if (!sessionId || !chatState?.current_question) return;
+    try {
+      if (activeAudioRef.current) {
+        activeAudioRef.current.pause();
+        activeAudioRef.current = null;
+      }
+
+      const res = await speak(sessionId, chatState.current_question.id);
+      if (res.audioUrl) {
+        const audio = new Audio(res.audioUrl);
+        activeAudioRef.current = audio;
+        audio.onended = () => {
+          if (res.audioUrl) URL.revokeObjectURL(res.audioUrl);
+          if (activeAudioRef.current === audio) activeAudioRef.current = null;
+        };
+        audio.onerror = () => {
+          if (res.audioUrl) URL.revokeObjectURL(res.audioUrl);
+          if (activeAudioRef.current === audio) activeAudioRef.current = null;
+        };
+        await audio.play().catch((err) => {
+          console.warn('Audio playback failed or was blocked by browser autoplay policy', err);
+        });
+      }
+    } catch (err) {
+      console.warn('Replay audio request failed', err);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (activeAudioRef.current) {
+        activeAudioRef.current.pause();
+        activeAudioRef.current = null;
+      }
+    };
+  }, [currentScreen]);
+
   // 5. Report corrections
   const handleCorrectField = async (
     field: CorrectableField,
@@ -382,7 +424,7 @@ export const PatientShell: React.FC = () => {
             demoBusy={chatState?.demo_busy}
             onSendText={handleSendAnswer}
             onVoiceTranscribed={handleVoiceRecorded}
-            onReplayAudio={() => {}}
+            onReplayAudio={handleReplayAudio}
             isProcessing={isProcessing}
           />
         )}
