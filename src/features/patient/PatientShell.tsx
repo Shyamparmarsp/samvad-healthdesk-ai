@@ -14,7 +14,7 @@ import { ChatTurnResponse } from '../../types/api';
 import { CorrectableField, ReportDocumentV1, ReportRow } from '../../types/report';
 import { Appointment } from '../../types/doctor';
 import { CONSENT_VERSION } from '../../types/consent';
-import { captureVoiceAnswer } from '../../lib/audio/voice';
+import { captureVoiceAnswer, type VoiceAnswer } from '../../lib/audio/voice';
 
 import { WelcomeView } from './WelcomeView';
 import { ConsentView } from './ConsentView';
@@ -395,12 +395,15 @@ export const PatientShell: React.FC = () => {
   // 4. Voice turn: capture a contract-valid WAV, let the backend transcribe it, then
   // show the transcript for confirmation. Never fabricate a transcript locally: if the
   // provider is unavailable the error banner offers text instead.
-  const handleVoiceRecorded = async (_simulatedTranscript?: string) => {
+  const handleVoiceRecorded = async (voicePayload?: VoiceAnswer | string) => {
     if (!sessionId || !chatState?.current_question) return;
     setIsProcessing(true);
     setErrorMessage(null);
     try {
-      const voice = await captureVoiceAnswer();
+      const voice: VoiceAnswer =
+        voicePayload && typeof voicePayload === 'object' && 'audio_base64' in voicePayload
+          ? voicePayload
+          : await captureVoiceAnswer();
       const res = await chatTurn({
         action: 'submit_turn',
         session_id: sessionId,
@@ -628,6 +631,7 @@ export const PatientShell: React.FC = () => {
             maxTurns={chatState?.max_turns || 15}
             demoBusy={chatState?.demo_busy}
             onSendText={handleSendAnswer}
+            onVoiceRecorded={handleVoiceRecorded}
             onVoiceTranscribed={handleVoiceRecorded}
             onReplayAudio={handleReplayAudio}
             isProcessing={isProcessing}

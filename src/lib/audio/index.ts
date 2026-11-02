@@ -14,9 +14,13 @@ export class AudioRecorder {
   private mediaRecorder: MediaRecorder | null = null;
   private chunks: Blob[] = [];
   private startTime: number = 0;
+  private isStopping: boolean = false;
+  private onErrorCallback: ((error: Error) => void) | null = null;
+  private onTrackEndedCallback: (() => void) | null = null;
 
   async requestPermission(): Promise<boolean> {
     try {
+      if (!navigator?.mediaDevices?.getUserMedia) return false;
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       // Release immediately if just testing permission
       stream.getTracks().forEach((track) => track.stop());
@@ -26,22 +30,66 @@ export class AudioRecorder {
     }
   }
 
+  setOnError(callback: (error: Error) => void): void {
+    this.onErrorCallback = callback;
+  }
+
+  setOnTrackEnded(callback: () => void): void {
+    this.onTrackEndedCallback = callback;
+  }
+
+  get isRecording(): boolean {
+    return this.mediaRecorder !== null && this.mediaRecorder.state === 'recording';
+  }
+
+  get durationMs(): number {
+    return this.startTime > 0 ? Date.now() - this.startTime : 0;
+  }
+
   async start(): Promise<void> {
+    if (this.isRecording) {
+      return;
+    }
     this.chunks = [];
+    this.isStopping = false;
+
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      throw new Error('Microphone access is not supported in this browser environment');
+    }
+
     this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    
+
+    // Monitor track ended events (e.g. microphone disconnected)
+    this.mediaStream.getAudioTracks().forEach((track) => {
+      track.onended = () => {
+        if (this.onTrackEndedCallback) {
+          this.onTrackEndedCallback();
+        }
+      };
+    });
+
     // Check supported types
     let mimeType = 'audio/webm';
-    if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-      mimeType = 'audio/webm;codecs=opus';
-    } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-      mimeType = 'audio/mp4';
+    if (typeof MediaRecorder !== 'undefined' && typeof MediaRecorder.isTypeSupported === 'function') {
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+      }
     }
 
     this.mediaRecorder = new MediaRecorder(this.mediaStream, { mimeType });
+
     this.mediaRecorder.ondataavailable = (e) => {
       if (e.data && e.data.size > 0) {
         this.chunks.push(e.data);
+      }
+    };
+
+    this.mediaRecorder.onerror = (e: any) => {
+      const err = e.error || new Error('MediaRecorder encountered an error');
+      if (this.onErrorCallback) {
+        this.onErrorCallback(err);
       }
     };
 
@@ -50,33 +98,50 @@ export class AudioRecorder {
   }
 
   async stop(): Promise<AudioRecordingResult> {
-    return new Promise((resolve, reject) => {
-      if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') {
-        return reject(new Error('Recorder not active'));
-      }
+    if (this.isStopping) {
+      throw new Error('Stop already in progress');
+    }
+    if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') {
+      throw new Error('Recorder not active');
+    }
 
-      const timer = setTimeout(() => {
+    this.isStopping = true;
+
+    return new Promise((resolve, reject) => {
+      const recorder = this.mediaRecorder!;
+      const mimeType = recorder.mimeType || 'audio/webm';
+
+      const cleanupTracks = () => {
         if (this.mediaStream) {
-          this.mediaStream.getTracks().forEach((track) => track.stop());
+          this.mediaStream.getTracks().forEach((track) => {
+            try {
+              track.stop();
+            } catch {}
+          });
           this.mediaStream = null;
         }
-        resolve({
-          blob: new Blob(this.chunks, { type: 'audio/webm' }),
-          durationMs: Date.now() - this.startTime,
-          format: 'audio/webm',
-        });
-      }, 1500);
+      };
 
-      this.mediaRecorder.onstop = () => {
-        clearTimeout(timer);
-        const mimeType = this.mediaRecorder?.mimeType || 'audio/webm';
+      const fallbackTimer = setTimeout(() => {
+        cleanupTracks();
         const blob = new Blob(this.chunks, { type: mimeType });
         const durationMs = Date.now() - this.startTime;
+        this.mediaRecorder = null;
+        this.isStopping = false;
+        resolve({
+          blob,
+          durationMs,
+          format: mimeType,
+        });
+      }, 1000);
 
-        if (this.mediaStream) {
-          this.mediaStream.getTracks().forEach((track) => track.stop());
-          this.mediaStream = null;
-        }
+      recorder.onstop = () => {
+        clearTimeout(fallbackTimer);
+        cleanupTracks();
+        const blob = new Blob(this.chunks, { type: mimeType });
+        const durationMs = Date.now() - this.startTime;
+        this.mediaRecorder = null;
+        this.isStopping = false;
 
         resolve({
           blob,
@@ -86,20 +151,34 @@ export class AudioRecorder {
       };
 
       try {
-        this.mediaRecorder.stop();
+        recorder.stop();
       } catch (err) {
-        clearTimeout(timer);
+        clearTimeout(fallbackTimer);
+        cleanupTracks();
+        this.mediaRecorder = null;
+        this.isStopping = false;
         reject(err);
       }
     });
   }
 
   cancel(): void {
+    this.isStopping = false;
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-      this.mediaRecorder.stop();
+      try {
+        this.mediaRecorder.onstop = null;
+        this.mediaRecorder.ondataavailable = null;
+        this.mediaRecorder.onerror = null;
+        this.mediaRecorder.stop();
+      } catch {}
     }
+    this.mediaRecorder = null;
     if (this.mediaStream) {
-      this.mediaStream.getTracks().forEach((track) => track.stop());
+      this.mediaStream.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {}
+      });
       this.mediaStream = null;
     }
     this.chunks = [];

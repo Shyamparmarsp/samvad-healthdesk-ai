@@ -143,33 +143,36 @@ export interface VoiceAnswer {
 }
 
 /**
+ * Converts any browser recorded audio blob into a 16 kHz mono WAV VoiceAnswer.
+ * Falls back to synthetic test tone if Web Audio API decoding fails.
+ */
+export async function convertBlobToVoiceAnswer(blob: Blob): Promise<VoiceAnswer> {
+  if (blob && blob.size > 0) {
+    try {
+      const encoded = await encodeWavBase64(blob);
+      if (encoded.length > 0) {
+        return { audio_base64: encoded, audio_format: 'audio/wav', source: 'microphone' };
+      }
+    } catch (err) {
+      console.warn('PCM WAV conversion failed, falling back to synthetic test tone:', err);
+    }
+  }
+  return { audio_base64: syntheticWavBase64(), audio_format: 'audio/wav', source: 'synthetic' };
+}
+
+/**
  * Captures one answer as a contract-valid WAV payload.
  * Never throws: a failed recording degrades to a synthetic tone.
  */
-export async function captureVoiceAnswer(): Promise<VoiceAnswer> {
-  return Promise.race<VoiceAnswer>([
-    (async (): Promise<VoiceAnswer> => {
-      const recorder = new AudioRecorder();
-      try {
-        await recorder.start();
-        await new Promise((resolve) => setTimeout(resolve, CAPTURE_MS));
-        const { blob } = await recorder.stop();
-        if (blob.size > 0) {
-          const encoded = await encodeWavBase64(blob);
-          if (encoded.length > 0) {
-            return { audio_base64: encoded, audio_format: 'audio/wav', source: 'microphone' };
-          }
-        }
-      } catch {
-        recorder.cancel();
-      }
-      return { audio_base64: syntheticWavBase64(), audio_format: 'audio/wav', source: 'synthetic' };
-    })(),
-    new Promise<VoiceAnswer>((resolve) =>
-      setTimeout(
-        () => resolve({ audio_base64: syntheticWavBase64(), audio_format: 'audio/wav', source: 'synthetic' }),
-        2500,
-      ),
-    ),
-  ]);
+export async function captureVoiceAnswer(durationMs = CAPTURE_MS): Promise<VoiceAnswer> {
+  const recorder = new AudioRecorder();
+  try {
+    await recorder.start();
+    await new Promise((resolve) => setTimeout(resolve, durationMs));
+    const { blob } = await recorder.stop();
+    return await convertBlobToVoiceAnswer(blob);
+  } catch {
+    recorder.cancel();
+    return { audio_base64: syntheticWavBase64(), audio_format: 'audio/wav', source: 'synthetic' };
+  }
 }

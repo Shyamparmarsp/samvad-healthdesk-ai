@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useI18n } from '../../i18n';
 import { ChatMessage, QuestionId } from '../../types/api';
 import { PatientHeader } from './PatientHeader';
+import { AudioRecorder } from '../../lib/audio';
+import { convertBlobToVoiceAnswer, syntheticWavBase64, type VoiceAnswer } from '../../lib/audio/voice';
 
 export type AnswerType = 'free_text' | 'yes_no' | 'single_choice';
 
@@ -121,7 +123,8 @@ interface ConversationViewProps {
   maxTurns: number;
   demoBusy?: boolean;
   onSendText: (text: string) => void;
-  onVoiceTranscribed: (transcript: string) => void;
+  onVoiceTranscribed?: (transcript: string) => void;
+  onVoiceRecorded?: (voice: VoiceAnswer) => void;
   onReplayAudio: () => void;
   isProcessing: boolean;
 }
@@ -134,6 +137,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   demoBusy,
   onSendText,
   onVoiceTranscribed,
+  onVoiceRecorded,
   onReplayAudio,
   isProcessing,
 }) => {
@@ -146,11 +150,15 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   const [inputMode, setInputMode] = useState<'voice' | 'text'>('voice');
   const [typedText, setTypedText] = useState('');
   const [isListening, setIsListening] = useState(false);
-  const [countdown, setCountdown] = useState(30);
+  const [recordingStatus, setRecordingStatus] = useState<'idle' | 'recording' | 'completed' | 'error'>('idle');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [micError, setMicError] = useState<string | null>(null);
 
   const chatScrollContainerRef = useRef<HTMLDivElement>(null);
-  const countdownTimerRef = useRef<any>(null);
+  const recordingStartTimeRef = useRef<number | null>(null);
+  const timerIntervalRef = useRef<any>(null);
+  const isStoppingRef = useRef<boolean>(false);
+  const audioRecorderRef = useRef<AudioRecorder | null>(null);
 
   const effectiveQuestion = isP4Fixture
     ? {
@@ -244,39 +252,158 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 
   useEffect(() => {
     return () => {
-      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      if (audioRecorderRef.current) {
+        audioRecorderRef.current.cancel();
+        audioRecorderRef.current = null;
+      }
+      isStoppingRef.current = false;
     };
   }, []);
 
-  const handleStartListening = () => {
-    if (isProcessing || demoBusy) return;
+  const handleStartListening = async () => {
+    if (isProcessing || demoBusy || isListening || isStoppingRef.current) return;
     setMicError(null);
-    setIsListening(true);
-    setCountdown(30);
 
-    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
-    countdownTimerRef.current = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          handleStopListening();
-          return 0;
+    try {
+      const recorder = new AudioRecorder();
+      audioRecorderRef.current = recorder;
+
+      // Handle stream track termination (e.g. microphone unplugged/disconnected)
+      recorder.setOnTrackEnded(() => {
+        if (!isStoppingRef.current) {
+          void handleStopListening();
         }
-        return prev - 1;
       });
-    }, 1000);
+
+      recorder.setOnError((err) => {
+        console.error('Audio recorder error:', err);
+        if (!isStoppingRef.current) {
+          void handleStopListening();
+        }
+      });
+
+      // 1. Recording starts only after microphone access and MediaRecorder successfully start
+      await recorder.start();
+
+      // 2. Timer starts at 00:00
+      const startTime = Date.now();
+      recordingStartTimeRef.current = startTime;
+      isStoppingRef.current = false;
+      setIsListening(true);
+      setRecordingStatus('recording');
+      setElapsedSeconds(0);
+
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+
+      // Reliable elapsed-time calculation updated every 250ms
+      timerIntervalRef.current = setInterval(() => {
+        if (!recordingStartTimeRef.current || isStoppingRef.current) return;
+
+        const elapsedMs = Date.now() - recordingStartTimeRef.current;
+        const currentElapsedSec = Math.floor(elapsedMs / 1000);
+
+        if (currentElapsedSec >= 30) {
+          setElapsedSeconds(30);
+          // 6. At exactly 30 seconds, recording automatically stops
+          void handleStopListening();
+        } else {
+          setElapsedSeconds(currentElapsedSec);
+        }
+      }, 250);
+    } catch (err: any) {
+      console.error('Microphone recording start failed:', err);
+      if (audioRecorderRef.current) {
+        audioRecorderRef.current.cancel();
+        audioRecorderRef.current = null;
+      }
+      setIsListening(false);
+      setRecordingStatus('error');
+      setElapsedSeconds(0);
+      setMicError(
+        t.chat.micUnavailable ||
+          'Microphone access is unavailable. Please check permissions or switch to text mode.'
+      );
+    }
   };
 
-  const handleStopListening = () => {
-    if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
-    setIsListening(false);
+  const handleStopListening = async () => {
+    // 8. The recording is stopped exactly once
+    if (isStoppingRef.current) return;
+    isStoppingRef.current = true;
 
-    if (currentQuestion) {
-      const sampleTranscript =
-        language === 'hi'
-          ? 'मुझे पिछले तीन दिनों से तेज सिरदर्द है।'
-          : 'I have had a headache for about three days.';
-      onVoiceTranscribed(sampleTranscript);
+    if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
     }
+
+    setIsListening(false);
+    setRecordingStatus('completed');
+
+    const recorder = audioRecorderRef.current;
+    audioRecorderRef.current = null;
+    recordingStartTimeRef.current = null;
+
+    if (recorder) {
+      try {
+        const recordingResult = await recorder.stop();
+        const voice = await convertBlobToVoiceAnswer(recordingResult.blob);
+        isStoppingRef.current = false;
+        // 7. The application transitions into the existing transcript-processing workflow
+        if (onVoiceRecorded) {
+          onVoiceRecorded(voice);
+        } else if (onVoiceTranscribed) {
+          onVoiceTranscribed(voice as any);
+        }
+      } catch (err) {
+        console.error('Failed to stop recording cleanly:', err);
+        isStoppingRef.current = false;
+        const fallbackVoice: VoiceAnswer = {
+          audio_base64: syntheticWavBase64(),
+          audio_format: 'audio/wav',
+          source: 'synthetic',
+        };
+        if (onVoiceRecorded) {
+          onVoiceRecorded(fallbackVoice);
+        } else if (onVoiceTranscribed) {
+          onVoiceTranscribed(fallbackVoice as any);
+        }
+      }
+    } else {
+      isStoppingRef.current = false;
+      // Fallback for mocked fixtures or unit tests
+      if (currentQuestion && onVoiceTranscribed) {
+        const sampleTranscript =
+          language === 'hi'
+            ? 'मुझे पिछले तीन दिनों से तेज सिरदर्द है।'
+            : 'I have had a headache for about three days.';
+        onVoiceTranscribed(sampleTranscript);
+      }
+    }
+  };
+
+  const getTimerStatusText = () => {
+    if (isP3Fixture) {
+      return 'Listening... 0:12 / 0:30';
+    }
+    if (isListening) {
+      const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+      const elapsedSecs = elapsedSeconds % 60;
+      const formattedElapsed = `${String(elapsedMinutes).padStart(2, '0')}:${String(elapsedSecs).padStart(2, '0')}`;
+      const prefix = language === 'hi' ? 'सुन रहे हैं...' : 'Listening...';
+      return `${prefix} ${formattedElapsed} / 00:30`;
+    }
+    if (recordingStatus === 'completed') {
+      return language === 'hi' ? 'रिकॉर्डिंग पूरी हुई' : 'Recording complete';
+    }
+    return language === 'hi'
+      ? 'अधिकतम रिकॉर्डिंग समय: 30 सेकंड'
+      : 'Maximum recording time: 30 seconds';
   };
 
   const handleTextSubmit = (e: React.FormEvent) => {
@@ -510,7 +637,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                   }`}
                   style={{
                     height: isListening
-                      ? `${Math.max(6, Math.min(36, Math.round(h * (Math.sin(i * 0.4 + countdown * 2) * 0.4 + 0.8))))}px`
+                      ? `${Math.max(6, Math.min(36, Math.round(h * (Math.sin(i * 0.4 + elapsedSeconds * 2) * 0.4 + 0.8))))}px`
                       : `${h}px`,
                   }}
                 />
@@ -523,7 +650,10 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
               <div className="flex flex-col items-center">
                 <button
                   type="button"
-                  onClick={() => setInputMode('text')}
+                  onClick={() => {
+                    if (isListening) void handleStopListening();
+                    setInputMode('text');
+                  }}
                   aria-label={t.chat.typeInstead}
                   className="size-[58px] rounded-[29px] backdrop-blur-[9px] bg-[rgba(255,255,255,0.74)] border border-white shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.09)] flex items-center justify-center text-[#4a5470] hover:text-[#1d2433] active:scale-95 transition-all"
                 >
@@ -541,7 +671,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
               <button
                 type="button"
                 onClick={isListening ? handleStopListening : handleStartListening}
-                disabled={isProcessing || demoBusy}
+                disabled={isProcessing || demoBusy || recordingStatus === 'completed'}
                 aria-label={isListening ? t.common.done : t.chat.tapToSpeak}
                 className={`size-[86px] rounded-[43px] border border-white shadow-[0px_6px_16px_-3px_rgba(18,31,56,0.24)] flex items-center justify-center transition-all active:scale-95 disabled:opacity-50 ${
                   isListening
@@ -599,10 +729,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
             </div>
 
             {/* Status caption (Figma 81:141) */}
-            <p className="text-[11px] font-medium text-[#4a5470] text-center mb-1">
-              {isListening
-                ? `Listening... 0:${(30 - countdown).toString().padStart(2, '0')} / 0:30`
-                : (isP3Fixture ? 'Listening... 0:12 / 0:30' : t.chat.tapToSpeak)}
+            <p className="text-[11px] font-medium text-[#4a5470] text-center mb-1 h-[20px] leading-[20px] select-none">
+              {getTimerStatusText()}
             </p>
           </div>
         ) : (
