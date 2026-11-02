@@ -8,8 +8,14 @@
  *   GROQ_API_KEY=… GNANI_API_KEY=… \
  *     deno run --allow-env --allow-net --allow-write scripts/provider-smoke.ts --live
  *
+ * Speech round-trip mode (opt-in; exactly four requests maximum):
+ *   GNANI_API_KEY=… \
+ *     deno run --allow-env --allow-net --allow-write scripts/provider-smoke.ts --live --roundtrip
+ *
  * Options:
  *   --provider all|groq|prisma|timbre   select checks (comma-separated allowed)
+ *   --roundtrip                         Timbre TTS -> Prisma STT for English and Hindi
+ *                                       (combine with --live to execute; never with --provider)
  *   --out-dir <path>                    where synthetic TTS clips are written
  *                                       (default .provider-audio, git-ignored)
  *
@@ -19,11 +25,15 @@
  *   - only synthetic text and a silent synthetic WAV are sent;
  *   - no transcript, audio body, header, key or provider body is printed;
  *   - TTS clips are written locally outside Git for the owner to listen to;
- *   - live calls may consume paid credits and are never automatic.
+ *   - live calls may consume paid credits and are never automatic;
+ *   - no retries: a failed provider call stops the round trip and the rest is NOT TESTED.
  */
 
 import { requestStructured } from "../supabase/functions/_shared/groq.ts";
-import { transcribe } from "../supabase/functions/_shared/prisma.ts";
+import {
+  isAcceptedAudioType,
+  transcribe,
+} from "../supabase/functions/_shared/prisma.ts";
 import { synthesize } from "../supabase/functions/_shared/timbre.ts";
 
 export type Provider = "groq" | "prisma" | "timbre";
@@ -38,6 +48,7 @@ export interface SmokeCheck {
 
 export interface SmokeOptions {
   live: boolean;
+  roundTrip: boolean;
   providers: Provider[];
   outDir: string;
   reportPath: string | null;
@@ -52,6 +63,32 @@ export class SmokeUsageError extends Error {
 
 const ALL_PROVIDERS: Provider[] = ["groq", "prisma", "timbre"];
 
+/** Repository-relative directory that `.gitignore` already excludes. */
+export const DEFAULT_AUDIO_DIR = ".provider-audio";
+
+/**
+ * Explicit client-side timeout for each round-trip request. The adapters default to
+ * 15 s (Timbre) and 20 s (Prisma); the round trip uses one documented value so a hung
+ * request fails safely instead of waiting indefinitely.
+ */
+export const ROUNDTRIP_TIMEOUT_MS = 30_000;
+
+/** A complete two-language run is two TTS + two STT requests. Never more. */
+export const MAX_ROUNDTRIP_REQUESTS = 4;
+
+export type RoundTripLanguage = "en-IN" | "hi-IN";
+
+/**
+ * Fixed synthetic, non-medical sentences. They are public constants, not patient data,
+ * and are the expected side of the transcript comparison.
+ */
+export const ROUNDTRIP_SENTENCES: Readonly<Record<RoundTripLanguage, string>> = {
+  "en-IN": "This is a simple speech test.",
+  "hi-IN": "आज मौसम बहुत अच्छा है।",
+};
+
+export const ROUNDTRIP_LANGUAGES: readonly RoundTripLanguage[] = ["en-IN", "hi-IN"];
+
 function fail(message: string): never {
   throw new SmokeUsageError(message);
 }
@@ -59,8 +96,10 @@ function fail(message: string): never {
 /** Parse only known flags. Any credential-like flag is rejected before execution. */
 export function parseSmokeArgs(args: readonly string[]): SmokeOptions {
   let live = false;
-  let outDir = ".provider-audio";
+  let roundTrip = false;
+  let outDir = DEFAULT_AUDIO_DIR;
   let reportPath: string | null = null;
+  let providerFlag = false;
   const providers = new Set<Provider>(ALL_PROVIDERS);
 
   for (let index = 0; index < args.length; index += 1) {
@@ -70,7 +109,10 @@ export function parseSmokeArgs(args: readonly string[]): SmokeOptions {
     }
     if (arg === "--live") {
       live = true;
+    } else if (arg === "--roundtrip" || arg === "--round-trip") {
+      roundTrip = true;
     } else if (arg === "--provider" || arg === "--providers") {
+      providerFlag = true;
       const value = args[index + 1];
       if (!value) fail(`${arg} requires a value`);
       providers.clear();
@@ -97,7 +139,8 @@ export function parseSmokeArgs(args: readonly string[]): SmokeOptions {
     } else if (arg === "--help" || arg === "-h") {
       console.log(
         "Usage: deno run --allow-env --allow-net --allow-write scripts/provider-smoke.ts " +
-          "[--live] [--provider all|groq|prisma|timbre] [--out-dir <path>] [--report <path>]",
+          "[--live] [--roundtrip] [--provider all|groq|prisma|timbre] " +
+          "[--out-dir <path>] [--report <path>]",
       );
       Deno.exit(0);
     } else {
@@ -105,8 +148,17 @@ export function parseSmokeArgs(args: readonly string[]): SmokeOptions {
     }
   }
 
+  if (roundTrip && providerFlag) {
+    fail("--roundtrip runs Prisma and Timbre only; do not combine it with --provider.");
+  }
   if (providers.size === 0) fail("Select at least one provider: all, groq, prisma or timbre.");
-  return { live, providers: ALL_PROVIDERS.filter((provider) => providers.has(provider)), outDir, reportPath };
+  return {
+    live,
+    roundTrip,
+    providers: ALL_PROVIDERS.filter((provider) => providers.has(provider)),
+    outDir,
+    reportPath,
+  };
 }
 
 /** 1 s of 16 kHz 16-bit mono silence; synthetic only. */
@@ -140,6 +192,143 @@ export function looksLikeMp3(bytes: Uint8Array): boolean {
   const id3 = bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33;
   const frameSync = bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0;
   return id3 || frameSync;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Speech round-trip: transcript comparison                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Normalises a transcript for a tolerant *technical* comparison only.
+ *
+ * - Unicode NFC so composed and decomposed forms compare equally;
+ * - zero-width characters removed (they carry no speech);
+ * - case-insensitive;
+ * - punctuation and symbols become spaces, then whitespace collapses.
+ *
+ * Letters, combining marks and digits are preserved, including Devanagari. Nothing is
+ * translated, transliterated, spell-corrected or rewritten. The original strings are
+ * never mutated; this function returns a new comparison form.
+ */
+export function normalizeTranscript(input: string): string {
+  return input
+    .normalize("NFC")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .toLowerCase()
+    .normalize("NFC")
+    .replace(/[\p{P}\p{S}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenizeTranscript(normalized: string): string[] {
+  return normalized.length === 0 ? [] : normalized.split(" ");
+}
+
+/** Longest common subsequence length; sentences are short, so plain DP is fine. */
+function lcsLength(left: string[], right: string[]): number {
+  const rows = left.length + 1;
+  const columns = right.length + 1;
+  let previous = new Uint16Array(columns);
+  let current = new Uint16Array(columns);
+  for (let row = 1; row < rows; row += 1) {
+    for (let column = 1; column < columns; column += 1) {
+      current[column] = left[row - 1] === right[column - 1]
+        ? previous[column - 1] + 1
+        : Math.max(previous[column], current[column - 1]);
+    }
+    const swap = previous;
+    previous = current;
+    current = swap;
+    current.fill(0);
+  }
+  return previous[columns - 1];
+}
+
+export interface TranscriptComparison {
+  /** MATCH only when the normalised strings are exactly equal. */
+  verdict: "MATCH" | "MISMATCH" | "EMPTY";
+  expectedTokens: number;
+  actualTokens: number;
+  matchingTokens: number;
+  differenceTokens: number;
+  similarity: number;
+}
+
+/**
+ * Compares the documented sentence with the provider transcript.
+ *
+ * A MATCH requires exact equality after normalisation. A single additional, missing or
+ * substituted word is a MISMATCH: the harness never rounds a material difference up to a
+ * pass. Counts only are reported, never transcript text.
+ */
+export function compareTranscripts(expected: string, actual: string): TranscriptComparison {
+  const expectedNormalized = normalizeTranscript(expected);
+  if (expectedNormalized.length === 0) {
+    throw new SmokeUsageError("The expected round-trip sentence must not be empty.");
+  }
+  const actualNormalized = normalizeTranscript(actual);
+  if (actualNormalized.length === 0) {
+    return {
+      verdict: "EMPTY",
+      expectedTokens: tokenizeTranscript(expectedNormalized).length,
+      actualTokens: 0,
+      matchingTokens: 0,
+      differenceTokens: tokenizeTranscript(expectedNormalized).length,
+      similarity: 0,
+    };
+  }
+  if (expectedNormalized === actualNormalized) {
+    const tokens = tokenizeTranscript(expectedNormalized).length;
+    return {
+      verdict: "MATCH",
+      expectedTokens: tokens,
+      actualTokens: tokens,
+      matchingTokens: tokens,
+      differenceTokens: 0,
+      similarity: 1,
+    };
+  }
+
+  const expectedTokens = tokenizeTranscript(expectedNormalized);
+  const actualTokens = tokenizeTranscript(actualNormalized);
+  const matching = lcsLength(expectedTokens, actualTokens);
+  const longest = Math.max(expectedTokens.length, actualTokens.length);
+  return {
+    verdict: "MISMATCH",
+    expectedTokens: expectedTokens.length,
+    actualTokens: actualTokens.length,
+    matchingTokens: matching,
+    differenceTokens: longest - matching,
+    similarity: longest === 0 ? 0 : Number((matching / longest).toFixed(3)),
+  };
+}
+
+/**
+ * Restricts round-trip audio to the repository's git-ignored directory. The existing
+ * smoke checks keep their historical `--out-dir` freedom; round-trip mode does not,
+ * because generated audio must never be committable by accident.
+ */
+export function assertSafeAudioDir(outDir: string): void {
+  const normalized = outDir.replaceAll("\\", "/").replace(/\/+$/, "");
+  const isDefault = normalized === DEFAULT_AUDIO_DIR;
+  const isNested = normalized.startsWith(`${DEFAULT_AUDIO_DIR}/`);
+  if (!isDefault && !isNested) {
+    fail(
+      `Round-trip audio must be written under the git-ignored ${DEFAULT_AUDIO_DIR}/ directory ` +
+        `(got "${outDir}").`,
+    );
+  }
+}
+
+/** Maps the TTS content type to a Prisma-accepted type; never guesses for non-MP3 audio. */
+export function audioMimeTypeFor(contentType: string, audio: Uint8Array): string | null {
+  const base = contentType.split(";")[0].trim().toLowerCase();
+  if (isAcceptedAudioType(base)) return base;
+  // Timbre normally returns audio/mpeg. A missing or generic header is acceptable only
+  // when the bytes are verifiably an MP3 container.
+  if (looksLikeMp3(audio)) return "audio/mpeg";
+  return null;
 }
 
 export interface GroqCheckResult {
@@ -380,6 +569,302 @@ export async function checkTimbre(
   };
 }
 
+/* -------------------------------------------------------------------------- */
+/* Speech round-trip: TTS -> STT                                               */
+/* -------------------------------------------------------------------------- */
+
+export interface RoundTripLanguageReport {
+  language: RoundTripLanguage;
+  /** Public synthetic constant; never a provider transcript. */
+  sentence: string;
+  tts: { accepted: boolean; bytes: number | null; contentType: string | null };
+  audioPath: string | null;
+  stt: { accepted: boolean; model: string | null; characters: number | null };
+  comparison: TranscriptComparison | null;
+  checks: SmokeCheck[];
+}
+
+export interface RoundTripReport {
+  status: CheckStatus;
+  requestCount: number;
+  maxRequests: number;
+  checks: SmokeCheck[];
+  languages: RoundTripLanguageReport[];
+  audioPaths: string[];
+}
+
+export interface RoundTripOptions {
+  apiKey: string;
+  outDir: string;
+  /** Defaults to both languages; tests can narrow it. */
+  languages?: readonly RoundTripLanguage[];
+  timeoutMs?: number;
+  timbreEndpoint?: string;
+  prismaBaseUrl?: string;
+  fetchImpl?: typeof fetch;
+  /** Injected by tests; the CLI uses the git-ignored file writer. */
+  writeAudioImpl?: (language: RoundTripLanguage, audio: Uint8Array) => Promise<string>;
+}
+
+/**
+ * One TTS request and one STT request per language, in that order. A failed request is
+ * not retried; the run stops and every later step is reported NOT TESTED. A transcript
+ * mismatch does not stop the run (the second language is still exercised), but it is a
+ * FAIL, never a PASS.
+ */
+export async function runRoundTrip(options: RoundTripOptions): Promise<RoundTripReport> {
+  const languages = options.languages ?? ROUNDTRIP_LANGUAGES;
+  const timeoutMs = options.timeoutMs ?? ROUNDTRIP_TIMEOUT_MS;
+  const checks: SmokeCheck[] = [];
+  const languageReports: RoundTripLanguageReport[] = [];
+  const audioPaths: string[] = [];
+  let requestCount = 0;
+  let stopped = false;
+
+  if (!options.apiKey) {
+    for (const language of languages) {
+      const check: SmokeCheck = {
+        provider: "prisma",
+        check: `round-trip (${language})`,
+        status: "NOT TESTED",
+        detail: "GNANI_API_KEY missing; no request made",
+      };
+      checks.push(check);
+      languageReports.push({
+        language,
+        sentence: ROUNDTRIP_SENTENCES[language],
+        tts: { accepted: false, bytes: null, contentType: null },
+        audioPath: null,
+        stt: { accepted: false, model: null, characters: null },
+        comparison: null,
+        checks: [check],
+      });
+    }
+    return {
+      status: "NOT TESTED",
+      requestCount: 0,
+      maxRequests: MAX_ROUNDTRIP_REQUESTS,
+      checks,
+      languages: languageReports,
+      audioPaths,
+    };
+  }
+
+  for (const language of languages) {
+    const sentence = ROUNDTRIP_SENTENCES[language];
+    const languageChecks: SmokeCheck[] = [];
+    const report: RoundTripLanguageReport = {
+      language,
+      sentence,
+      tts: { accepted: false, bytes: null, contentType: null },
+      audioPath: null,
+      stt: { accepted: false, model: null, characters: null },
+      comparison: null,
+      checks: languageChecks,
+    };
+    languageReports.push(report);
+
+    if (stopped) {
+      const check: SmokeCheck = {
+        provider: "local",
+        check: `round-trip (${language})`,
+        status: "NOT TESTED",
+        detail: "not attempted after an earlier provider failure",
+      };
+      languageChecks.push(check);
+      checks.push(check);
+      continue;
+    }
+
+    if (requestCount >= MAX_ROUNDTRIP_REQUESTS) {
+      throw new SmokeUsageError(
+        `Refused: the round trip may not exceed ${MAX_ROUNDTRIP_REQUESTS} provider requests.`,
+      );
+    }
+
+    requestCount += 1;
+    const tts = await synthesize(
+      {
+        apiKey: options.apiKey,
+        timeoutMs,
+        endpoint: options.timbreEndpoint,
+        fetchImpl: options.fetchImpl,
+      },
+      { text: sentence, language },
+    );
+
+    if (!tts.ok) {
+      const check: SmokeCheck = {
+        provider: "timbre",
+        check: `TTS request (${language})`,
+        status: "FAIL",
+        detail: `kind=${tts.kind}${tts.status ? ` status=${tts.status}` : ""}; no retry`,
+      };
+      languageChecks.push(check);
+      checks.push(check);
+      stopped = true;
+      continue;
+    }
+
+    report.tts = { accepted: true, bytes: tts.audio.byteLength, contentType: tts.contentType };
+    const ttsCheck: SmokeCheck = {
+      provider: "timbre",
+      check: `TTS request (${language})`,
+      status: "PASS",
+      detail: `${tts.audio.byteLength} bytes, content-type=${tts.contentType}`,
+    };
+    languageChecks.push(ttsCheck);
+    checks.push(ttsCheck);
+
+    const mimeType = audioMimeTypeFor(tts.contentType, tts.audio);
+    if (!mimeType) {
+      const check: SmokeCheck = {
+        provider: "timbre",
+        check: `TTS audio container (${language})`,
+        status: "FAIL",
+        detail: `unsupported content-type "${tts.contentType}"; no STT request made`,
+      };
+      languageChecks.push(check);
+      checks.push(check);
+      stopped = true;
+      continue;
+    }
+
+    let audioPath: string;
+    try {
+      audioPath = options.writeAudioImpl
+        ? await options.writeAudioImpl(language, tts.audio)
+        : await writeRoundTripAudio(options.outDir, language, tts.audio);
+    } catch {
+      const check: SmokeCheck = {
+        provider: "local",
+        check: `audio saved (${language})`,
+        status: "FAIL",
+        detail: "could not write the clip inside the git-ignored directory",
+      };
+      languageChecks.push(check);
+      checks.push(check);
+      stopped = true;
+      continue;
+    }
+    report.audioPath = audioPath;
+    audioPaths.push(audioPath);
+    const savedCheck: SmokeCheck = {
+      provider: "local",
+      check: `audio saved (${language})`,
+      status: "PASS",
+      detail: audioPath,
+    };
+    languageChecks.push(savedCheck);
+    checks.push(savedCheck);
+
+    requestCount += 1;
+    const stt = await transcribe(
+      {
+        apiKey: options.apiKey,
+        timeoutMs,
+        baseUrl: options.prismaBaseUrl,
+        fetchImpl: options.fetchImpl,
+      },
+      { audio: tts.audio, mimeType, language },
+    );
+
+    if (!stt.ok) {
+      const check: SmokeCheck = {
+        provider: "prisma",
+        check: `STT request (${language})`,
+        status: "FAIL",
+        detail: `kind=${stt.kind}${stt.status ? ` status=${stt.status}` : ""}; no retry`,
+      };
+      languageChecks.push(check);
+      checks.push(check);
+      stopped = true;
+      continue;
+    }
+
+    report.stt = { accepted: true, model: stt.model, characters: stt.transcript.length };
+    const sttCheck: SmokeCheck = {
+      provider: "prisma",
+      check: `STT request (${language})`,
+      status: "PASS",
+      detail: `model=${stt.model} chars=${stt.transcript.length}`,
+    };
+    languageChecks.push(sttCheck);
+    checks.push(sttCheck);
+
+    const comparison = compareTranscripts(sentence, stt.transcript);
+    report.comparison = comparison;
+    const matchCheck: SmokeCheck = {
+      provider: "prisma",
+      check: `transcript comparison (${language})`,
+      status: comparison.verdict === "MATCH" ? "PASS" : "FAIL",
+      detail:
+        `verdict=${comparison.verdict} tokens=${comparison.expectedTokens}/${comparison.actualTokens} ` +
+        `matching=${comparison.matchingTokens} differences=${comparison.differenceTokens} ` +
+        `similarity=${comparison.similarity}`,
+    };
+    languageChecks.push(matchCheck);
+    checks.push(matchCheck);
+    // A mismatch is reported, not retried, and does not hide the second language.
+  }
+
+  if (requestCount > MAX_ROUNDTRIP_REQUESTS) {
+    throw new SmokeUsageError(
+      `Refused: ${requestCount} provider requests exceeds the ${MAX_ROUNDTRIP_REQUESTS} limit.`,
+    );
+  }
+
+  const status: CheckStatus = checks.some((check) => check.status === "FAIL")
+    ? "FAIL"
+    : checks.every((check) => check.status === "PASS")
+    ? "PASS"
+    : "NOT TESTED";
+
+  return {
+    status,
+    requestCount,
+    maxRequests: MAX_ROUNDTRIP_REQUESTS,
+    checks,
+    languages: languageReports,
+    audioPaths,
+  };
+}
+
+export type RoundTripGateResult =
+  | {
+    dryRun: true;
+    requests: number;
+    languages: readonly RoundTripLanguage[];
+    sentences: Readonly<Record<RoundTripLanguage, string>>;
+    outDir: string;
+  }
+  | { dryRun: false; report: RoundTripReport };
+
+/**
+ * The only route from CLI options to a live round trip. Without an explicit `--live`,
+ * `runLive` is never invoked; callers get a plan for the dry run instead.
+ */
+export async function runRoundTripIfLive(
+  options: Pick<SmokeOptions, "live" | "outDir">,
+  runLive: () => Promise<RoundTripReport>,
+): Promise<RoundTripGateResult> {
+  if (!options.live) {
+    return {
+      dryRun: true,
+      requests: ROUNDTRIP_LANGUAGES.length * 2,
+      languages: ROUNDTRIP_LANGUAGES,
+      sentences: ROUNDTRIP_SENTENCES,
+      outDir: options.outDir,
+    };
+  }
+  if (options.outDir !== DEFAULT_AUDIO_DIR && !options.outDir.startsWith(`${DEFAULT_AUDIO_DIR}/`)) {
+    // Defence in depth: the CLI validates earlier, but a programmatic caller cannot
+    // bypass the git-ignore requirement.
+    assertSafeAudioDir(options.outDir);
+  }
+  return { dryRun: false, report: await runLive() };
+}
+
 function present(name: string): string {
   return Deno.env.get(name) ? "present" : "MISSING";
 }
@@ -406,6 +891,45 @@ async function writeAudio(outDir: string, language: "en-IN" | "hi-IN", audio: Ui
   return path;
 }
 
+/** Round-trip clips use a distinct name so they are never confused with smoke clips. */
+async function writeRoundTripAudio(
+  outDir: string,
+  language: RoundTripLanguage,
+  audio: Uint8Array,
+): Promise<string> {
+  await Deno.mkdir(outDir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const path = `${outDir}/roundtrip-${language === "hi-IN" ? "hi" : "en"}-${stamp}.mp3`;
+  await Deno.writeFile(path, audio);
+  return path;
+}
+
+function printRoundTripPlan(options: SmokeOptions): void {
+  console.log("\nSpeech round-trip plan (no request made, no file written):");
+  console.log(`  requests: ${ROUNDTRIP_LANGUAGES.length * 2} (2 Timbre TTS + 2 Prisma STT) — hard maximum`);
+  console.log(`  timeout per request: ${ROUNDTRIP_TIMEOUT_MS} ms; no retries`);
+  console.log(`  audio target: ${options.outDir}/roundtrip-<language>-<timestamp>.mp3 (git-ignored)`);
+  for (const language of ROUNDTRIP_LANGUAGES) {
+    console.log(`  ${language}: "${ROUNDTRIP_SENTENCES[language]}"`);
+  }
+}
+
+function printRoundTripChecklist(report: RoundTripReport): void {
+  console.log("\nManual listening checklist (not automated; never commit these files):");
+  for (const entry of report.languages) {
+    const path = entry.audioPath ?? "(no audio saved)";
+    const voice = entry.language === "hi-IN" ? "Nalini (hi-IN)" : "Kaveri (en-IN)";
+    console.log(`  [ ] ${entry.language} — ${path}`);
+    console.log(`      expected sentence: ${entry.sentence}`);
+    console.log(
+      `      confirm: language/voice is ${voice}; audio is audible and not clipped; ` +
+        `transcript comparison is ${entry.comparison?.verdict ?? "NOT TESTED"}`,
+    );
+  }
+  console.log(`  [ ] Keep or delete the clips privately; ${DEFAULT_AUDIO_DIR}/ is git-ignored.`);
+  console.log("  [ ] A transcript mismatch is reported above as FAIL; do not record it as a pass.");
+}
+
 async function run(): Promise<void> {
   const options = parseSmokeArgs(Deno.args);
 
@@ -414,6 +938,14 @@ async function run(): Promise<void> {
     for (const name of ["GROQ_API_KEY", "GNANI_API_KEY", "GROQ_BASE_URL", "PRISMA_BASE_URL", "TIMBRE_ENDPOINT"]) {
       console.log(`  ${name}: ${present(name)}`);
     }
+
+    if (options.roundTrip) {
+      printRoundTripPlan(options);
+      console.log("\nNo request was made and no audio file was written.");
+      console.log("Run with --live --roundtrip to execute. Live calls may consume API credits.");
+      Deno.exit(0);
+    }
+
     console.log("\nSelected checks that live mode would run:");
     for (const provider of options.providers) {
       if (provider === "groq") console.log("  - Groq authentication, connectivity and constrained JSON parsing");
@@ -425,19 +957,74 @@ async function run(): Promise<void> {
     Deno.exit(0);
   }
 
+  const gnaniKey = Deno.env.get("GNANI_API_KEY") ?? "";
+
+  // Stub overrides would silently turn a "live" run into a local stub call. Refuse before
+  // any request, in both smoke and round-trip modes.
+  if (Deno.env.get("GROQ_BASE_URL") || Deno.env.get("PRISMA_BASE_URL") || Deno.env.get("TIMBRE_ENDPOINT")) {
+    fail("Refusing live mode with stub endpoint overrides set. Unset GROQ_BASE_URL, PRISMA_BASE_URL and TIMBRE_ENDPOINT.");
+  }
+
+  if (options.roundTrip) {
+    assertSafeAudioDir(options.outDir);
+    if (!gnaniKey) fail("GNANI_API_KEY is missing; refusing to make a request.");
+
+    console.warn("WARNING: LIVE speech round-trip. 4 provider requests maximum (2 TTS + 2 STT).");
+    console.warn("Synthetic sentences only. No transcript, audio body, key or provider body will be printed.");
+    console.warn("Provider calls may consume paid API credits. No retry is attempted.\n");
+
+    const gate = await runRoundTripIfLive(options, () =>
+      runRoundTrip({ apiKey: gnaniKey, outDir: options.outDir })
+    );
+    if (gate.dryRun) {
+      // Unreachable: the non-live branch above already returned. Kept for type safety.
+      fail("Internal error: a dry-run plan reached the live branch.");
+    }
+
+    const report = gate.report;
+    console.log("Speech round-trip — LIVE results (synthetic inputs only)\n");
+    printChecks(report.checks);
+    const summary = summarize(report.checks);
+    console.log(`\nSummary: ${summary.pass} PASS, ${summary.fail} FAIL, ${summary.notTested} NOT TESTED`);
+    console.log(`Provider requests used: ${report.requestCount} of ${report.maxRequests} maximum`);
+    printRoundTripChecklist(report);
+
+    if (options.reportPath) {
+      const evidence = {
+        generatedAt: new Date().toISOString(),
+        mode: "live-roundtrip",
+        syntheticInputsOnly: true,
+        requestCount: report.requestCount,
+        maxRequests: report.maxRequests,
+        timeoutMs: ROUNDTRIP_TIMEOUT_MS,
+        checks: report.checks,
+        languages: report.languages.map((entry) => ({
+          language: entry.language,
+          sentence: entry.sentence,
+          tts: entry.tts,
+          audioPath: entry.audioPath,
+          stt: entry.stt,
+          comparison: entry.comparison,
+        })),
+        audioPaths: report.audioPaths,
+        summary,
+        status: report.status,
+      };
+      await Deno.writeTextFile(options.reportPath, JSON.stringify(evidence, null, 2) + "\n");
+      console.log(`Wrote ${options.reportPath} (no transcripts)`);
+    }
+
+    Deno.exit(report.status === "PASS" ? 0 : 1);
+  }
+
   console.warn("WARNING: LIVE provider mode. Synthetic inputs only, but calls may consume paid API credits.");
   console.warn("No patient data, transcript, audio body, key or provider response body will be printed.\n");
 
   const groqKey = Deno.env.get("GROQ_API_KEY") ?? "";
-  const gnaniKey = Deno.env.get("GNANI_API_KEY") ?? "";
 
   if (options.providers.includes("groq") && !groqKey) fail("GROQ_API_KEY is missing; refusing to make a request.");
   if ((options.providers.includes("prisma") || options.providers.includes("timbre")) && !gnaniKey) {
     fail("GNANI_API_KEY is missing; refusing to make a request.");
-  }
-
-  if (Deno.env.get("GROQ_BASE_URL") || Deno.env.get("PRISMA_BASE_URL") || Deno.env.get("TIMBRE_ENDPOINT")) {
-    fail("Refusing live mode with stub endpoint overrides set. Unset GROQ_BASE_URL, PRISMA_BASE_URL and TIMBRE_ENDPOINT.");
   }
 
   const checks: SmokeCheck[] = [];

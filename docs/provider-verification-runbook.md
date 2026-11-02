@@ -293,3 +293,30 @@ No live call, deployment, hosted data change or credential was used.
 [ ] Run one synthetic deployed journey; confirm fallbacks and logs
 [ ] Delete/retain local clips privately; never commit them
 ```
+
+---
+
+## 9. Speech round trip (English + Hindi)
+
+A separate opt-in mode chains the existing adapters: Timbre TTS produces a synthetic
+sentence, the returned audio is fed to Prisma STT, and the transcript is compared with the
+fixed sentence under tolerant Unicode/punctuation/whitespace rules.
+
+```bash
+# dry run: no request, no file
+deno run --allow-env scripts/provider-smoke.ts --roundtrip
+
+# live: owner authorization required, may consume credits
+deno run --allow-env --allow-net --allow-write scripts/provider-smoke.ts --live --roundtrip
+```
+
+- **Exactly four provider requests maximum** (2 TTS + 2 STT). No retries. Each request has
+  a 30 s client timeout. A failure stops the run; remaining steps are `NOT TESTED`.
+- Audio is written only under `.provider-audio/` (git-ignored). `--out-dir` outside that
+  directory is refused in round-trip mode.
+- No transcript, audio body, header or key is printed. A `--report` file contains counts
+  and paths only.
+- Live status for this task: **NOT RUN**. Mocked tests are not live proof.
+
+Full instructions, the manual listening checklist and the test matrix:
+`docs/speech-roundtrip-verification/`.

@@ -117,7 +117,16 @@ console.log("");
 // ---------------------------------------------------------------- 1. static
 
 await step("static", "deno check chat-turn + speak", true, async () => {
-  const result = await run("deno", ["check", "supabase/functions/chat-turn/index.ts", "supabase/functions/speak/index.ts"]);
+  // The functions live under their own deno.json (npm import map). Deno discovers a
+  // config from the working directory, not from the target file, so the config must be
+  // explicit or a clean worktree fails on "@supabase/server not a dependency".
+  const result = await run("deno", [
+    "check",
+    "--config",
+    "supabase/functions/deno.json",
+    "supabase/functions/chat-turn/index.ts",
+    "supabase/functions/speak/index.ts",
+  ]);
   return { ok: result.ok, detail: result.ok ? "type check clean" : lastLine(result.out) };
 });
 
@@ -202,6 +211,30 @@ await step("providers", "provider smoke failure-path tests", true, async () => {
   const match = /(\d+) passed \| (\d+) failed/.exec(result.out);
   return {
     ok: result.ok && Boolean(match),
+    detail: match ? `${match[1]} passed, ${match[2]} failed` : lastLine(result.out),
+  };
+});
+
+await step("providers", "speech round-trip default mode makes no request", true, async () => {
+  // Deliberately omits --allow-net and --allow-write: the dry run cannot call out or save.
+  const result = await run("deno", ["run", "--allow-env", "scripts/provider-smoke.ts", "--roundtrip"]);
+  const nonLive = result.ok && /NON-LIVE/.test(result.out) && /No request was made/i.test(result.out);
+  const bounded = /requests: 4/.test(result.out) && /2 Timbre TTS/.test(result.out);
+  return {
+    ok: nonLive && bounded,
+    detail: nonLive && bounded
+      ? "non-live, 4-request plan, zero requests"
+      : lastLine(result.out),
+  };
+});
+
+await step("providers", "speech round-trip failure-path tests", true, async () => {
+  const result = await run("deno", [
+    "test", "--allow-read", "--allow-env", "supabase/tests/provider-roundtrip.test.ts",
+  ]);
+  const match = /(\d+) passed \| (\d+) failed/.exec(result.out);
+  return {
+    ok: result.ok && Boolean(match) && match?.[2] === "0",
     detail: match ? `${match[1]} passed, ${match[2]} failed` : lastLine(result.out),
   };
 });
