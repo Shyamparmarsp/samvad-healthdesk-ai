@@ -14,6 +14,25 @@ Deno.test("bank: exactly 150 unique questions, 30 per department", () => {
   assertEqual(BANK_VERSION, "question-bank-v2", "bank version");
 });
 
+Deno.test("bank: GM-002 keeps the owner-supplied bilingual options", () => {
+  const question = getQuestion("GM-002");
+  assert(question !== null, "GM-002 exists");
+  assertEqual(question!.options.length, 2, "option count");
+  assertEqual(question!.options[0].value, "constant", "first value");
+  assertEqual(question!.options[0].en, "Constant", "first English");
+  assertEqual(question!.options[0].hi, "लगातार", "first Hindi");
+  assertEqual(question!.options[1].value, "intermittent", "second value");
+  assertEqual(question!.options[1].en, "Comes and goes", "second English");
+  assertEqual(question!.options[1].hi, "आता-जाता है", "second Hindi");
+  assertEqual(localizedOptions("GM-002", "en").join(" | "), "Constant | Comes and goes", "English list");
+  assertEqual(localizedOptions("GM-002", "hi").join(" | "), "लगातार | आता-जाता है", "Hindi list");
+});
+
+Deno.test("bank: GM-001 keeps its owner-supplied wording", () => {
+  assertEqual(questionText("GM-001", "en"), "When did the fever start?", "english");
+  assertEqual(questionText("GM-001", "hi"), "बुखार कब शुरू हुआ?", "hindi");
+});
+
 Deno.test("bank: 150 questions carry 300 language variants", () => {
   const variants = QUESTIONS.flatMap((q) => [q.en, q.hi]);
   assertEqual(variants.length, 300, "variants");
