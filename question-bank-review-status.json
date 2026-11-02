@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-11-01T23:00:47.467Z",
+  "generatedAt": "2026-11-02T07:31:36.866Z",
   "readOnly": true,
   "bank": {
-    "bankVersion": "question-bank-v1",
+    "bankVersion": "question-bank-v2",
     "total": 150,
     "departments": {
       "general_medicine": 30,
@@ -12,12 +12,12 @@
       "cardiology": 30
     },
     "answerTypes": {
-      "free_text": 12,
-      "yes_no": 123,
-      "single_choice": 15
+      "free_text": 16,
+      "yes_no": 116,
+      "single_choice": 18
     },
     "withHindi": 150,
-    "withLocalisedChoices": 15,
+    "withLocalisedChoices": 18,
     "reviewStatuses": [
       "draft_owner_review"
     ],

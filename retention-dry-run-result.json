@@ -1,0 +1,66 @@
+{
+  "generatedAt": "2026-11-02T06:38:37.246Z",
+  "mode": "dry-run",
+  "readOnly": true,
+  "target": "127.0.0.1",
+  "deletionOrder": [
+    "appointments",
+    "reports",
+    "messages",
+    "consent_records",
+    "sessions",
+    "auth.users (anonymous patients only)"
+  ],
+  "wouldDelete": [
+    {
+      "table": "appointments",
+      "description": "confirmed bookings",
+      "count": 0
+    },
+    {
+      "table": "reports",
+      "description": "draft, submitted and urgent_partial reports",
+      "count": 0
+    },
+    {
+      "table": "messages",
+      "description": "patient answers and assistant questions",
+      "count": 0
+    },
+    {
+      "table": "consent_records",
+      "description": "consent decisions and wording version",
+      "count": 0
+    },
+    {
+      "table": "sessions",
+      "description": "intake session state",
+      "count": 10
+    }
+  ],
+  "anonymousPatientIdentities": 163,
+  "preserved": [
+    {
+      "table": "departments",
+      "count": 6
+    },
+    {
+      "table": "doctors",
+      "count": 6
+    },
+    {
+      "table": "doctor_schedules",
+      "count": 25
+    },
+    {
+      "table": "doctor_profiles",
+      "count": 4
+    },
+    {
+      "table": "daily_usage_limits",
+      "count": 4
+    }
+  ],
+  "preservedNote": "Reference data, demo doctor accounts, usage guardrails and migrations are never deleted by retention.",
+  "policy": "Owner-approved: 30 days after the competition/demo period, owner-executed, separate approval required."
+}
