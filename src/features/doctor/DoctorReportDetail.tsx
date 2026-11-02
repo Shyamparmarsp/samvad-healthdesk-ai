@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ReportRow } from '../../types/report';
 import { DoctorConversationMessage } from '../../types/api';
 import { getDoctorMessages, markReportReviewed } from '../../lib/api';
+import { BackButton } from '../common/BackButton';
 
 interface DoctorReportDetailProps {
   report: ReportRow;
@@ -125,15 +126,7 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
       {/* Top Navigation & Status Bar matching Figma D4 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="size-9 rounded-full bg-white/70 border border-white text-[#1f2a44] flex items-center justify-center hover:bg-white transition-all shadow-sm"
-            aria-label="Back to Reports"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
+          <BackButton onClick={onBack} label="Back to Reports" />
           <div>
             <h1 className="text-[25px] font-bold text-[#1d2433] tracking-tight">
               Patient Report

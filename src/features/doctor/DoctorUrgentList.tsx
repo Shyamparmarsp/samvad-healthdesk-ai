@@ -1,9 +1,11 @@
 import React from 'react';
 import { ReportRow } from '../../types/report';
+import { BackButton } from '../common/BackButton';
 
 interface DoctorUrgentListProps {
   urgentReports: ReportRow[];
   onSelectReport: (reportId: string) => void;
+  onBack?: () => void;
 }
 
 function getInitials(name?: string): string {
@@ -18,17 +20,21 @@ function getInitials(name?: string): string {
 export const DoctorUrgentList: React.FC<DoctorUrgentListProps> = ({
   urgentReports,
   onSelectReport,
+  onBack,
 }) => {
   return (
     <div className="space-y-6">
       {/* Top Header matching Figma D7 */}
-      <div>
-        <h1 className="text-[26px] font-bold text-[#1d2433] tracking-tight">
-          Urgent / Review
-        </h1>
-        <p className="text-[12px] text-[#4a5470] mt-0.5">
-          Emergency Triage Queue · Deterministic safety rules and high-priority intake cases
-        </p>
+      <div className="flex items-center gap-3">
+        {onBack && <BackButton onClick={onBack} label="Back to Dashboard" />}
+        <div>
+          <h1 className="text-[26px] font-bold text-[#1d2433] tracking-tight">
+            Urgent / Review
+          </h1>
+          <p className="text-[12px] text-[#4a5470] mt-0.5">
+            Emergency Triage Queue · Deterministic safety rules and high-priority intake cases
+          </p>
+        </div>
       </div>
 
       {/* Safety Alert Banner */}

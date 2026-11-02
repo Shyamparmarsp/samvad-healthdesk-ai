@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { useI18n } from '../../i18n';
 import { CONSENT_TEXT } from '../../types/consent';
 import { PatientHeader } from './PatientHeader';
+import { BackButton } from '../common/BackButton';
 
 interface ConsentViewProps {
   onAgree: () => void;
   onDecline: () => void;
+  onBack?: () => void;
 }
 
-export const ConsentView: React.FC<ConsentViewProps> = ({ onAgree, onDecline }) => {
+export const ConsentView: React.FC<ConsentViewProps> = ({ onAgree, onDecline, onBack }) => {
   const { t, language } = useI18n();
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
@@ -23,6 +25,12 @@ export const ConsentView: React.FC<ConsentViewProps> = ({ onAgree, onDecline }) 
     <div className="flex flex-col h-full justify-between pb-4 select-none relative">
       {/* Top Header & Language Toggle */}
       <PatientHeader />
+
+      {onBack && (
+        <div className="px-5 pt-0.5 pb-1 flex items-center">
+          <BackButton onClick={onBack} />
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col justify-between px-5 py-3">

@@ -1,18 +1,24 @@
 import React from 'react';
 import { useI18n } from '../../i18n';
 import { PatientHeader } from './PatientHeader';
+import { BackButton } from '../common/BackButton';
 
 interface EmergencyViewProps {
   onEndDemo: () => void;
+  onBack?: () => void;
 }
 
-export const EmergencyView: React.FC<EmergencyViewProps> = ({ onEndDemo }) => {
+export const EmergencyView: React.FC<EmergencyViewProps> = ({ onEndDemo, onBack }) => {
   const { t } = useI18n();
 
   return (
     <div className="flex flex-col h-full justify-between pb-4 select-none relative overflow-hidden">
       {/* Top Header & Language Toggle (Figma 72:436) */}
       <PatientHeader />
+
+      <div className="px-5 pt-0.5 pb-1 flex items-center">
+        <BackButton onClick={onBack ?? onEndDemo} />
+      </div>
 
       {/* Main Urgent Guidance Card (Figma 72:436) */}
       <div className="flex-1 flex flex-col justify-between px-5 py-4">

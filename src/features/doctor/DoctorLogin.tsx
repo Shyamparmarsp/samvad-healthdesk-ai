@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { doctorLogin, FICTIONAL_DOCTORS, getAppMode } from '../../lib/api';
 import { DoctorProfile } from '../../types/doctor';
+import { BackButton } from '../common/BackButton';
 
 interface DoctorLoginProps {
   onLoginSuccess: (doctor: DoctorProfile) => void;
 }
 
 export const DoctorLogin: React.FC<DoctorLoginProps> = ({ onLoginSuccess }) => {
+  const navigate = useNavigate();
   const isMockMode = getAppMode() === 'mock';
   const [email, setEmail] = useState(isMockMode ? 'aditi.rao@hospital.demo' : '');
   const [password, setPassword] = useState(isMockMode ? '••••••••••••' : '');
@@ -38,6 +41,7 @@ export const DoctorLogin: React.FC<DoctorLoginProps> = ({ onLoginSuccess }) => {
         {/* Left Hero Area (Figma 82:5 - 82:9) */}
         <div className="relative z-10 max-w-md space-y-4">
           <div className="flex items-center gap-3">
+            <BackButton onClick={() => navigate('/')} label="Back to Patient Intake" />
             <div
               className="w-[42px] h-[42px] rounded-[12px] bg-[#1f2a44] border border-white text-white flex items-center justify-center font-bold text-[30px] leading-none shadow-sm flex-shrink-0"
               aria-hidden="true"

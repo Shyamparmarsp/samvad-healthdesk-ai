@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { useI18n } from '../../i18n';
 import { PatientHeader } from './PatientHeader';
+import { BackButton } from '../common/BackButton';
 
 interface WhatWeHeardViewProps {
   initialTranscript: string;
   onConfirm: (text: string) => void;
   onCancel: () => void;
+  onBack?: () => void;
 }
 
 export const WhatWeHeardView: React.FC<WhatWeHeardViewProps> = ({
   initialTranscript,
   onConfirm,
   onCancel,
+  onBack,
 }) => {
   const { t } = useI18n();
   const [transcript, setTranscript] = useState(initialTranscript);
@@ -26,7 +29,11 @@ export const WhatWeHeardView: React.FC<WhatWeHeardViewProps> = ({
   return (
     <div className="flex flex-col h-full justify-between pb-4 select-none relative">
       {/* Top Header & Language Toggle */}
-      <PatientHeader onBack={onCancel} />
+      <PatientHeader />
+
+      <div className="px-5 pt-0.5 pb-1 flex items-center">
+        <BackButton onClick={onBack || onCancel} />
+      </div>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col justify-between px-5 py-3">

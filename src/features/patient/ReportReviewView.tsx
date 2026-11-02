@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useI18n } from '../../i18n';
 import { CorrectableField, ReportDocumentV1 } from '../../types/report';
 import { PatientHeader } from './PatientHeader';
+import { BackButton } from '../common/BackButton';
 
 interface ReportReviewViewProps {
   report: ReportDocumentV1;
@@ -11,6 +12,7 @@ interface ReportReviewViewProps {
   onSubmit: () => void;
   onDontSubmit: () => void;
   onEndSessionCap: () => void;
+  onBack?: () => void;
 }
 
 export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
@@ -21,6 +23,7 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
   onSubmit,
   onDontSubmit,
   onEndSessionCap,
+  onBack,
 }) => {
   const { t, language } = useI18n();
   const [editingField, setEditingField] = useState<CorrectableField | null>(null);
@@ -59,6 +62,12 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
     <div className="flex flex-col h-full justify-between pb-4 select-none relative overflow-hidden">
       {/* Top Header & Language Toggle & Progress (Figma 72:235) */}
       <PatientHeader progress={1} />
+
+      {onBack && (
+        <div className="px-5 pt-0.5 pb-1 flex items-center">
+          <BackButton onClick={onBack} />
+        </div>
+      )}
 
       {/* Main Scrolling Content Area */}
       <div className="flex-1 overflow-y-auto px-5 py-2 space-y-3.5">

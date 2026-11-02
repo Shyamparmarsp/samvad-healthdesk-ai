@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { DoctorReportsTab } from '../../types/doctor';
 import { ReportRow } from '../../types/report';
+import { BackButton } from '../common/BackButton';
 
 interface DoctorReportsListProps {
   reports: ReportRow[];
   bookedReportIds: Set<string>;
   onSelectReport: (reportId: string) => void;
+  onBack?: () => void;
 }
 
 export function filterReportsByTab(
@@ -46,6 +48,7 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
   reports,
   bookedReportIds,
   onSelectReport,
+  onBack,
 }) => {
   const [activeTab, setActiveTab] = useState<DoctorReportsTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,13 +66,16 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
     <div className="space-y-6">
       {/* Top Header matching Figma D3 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-[26px] font-bold text-[#1d2433] tracking-tight">
-            Reports
-          </h1>
-          <p className="text-[12px] text-[#4a5470] mt-0.5">
-            Patient Intake Reports · Triage, filter and review submitted clinical statements
-          </p>
+        <div className="flex items-center gap-3">
+          {onBack && <BackButton onClick={onBack} label="Back to Dashboard" />}
+          <div>
+            <h1 className="text-[26px] font-bold text-[#1d2433] tracking-tight">
+              Reports
+            </h1>
+            <p className="text-[12px] text-[#4a5470] mt-0.5">
+              Patient Intake Reports · Triage, filter and review submitted clinical statements
+            </p>
+          </div>
         </div>
 
         {/* Search input with frosted glass */}

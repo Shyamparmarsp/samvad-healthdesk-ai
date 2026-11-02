@@ -1,18 +1,24 @@
 import React from 'react';
 import { useI18n } from '../../i18n';
 import { PatientHeader } from './PatientHeader';
+import { BackButton } from '../common/BackButton';
 
 interface ConsentDeclinedViewProps {
   onRestart: () => void;
+  onBack?: () => void;
 }
 
-export const ConsentDeclinedView: React.FC<ConsentDeclinedViewProps> = ({ onRestart }) => {
+export const ConsentDeclinedView: React.FC<ConsentDeclinedViewProps> = ({ onRestart, onBack }) => {
   const { t } = useI18n();
 
   return (
     <div className="flex flex-col h-full justify-between pb-4 select-none relative overflow-hidden">
       {/* Top Header & Language Toggle (Figma 72:452) */}
       <PatientHeader />
+
+      <div className="px-5 pt-0.5 pb-1 flex items-center">
+        <BackButton onClick={onBack ?? onRestart} />
+      </div>
 
       {/* Main Content Area (Figma 72:452) */}
       <div className="flex-1 flex flex-col justify-between px-5 py-4">

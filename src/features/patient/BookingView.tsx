@@ -4,17 +4,20 @@ import { AppointmentSlot } from '../../types/doctor';
 import { ReportRow } from '../../types/report';
 import { getAvailableSlots } from '../../lib/api';
 import { PatientHeader } from './PatientHeader';
+import { BackButton } from '../common/BackButton';
 
 interface BookingViewProps {
   report: ReportRow;
   onBookAppointment: (slotId: string) => Promise<void>;
   onNotNow: () => void;
+  onBack?: () => void;
 }
 
 export const BookingView: React.FC<BookingViewProps> = ({
   report,
   onBookAppointment,
   onNotNow,
+  onBack,
 }) => {
   const { t, language } = useI18n();
 
@@ -110,6 +113,12 @@ export const BookingView: React.FC<BookingViewProps> = ({
     <div className="flex flex-col h-full justify-between pb-4 select-none relative overflow-hidden">
       {/* Top Header & Language Toggle (Figma 72:301) */}
       <PatientHeader progress={1} />
+
+      {onBack && (
+        <div className="px-5 pt-0.5 pb-1 flex items-center">
+          <BackButton onClick={onBack} />
+        </div>
+      )}
 
       {/* Booking Blocked State (Decision D4 Copy) */}
       {isBookingBlocked ? (

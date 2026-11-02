@@ -1,15 +1,18 @@
 import React from 'react';
 import { useI18n } from '../../i18n';
 import { PatientHeader } from './PatientHeader';
+import { BackButton } from '../common/BackButton';
 
 interface SessionEndedViewProps {
   reason?: 'dont_submit' | 'incomplete_cap';
   onRestart: () => void;
+  onBack?: () => void;
 }
 
 export const SessionEndedView: React.FC<SessionEndedViewProps> = ({
   reason = 'dont_submit',
   onRestart,
+  onBack,
 }) => {
   const { t } = useI18n();
 
@@ -17,6 +20,10 @@ export const SessionEndedView: React.FC<SessionEndedViewProps> = ({
     <div className="flex flex-col h-full justify-between pb-4 select-none relative overflow-hidden">
       {/* Top Header & Language Toggle */}
       <PatientHeader />
+
+      <div className="px-5 pt-0.5 pb-1 flex items-center">
+        <BackButton onClick={onBack ?? onRestart} />
+      </div>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col justify-between px-5 py-4 text-center">

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useI18n } from '../../i18n';
 import { ChatMessage, QuestionId } from '../../types/api';
 import { PatientHeader } from './PatientHeader';
+import { BackButton } from '../common/BackButton';
 import { AudioRecorder } from '../../lib/audio';
 import { convertBlobToVoiceAnswer, syntheticWavBase64, type VoiceAnswer } from '../../lib/audio/voice';
 
@@ -126,6 +127,7 @@ interface ConversationViewProps {
   onVoiceTranscribed?: (transcript: string) => void;
   onVoiceRecorded?: (voice: VoiceAnswer) => void;
   onReplayAudio: () => void;
+  onBack?: () => void;
   isProcessing: boolean;
 }
 
@@ -139,6 +141,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   onVoiceTranscribed,
   onVoiceRecorded,
   onReplayAudio,
+  onBack,
   isProcessing,
 }) => {
   const { t, language } = useI18n();
@@ -474,13 +477,9 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         aria-live="polite"
         className="flex-1 overflow-y-auto px-5 py-2 space-y-3 z-10"
       >
-        {isP3Fixture && (
+        {(onBack || isP3Fixture) && (
           <div className="pt-0.5 pb-1">
-            <button type="button" aria-label="Go back" className="text-[#1f2a44] hover:opacity-80 transition-opacity">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </button>
+            <BackButton onClick={onBack || (() => {})} />
           </div>
         )}
 

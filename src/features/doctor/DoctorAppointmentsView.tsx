@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Appointment, DoctorAppointmentsTab } from '../../types/doctor';
+import { BackButton } from '../common/BackButton';
 
 interface DoctorAppointmentsViewProps {
   appointments: Appointment[];
   onSelectReport?: (reportId: string) => void;
+  onBack?: () => void;
 }
 
 export function getIstDateStr(date: Date): string {
@@ -35,6 +37,7 @@ export function filterAppointmentsByTab(
 export const DoctorAppointmentsView: React.FC<DoctorAppointmentsViewProps> = ({
   appointments,
   onSelectReport,
+  onBack,
 }) => {
   const [activeTab, setActiveTab] = useState<DoctorAppointmentsTab>('today');
   const now = new Date();
@@ -51,13 +54,16 @@ export const DoctorAppointmentsView: React.FC<DoctorAppointmentsViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Header matching Figma D6 */}
-      <div>
-        <h1 className="text-[26px] font-bold text-[#1d2433] tracking-tight">
-          Appointments
-        </h1>
-        <p className="text-[12px] text-[#4a5470] mt-0.5">
-          Patient consultations scheduled via Samvad HealthDesk AI referral.
-        </p>
+      <div className="flex items-center gap-3">
+        {onBack && <BackButton onClick={onBack} label="Back to Dashboard" />}
+        <div>
+          <h1 className="text-[26px] font-bold text-[#1d2433] tracking-tight">
+            Appointments
+          </h1>
+          <p className="text-[12px] text-[#4a5470] mt-0.5">
+            Patient consultations scheduled via Samvad HealthDesk AI referral.
+          </p>
+        </div>
       </div>
 
       {/* Frosted Table Card matching Figma 82:416 */}

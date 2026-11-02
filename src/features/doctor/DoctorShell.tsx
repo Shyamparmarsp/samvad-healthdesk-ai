@@ -86,6 +86,7 @@ export const DoctorShell: React.FC = () => {
     }
     return 'dashboard';
   });
+  const [previousView, setPreviousView] = useState<DoctorView>('dashboard');
   const [selectedReportId, setSelectedReportId] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       const v = window.sessionStorage?.getItem('FIGMA_DOCTOR_VIEW');
@@ -146,6 +147,7 @@ export const DoctorShell: React.FC = () => {
 
   const handleSelectReport = (reportId: string) => {
     setSelectedReportId(reportId);
+    setPreviousView(currentView);
     setCurrentView('report_detail');
   };
 
@@ -325,6 +327,7 @@ export const DoctorShell: React.FC = () => {
               reports={reports}
               bookedReportIds={bookedReportIds}
               onSelectReport={handleSelectReport}
+              onBack={() => setCurrentView('dashboard')}
             />
           )}
 
@@ -332,6 +335,7 @@ export const DoctorShell: React.FC = () => {
             <DoctorAppointmentsView
               appointments={allAppointments}
               onSelectReport={handleSelectReport}
+              onBack={() => setCurrentView('dashboard')}
             />
           )}
 
@@ -339,6 +343,7 @@ export const DoctorShell: React.FC = () => {
             <DoctorUrgentList
               urgentReports={urgentReports}
               onSelectReport={handleSelectReport}
+              onBack={() => setCurrentView('dashboard')}
             />
           )}
 
@@ -347,13 +352,13 @@ export const DoctorShell: React.FC = () => {
               <DoctorUrgentDetail
                 report={selectedReport}
                 currentDoctor={currentDoctor}
-                onBack={() => setCurrentView('reports')}
+                onBack={() => setCurrentView(previousView || 'urgent')}
                 onRefreshReport={() => loadData(currentDoctor.id)}
               />
             ) : (
               <DoctorReportDetail
                 report={selectedReport}
-                onBack={() => setCurrentView('reports')}
+                onBack={() => setCurrentView(previousView || 'reports')}
                 onRefreshReport={() => loadData(currentDoctor.id)}
               />
             )

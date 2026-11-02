@@ -3,12 +3,14 @@ import { useI18n } from '../../i18n';
 import { Appointment } from '../../types/doctor';
 import { ReportRow } from '../../types/report';
 import { PatientHeader } from './PatientHeader';
+import { BackButton } from '../common/BackButton';
 
 interface ConfirmationViewProps {
   type: 'appointment' | 'report_only';
   report: ReportRow;
   appointment?: Appointment;
   onHome: () => void;
+  onBack?: () => void;
 }
 
 export const ConfirmationView: React.FC<ConfirmationViewProps> = ({
@@ -16,6 +18,7 @@ export const ConfirmationView: React.FC<ConfirmationViewProps> = ({
   report,
   appointment,
   onHome,
+  onBack,
 }) => {
   const { t, language } = useI18n();
   const isBooking = type === 'appointment';
@@ -24,6 +27,12 @@ export const ConfirmationView: React.FC<ConfirmationViewProps> = ({
     <div className="flex flex-col h-full justify-between pb-4 select-none relative overflow-hidden">
       {/* Top Header & Language Toggle */}
       <PatientHeader />
+
+      {onBack && (
+        <div className="px-5 pt-0.5 pb-1 flex items-center">
+          <BackButton onClick={onBack} />
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col justify-between px-5 py-4">

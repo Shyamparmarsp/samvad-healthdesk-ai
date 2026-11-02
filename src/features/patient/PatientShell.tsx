@@ -134,6 +134,7 @@ export const PatientShell: React.FC = () => {
   const { language } = useI18n();
 
   const [currentScreen, setCurrentScreen] = useState<PatientScreen>('welcome');
+  const [screenHistory, setScreenHistory] = useState<PatientScreen[]>([]);
   const [sessionId, setSessionId] = useState<string>('');
   const [chatState, setChatState] = useState<ChatTurnResponse | null>(null);
   const [pendingTranscript, setPendingTranscript] = useState<string>('');
@@ -141,6 +142,47 @@ export const PatientShell: React.FC = () => {
   const [activeAppointment, setActiveAppointment] = useState<Appointment | undefined>(undefined);
   const [endReason, setEndReason] = useState<'dont_submit' | 'incomplete_cap'>('dont_submit');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const navigateToScreen = (nextScreen: PatientScreen) => {
+    if (nextScreen !== currentScreen) {
+      setScreenHistory((prev) => [...prev, currentScreen]);
+      setCurrentScreen(nextScreen);
+    }
+  };
+
+  const getFallbackScreen = (screen: PatientScreen): PatientScreen => {
+    switch (screen) {
+      case 'consent':
+      case 'consent_declined':
+      case 'session_ended':
+      case 'emergency':
+        return 'welcome';
+      case 'conversation':
+        return 'consent';
+      case 'what_we_heard':
+        return 'conversation';
+      case 'review':
+        return 'conversation';
+      case 'booking':
+        return 'review';
+      case 'confirmed_booking':
+      case 'confirmed_report_only':
+        return 'booking';
+      default:
+        return 'welcome';
+    }
+  };
+
+  const handleBack = () => {
+    if (screenHistory.length > 0) {
+      const prev = screenHistory[screenHistory.length - 1];
+      setScreenHistory((prevList) => prevList.slice(0, -1));
+      setCurrentScreen(prev);
+    } else {
+      const fallback = getFallbackScreen(currentScreen);
+      setCurrentScreen(fallback);
+    }
+  };
 
   // Resume after interruption (sessionStorage check on mount)
   useEffect(() => {
@@ -324,7 +366,7 @@ export const PatientShell: React.FC = () => {
       try {
         sessionStorage.setItem('samvad_session_id', res.session_id);
       } catch {}
-      setCurrentScreen('consent');
+      navigateToScreen('consent');
     } catch (err: any) {
       console.error('Failed to start session', err);
       setErrorMessage(sanitizeUserError(err));
@@ -341,7 +383,7 @@ export const PatientShell: React.FC = () => {
     try {
       const res = await recordConsent(sessionId, true, language, CONSENT_VERSION);
       setChatState(res);
-      setCurrentScreen('conversation');
+      navigateToScreen('conversation');
     } catch (err: any) {
       console.error('Failed to record consent', err);
       setErrorMessage(sanitizeUserError(err));
@@ -358,7 +400,7 @@ export const PatientShell: React.FC = () => {
       try {
         sessionStorage.removeItem('samvad_session_id');
       } catch {}
-      setCurrentScreen('consent_declined');
+      navigateToScreen('consent_declined');
     } catch (err: any) {
       console.error('Failed to decline consent', err);
       setErrorMessage(sanitizeUserError(err));
@@ -380,9 +422,9 @@ export const PatientShell: React.FC = () => {
       setChatState(res);
 
       if (res.emergency_triggered) {
-        setCurrentScreen('emergency');
+        navigateToScreen('emergency');
       } else if (res.is_complete || (res.is_cap_reached && res.draft_report)) {
-        setCurrentScreen('review');
+        navigateToScreen('review');
       }
     } catch (err: any) {
       console.error('Error submitting turn', err);
@@ -415,7 +457,7 @@ export const PatientShell: React.FC = () => {
 
       if (res.transcript_preview) {
         setPendingTranscript(res.transcript_preview.text);
-        setCurrentScreen('what_we_heard');
+        navigateToScreen('what_we_heard');
       } else if (res.error) {
         setErrorMessage(
           res.error === 'provider_unavailable'
@@ -432,7 +474,7 @@ export const PatientShell: React.FC = () => {
   };
 
   const handleConfirmTranscript = async (confirmedText: string) => {
-    setCurrentScreen('conversation');
+    navigateToScreen('conversation');
     await handleSendAnswer(confirmedText);
   };
 
@@ -502,6 +544,10 @@ export const PatientShell: React.FC = () => {
   // 6. Submit report to hospital
   const handleSubmitReport = async () => {
     if (!sessionId) return;
+    if (chatState?.submitted_report) {
+      navigateToScreen('booking');
+      return;
+    }
     setIsProcessing(true);
     setErrorMessage(null);
     const activeReportId = chatState?.submitted_report?.id || '';
@@ -512,7 +558,7 @@ export const PatientShell: React.FC = () => {
         report_id: activeReportId,
       });
       setChatState(res);
-      setCurrentScreen('booking');
+      navigateToScreen('booking');
     } catch (err: any) {
       console.error('Failed to submit report', err);
       setErrorMessage(sanitizeUserError(err));
@@ -527,7 +573,7 @@ export const PatientShell: React.FC = () => {
       sessionStorage.removeItem('samvad_session_id');
     } catch {}
     setEndReason('dont_submit');
-    setCurrentScreen('session_ended');
+    navigateToScreen('session_ended');
   };
 
   // 8. Incomplete cap end action
@@ -536,12 +582,16 @@ export const PatientShell: React.FC = () => {
       sessionStorage.removeItem('samvad_session_id');
     } catch {}
     setEndReason('incomplete_cap');
-    setCurrentScreen('session_ended');
+    navigateToScreen('session_ended');
   };
 
   // 9. Book appointment
   const handleBookAppointment = async (slotId: string) => {
     if (!chatState?.submitted_report) return;
+    if (activeAppointment) {
+      navigateToScreen('confirmed_booking');
+      return;
+    }
     const res = await bookAppointment({
       report_id: chatState.submitted_report.id,
       slot_id: slotId,
@@ -553,7 +603,7 @@ export const PatientShell: React.FC = () => {
     try {
       sessionStorage.removeItem('samvad_session_id');
     } catch {}
-    setCurrentScreen('confirmed_booking');
+    navigateToScreen('confirmed_booking');
   };
 
   // 10. "Not now" booking path
@@ -561,7 +611,7 @@ export const PatientShell: React.FC = () => {
     try {
       sessionStorage.removeItem('samvad_session_id');
     } catch {}
-    setCurrentScreen('confirmed_report_only');
+    navigateToScreen('confirmed_report_only');
   };
 
   // 11. Restart session
@@ -573,6 +623,7 @@ export const PatientShell: React.FC = () => {
     setChatState(null);
     setActiveAppointment(undefined);
     setErrorMessage(null);
+    setScreenHistory([]);
     setCurrentScreen('welcome');
   };
 
@@ -616,11 +667,15 @@ export const PatientShell: React.FC = () => {
           <ConsentView
             onAgree={handleConsentAgree}
             onDecline={handleConsentDecline}
+            onBack={handleBack}
           />
         )}
 
         {currentScreen === 'consent_declined' && (
-          <ConsentDeclinedView onRestart={handleRestart} />
+          <ConsentDeclinedView
+            onRestart={handleRestart}
+            onBack={handleBack}
+          />
         )}
 
         {currentScreen === 'conversation' && (
@@ -634,6 +689,7 @@ export const PatientShell: React.FC = () => {
             onVoiceRecorded={handleVoiceRecorded}
             onVoiceTranscribed={handleVoiceRecorded}
             onReplayAudio={handleReplayAudio}
+            onBack={handleBack}
             isProcessing={isProcessing}
           />
         )}
@@ -642,7 +698,8 @@ export const PatientShell: React.FC = () => {
           <WhatWeHeardView
             initialTranscript={pendingTranscript}
             onConfirm={handleConfirmTranscript}
-            onCancel={() => setCurrentScreen('conversation')}
+            onCancel={handleBack}
+            onBack={handleBack}
           />
         )}
 
@@ -655,6 +712,7 @@ export const PatientShell: React.FC = () => {
             onSubmit={handleSubmitReport}
             onDontSubmit={handleDontSubmit}
             onEndSessionCap={handleEndSessionCap}
+            onBack={handleBack}
           />
         )}
 
@@ -662,6 +720,7 @@ export const PatientShell: React.FC = () => {
           <SessionEndedView
             reason={endReason}
             onRestart={handleRestart}
+            onBack={handleBack}
           />
         )}
 
@@ -670,6 +729,7 @@ export const PatientShell: React.FC = () => {
             report={chatState.submitted_report as ReportRow}
             onBookAppointment={handleBookAppointment}
             onNotNow={handleNotNowBooking}
+            onBack={handleBack}
           />
         )}
 
@@ -679,6 +739,7 @@ export const PatientShell: React.FC = () => {
             report={chatState.submitted_report as ReportRow}
             appointment={activeAppointment}
             onHome={handleRestart}
+            onBack={handleBack}
           />
         )}
 
@@ -687,11 +748,15 @@ export const PatientShell: React.FC = () => {
             type="report_only"
             report={chatState.submitted_report as ReportRow}
             onHome={handleRestart}
+            onBack={handleBack}
           />
         )}
 
         {currentScreen === 'emergency' && (
-          <EmergencyView onEndDemo={handleRestart} />
+          <EmergencyView
+            onEndDemo={handleRestart}
+            onBack={handleBack}
+          />
         )}
       </div>
     </div>
