@@ -12,6 +12,8 @@
 | Availability and booking | `booking.sql` | PASS — 4 blocks |
 | Booking over HTTP (PostgREST RPC) + concurrency | manual run | PASS — 1 booking, idempotent repeat, 1 winner in a 2-way race |
 | Doctor appointment reads (M4-S16-B) | `doctor_appointments.sql` | PASS — 5 blocks; table stays closed, RPC is doctor-scoped and returns past rows |
+| Emergency authorization and RLS certification | `emergency_authorization.sql` | PASS — 9 blocks; urgent-report visibility, GM/EM/other-department boundaries, no browser write path, Mark Reviewed matrix, terminal immutability, permanent unbookability |
+| Emergency flow certification matrix (live HTTP) | `emergency-certification.ts` | 187 PASS / 10 FAIL / 0 NOT TESTED — see `docs/emergency-certification/` |
 | Atomic reservation, limit 5 | pgbench, 20 clients | 5 allowed / 15 denied, `used = 5` |
 | Atomic reservation, limit 14 | pgbench, 20 clients | 14 allowed / 6 denied, `used = 14` |
 
@@ -56,7 +58,9 @@ docker exec -i supabase_db_samvad-backend \
 
 `rls.sql` resolves the four identities by email, so create these on the local stack
 first (Auth admin API, service key): `patient-a@rls.test`, `patient-b@rls.test`,
-`doctor-gm@rls.test`, `doctor-em@rls.test`.
+`doctor-gm@rls.test`, `doctor-em@rls.test`. `emergency_authorization.sql` additionally
+uses `doctor-or@rls.test` (mapped to the Orthopedics doctor) as the negative control for
+the emergency cross-visibility policy.
 
 Each `DO` block impersonates one identity with `set local role authenticated` plus a
 `request.jwt.claims` claim, then asserts exact row counts. A violation raises and aborts
@@ -139,9 +143,37 @@ database write; `[STUB]` = the function called the local provider stub.
 supabase stop --no-backup
 ```
 
+## 8. Emergency certification suites
+
+Two artefacts certify the deterministic emergency path. Full findings live in
+`docs/emergency-certification/`.
+
+```bash
+# A. Authorization / RLS / immutability (transaction rolls back, nothing deleted)
+docker exec -i supabase_db_samvad-backend psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
+  < supabase/tests/emergency_authorization.sql
+
+# B. Matcher + workflow contract (offline; included in the normal Deno suite)
+(cd supabase/functions/_shared && deno test --allow-read)
+
+# C. Live 197-case matrix (local target only; refuses non-local URLs; exits 1 on FAIL)
+LOCAL_URL=http://127.0.0.1:54321 \
+LOCAL_ANON_KEY="$ANON_KEY" LOCAL_SERVICE_KEY="$SERVICE_ROLE_KEY" \
+LOCAL_JWT_SECRET=... \
+deno run --allow-net --allow-env --allow-read --allow-write \
+  supabase/tests/emergency-certification.ts
+```
+
+`LOCAL_JWT_SECRET` is the local stack's JWT secret (Docker:
+`supabase_auth_<project>` → `GOTRUE_JWT_SECRET`). It is needed only to mint a short-lived
+token for the mapped test doctors; without it the doctor cases report `NOT TESTED`.
+The harness creates its own anonymous identities and deletes only those. It never resets a
+usage counter and never edits reference data.
+
 ## What this does not cover
 
-- Edge Function behaviour (needs `supabase functions serve` and a seeded stack).
-- Provider calls (mocked in the Deno suite; live checks stay owner-run per
+- Edge Function behaviour without a running stack (the live matrix needs
+  `supabase functions serve`; the offline Deno suites do not).
+- Live provider calls (mocked in the Deno suite and stubbed locally per
   `docs/provider-notes.md`).
-- M4 booking and Mark Reviewed RPCs, which do not exist yet.
+- Frontend rendering; the 112 screen is verified separately on the frontend branch.

@@ -1,0 +1,1962 @@
+{
+  "generated_at": "2026-11-02T11:28:55.181Z",
+  "commit": "e5d77e53100f62d3ac5954cce7d4e9c5872f3053",
+  "target": "http://127.0.0.1:54321",
+  "local_only": true,
+  "summary": {
+    "total": 197,
+    "pass": 187,
+    "fail": 10,
+    "notTested": 0
+  },
+  "verdict": "FAIL",
+  "blocking_findings": [
+    "M-NEGSCOPE-01",
+    "M-NEGSCOPE-02",
+    "M-NEGSCOPE-03",
+    "M-NEGSCOPE-04",
+    "L-PREC-02"
+  ],
+  "notes": [
+    "Base URL: http://127.0.0.1:54321 (local only).",
+    "Commit under test: e5d77e53100f62d3ac5954cce7d4e9c5872f3053.",
+    "Usage counters were read and left unchanged; only ordinary app usage moved them."
+  ],
+  "cases": [
+    {
+      "id": "M-CLEAR-EN-breathing_emergency-1",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers breathing_emergency",
+      "expected": "clear / breathing_emergency",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "cannot breathe"
+    },
+    {
+      "id": "M-CLEAR-EN-breathing_emergency-2",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers breathing_emergency",
+      "expected": "clear / breathing_emergency",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "cant breathe"
+    },
+    {
+      "id": "M-CLEAR-EN-breathing_emergency-3",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers breathing_emergency",
+      "expected": "clear / breathing_emergency",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "can not breathe"
+    },
+    {
+      "id": "M-CLEAR-EN-breathing_emergency-4",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers breathing_emergency",
+      "expected": "clear / breathing_emergency",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "not breathing"
+    },
+    {
+      "id": "M-CLEAR-EN-breathing_emergency-5",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers breathing_emergency",
+      "expected": "clear / breathing_emergency",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "stopped breathing"
+    },
+    {
+      "id": "M-CLEAR-EN-breathing_emergency-6",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers breathing_emergency",
+      "expected": "clear / breathing_emergency",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "severe difficulty breathing"
+    },
+    {
+      "id": "M-CLEAR-EN-breathing_emergency-7",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers breathing_emergency",
+      "expected": "clear / breathing_emergency",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "struggling to breathe"
+    },
+    {
+      "id": "M-CLEAR-EN-breathing_emergency-8",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers breathing_emergency",
+      "expected": "clear / breathing_emergency",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "gasping for air"
+    },
+    {
+      "id": "M-CLEAR-HI-breathing_emergency-1",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers breathing_emergency",
+      "expected": "clear / breathing_emergency",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "सांस नहीं आ रही"
+    },
+    {
+      "id": "M-CLEAR-HI-breathing_emergency-2",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers breathing_emergency",
+      "expected": "clear / breathing_emergency",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "साँस नहीं आ रही"
+    },
+    {
+      "id": "M-CLEAR-HI-breathing_emergency-3",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers breathing_emergency",
+      "expected": "clear / breathing_emergency",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "सांस लेने में बहुत तकलीफ"
+    },
+    {
+      "id": "M-CLEAR-HI-breathing_emergency-4",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers breathing_emergency",
+      "expected": "clear / breathing_emergency",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "साँस लेने में बहुत तकलीफ़"
+    },
+    {
+      "id": "M-CLEAR-HI-breathing_emergency-5",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers breathing_emergency",
+      "expected": "clear / breathing_emergency",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "सांस नहीं ले पा रह"
+    },
+    {
+      "id": "M-AMB-breathing_emergency-1",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for breathing_emergency",
+      "expected": "ambiguous including breathing_emergency",
+      "actual": "ambiguous / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "difficulty breathing"
+    },
+    {
+      "id": "M-AMB-breathing_emergency-2",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for breathing_emergency",
+      "expected": "ambiguous including breathing_emergency",
+      "actual": "ambiguous / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "hard to breathe"
+    },
+    {
+      "id": "M-AMB-breathing_emergency-3",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for breathing_emergency",
+      "expected": "ambiguous including breathing_emergency",
+      "actual": "ambiguous / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "short of breath"
+    },
+    {
+      "id": "M-AMB-breathing_emergency-4",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for breathing_emergency",
+      "expected": "ambiguous including breathing_emergency",
+      "actual": "ambiguous / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "breathless"
+    },
+    {
+      "id": "M-AMB-breathing_emergency-5",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for breathing_emergency",
+      "expected": "ambiguous including breathing_emergency",
+      "actual": "ambiguous / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "सांस लेने में दिक्कत"
+    },
+    {
+      "id": "M-AMB-breathing_emergency-6",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for breathing_emergency",
+      "expected": "ambiguous including breathing_emergency",
+      "actual": "ambiguous / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "सांस फूल रही"
+    },
+    {
+      "id": "M-AMB-breathing_emergency-7",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for breathing_emergency",
+      "expected": "ambiguous including breathing_emergency",
+      "actual": "ambiguous / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "सांस में परेशानी"
+    },
+    {
+      "id": "M-ROM-breathing_emergency-1",
+      "category": "1. Emergency detection",
+      "requirement": "Romanised variant is opt-in (Tier C) for breathing_emergency",
+      "expected": "none when disabled; clear when enabled",
+      "actual": "disabled=none; enabled=clear/breathing_emergency",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "saans nahi aa rahi"
+    },
+    {
+      "id": "M-ROM-breathing_emergency-2",
+      "category": "1. Emergency detection",
+      "requirement": "Romanised variant is opt-in (Tier C) for breathing_emergency",
+      "expected": "none when disabled; clear when enabled",
+      "actual": "disabled=none; enabled=clear/breathing_emergency",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "saans lene mein bahut takleef"
+    },
+    {
+      "id": "M-CLEAR-EN-severe_chest_pain-1",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers severe_chest_pain",
+      "expected": "clear / severe_chest_pain",
+      "actual": "clear / severe_chest_pain",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "severe chest pain"
+    },
+    {
+      "id": "M-CLEAR-EN-severe_chest_pain-2",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers severe_chest_pain",
+      "expected": "clear / severe_chest_pain",
+      "actual": "clear / severe_chest_pain",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "crushing chest pain"
+    },
+    {
+      "id": "M-CLEAR-EN-severe_chest_pain-3",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers severe_chest_pain",
+      "expected": "clear / severe_chest_pain",
+      "actual": "clear / severe_chest_pain",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "heavy pressure in my chest"
+    },
+    {
+      "id": "M-CLEAR-EN-severe_chest_pain-4",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers severe_chest_pain",
+      "expected": "clear / severe_chest_pain",
+      "actual": "clear / severe_chest_pain",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "crushing pressure in my chest"
+    },
+    {
+      "id": "M-CLEAR-HI-severe_chest_pain-1",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers severe_chest_pain",
+      "expected": "clear / severe_chest_pain",
+      "actual": "clear / severe_chest_pain",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "सीने में बहुत तेज दर्द"
+    },
+    {
+      "id": "M-CLEAR-HI-severe_chest_pain-2",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers severe_chest_pain",
+      "expected": "clear / severe_chest_pain",
+      "actual": "clear / severe_chest_pain",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "छाती में तेज दबाव"
+    },
+    {
+      "id": "M-CLEAR-HI-severe_chest_pain-3",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers severe_chest_pain",
+      "expected": "clear / severe_chest_pain",
+      "actual": "clear / severe_chest_pain",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "सीने में भारीपन और दर्द"
+    },
+    {
+      "id": "M-AMB-severe_chest_pain-1",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for severe_chest_pain",
+      "expected": "ambiguous including severe_chest_pain",
+      "actual": "ambiguous / severe_chest_pain",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "chest pain"
+    },
+    {
+      "id": "M-AMB-severe_chest_pain-2",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for severe_chest_pain",
+      "expected": "ambiguous including severe_chest_pain",
+      "actual": "ambiguous / severe_chest_pain",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "chest pressure"
+    },
+    {
+      "id": "M-AMB-severe_chest_pain-3",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for severe_chest_pain",
+      "expected": "ambiguous including severe_chest_pain",
+      "actual": "ambiguous / severe_chest_pain",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "pressure in my chest"
+    },
+    {
+      "id": "M-AMB-severe_chest_pain-4",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for severe_chest_pain",
+      "expected": "ambiguous including severe_chest_pain",
+      "actual": "ambiguous / severe_chest_pain",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "pain in my chest"
+    },
+    {
+      "id": "M-AMB-severe_chest_pain-5",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for severe_chest_pain",
+      "expected": "ambiguous including severe_chest_pain",
+      "actual": "ambiguous / severe_chest_pain",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "सीने में दर्द"
+    },
+    {
+      "id": "M-AMB-severe_chest_pain-6",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for severe_chest_pain",
+      "expected": "ambiguous including severe_chest_pain",
+      "actual": "ambiguous / severe_chest_pain",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "छाती में दबाव"
+    },
+    {
+      "id": "M-AMB-severe_chest_pain-7",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for severe_chest_pain",
+      "expected": "ambiguous including severe_chest_pain",
+      "actual": "ambiguous / severe_chest_pain",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "सीने में भारीपन"
+    },
+    {
+      "id": "M-ROM-severe_chest_pain-1",
+      "category": "1. Emergency detection",
+      "requirement": "Romanised variant is opt-in (Tier C) for severe_chest_pain",
+      "expected": "none when disabled; clear when enabled",
+      "actual": "disabled=none; enabled=clear/severe_chest_pain",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "seene mein tez dard"
+    },
+    {
+      "id": "M-ROM-severe_chest_pain-2",
+      "category": "1. Emergency detection",
+      "requirement": "Romanised variant is opt-in (Tier C) for severe_chest_pain",
+      "expected": "none when disabled; clear when enabled",
+      "actual": "disabled=none; enabled=clear/severe_chest_pain",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "seene mein dard"
+    },
+    {
+      "id": "M-CLEAR-EN-stroke_signs-1",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers stroke_signs",
+      "expected": "clear / stroke_signs",
+      "actual": "clear / stroke_signs",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "one side of my body suddenly feels weak"
+    },
+    {
+      "id": "M-CLEAR-EN-stroke_signs-2",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers stroke_signs",
+      "expected": "clear / stroke_signs",
+      "actual": "clear / stroke_signs",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "face is drooping"
+    },
+    {
+      "id": "M-CLEAR-EN-stroke_signs-3",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers stroke_signs",
+      "expected": "clear / stroke_signs",
+      "actual": "clear / stroke_signs",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "suddenly cannot speak clearly"
+    },
+    {
+      "id": "M-CLEAR-EN-stroke_signs-4",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers stroke_signs",
+      "expected": "clear / stroke_signs",
+      "actual": "clear / stroke_signs",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "cannot move my arm"
+    },
+    {
+      "id": "M-CLEAR-HI-stroke_signs-1",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers stroke_signs",
+      "expected": "clear / stroke_signs",
+      "actual": "clear / stroke_signs",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "शरीर के एक तरफ अचानक कमजोरी"
+    },
+    {
+      "id": "M-CLEAR-HI-stroke_signs-2",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers stroke_signs",
+      "expected": "clear / stroke_signs",
+      "actual": "clear / stroke_signs",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "चेहरा टेढ़ा हो गया"
+    },
+    {
+      "id": "M-CLEAR-HI-stroke_signs-3",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers stroke_signs",
+      "expected": "clear / stroke_signs",
+      "actual": "clear / stroke_signs",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "अचानक बोलने में दिक्कत"
+    },
+    {
+      "id": "M-AMB-stroke_signs-1",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for stroke_signs",
+      "expected": "ambiguous including stroke_signs",
+      "actual": "ambiguous / stroke_signs",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "weakness on one side"
+    },
+    {
+      "id": "M-AMB-stroke_signs-2",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for stroke_signs",
+      "expected": "ambiguous including stroke_signs",
+      "actual": "ambiguous / stroke_signs",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "slurred speech"
+    },
+    {
+      "id": "M-AMB-stroke_signs-3",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for stroke_signs",
+      "expected": "ambiguous including stroke_signs",
+      "actual": "ambiguous / stroke_signs",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "face drooping"
+    },
+    {
+      "id": "M-AMB-stroke_signs-4",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for stroke_signs",
+      "expected": "ambiguous including stroke_signs",
+      "actual": "ambiguous / stroke_signs",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "एक तरफ कमजोरी"
+    },
+    {
+      "id": "M-AMB-stroke_signs-5",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for stroke_signs",
+      "expected": "ambiguous including stroke_signs",
+      "actual": "ambiguous / stroke_signs",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "बोलने में दिक्कत"
+    },
+    {
+      "id": "M-AMB-stroke_signs-6",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for stroke_signs",
+      "expected": "ambiguous including stroke_signs",
+      "actual": "ambiguous / stroke_signs",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "चेहरा टेढ़ा"
+    },
+    {
+      "id": "M-ROM-stroke_signs-1",
+      "category": "1. Emergency detection",
+      "requirement": "Romanised variant is opt-in (Tier C) for stroke_signs",
+      "expected": "none when disabled; clear when enabled",
+      "actual": "disabled=none; enabled=clear/stroke_signs",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "chehra tedha ho gaya"
+    },
+    {
+      "id": "M-ROM-stroke_signs-2",
+      "category": "1. Emergency detection",
+      "requirement": "Romanised variant is opt-in (Tier C) for stroke_signs",
+      "expected": "none when disabled; clear when enabled",
+      "actual": "disabled=none; enabled=clear/stroke_signs",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "ek taraf kamzori"
+    },
+    {
+      "id": "M-CLEAR-EN-unresponsive_or_unconscious-1",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers unresponsive_or_unconscious",
+      "expected": "clear / unresponsive_or_unconscious",
+      "actual": "clear / unresponsive_or_unconscious",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "unconscious"
+    },
+    {
+      "id": "M-CLEAR-EN-unresponsive_or_unconscious-2",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers unresponsive_or_unconscious",
+      "expected": "clear / unresponsive_or_unconscious",
+      "actual": "clear / unresponsive_or_unconscious",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "cannot wake them up"
+    },
+    {
+      "id": "M-CLEAR-EN-unresponsive_or_unconscious-3",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers unresponsive_or_unconscious",
+      "expected": "clear / unresponsive_or_unconscious",
+      "actual": "clear / unresponsive_or_unconscious",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "not responding"
+    },
+    {
+      "id": "M-CLEAR-EN-unresponsive_or_unconscious-4",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers unresponsive_or_unconscious",
+      "expected": "clear / unresponsive_or_unconscious",
+      "actual": "clear / unresponsive_or_unconscious",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "unresponsive"
+    },
+    {
+      "id": "M-CLEAR-EN-unresponsive_or_unconscious-5",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers unresponsive_or_unconscious",
+      "expected": "clear / unresponsive_or_unconscious",
+      "actual": "clear / unresponsive_or_unconscious",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "passed out"
+    },
+    {
+      "id": "M-CLEAR-HI-unresponsive_or_unconscious-1",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers unresponsive_or_unconscious",
+      "expected": "clear / unresponsive_or_unconscious",
+      "actual": "clear / unresponsive_or_unconscious",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "बेहोश"
+    },
+    {
+      "id": "M-CLEAR-HI-unresponsive_or_unconscious-2",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers unresponsive_or_unconscious",
+      "expected": "clear / unresponsive_or_unconscious",
+      "actual": "clear / unresponsive_or_unconscious",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "होश नहीं"
+    },
+    {
+      "id": "M-CLEAR-HI-unresponsive_or_unconscious-3",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers unresponsive_or_unconscious",
+      "expected": "clear / unresponsive_or_unconscious",
+      "actual": "clear / unresponsive_or_unconscious",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "जगाने पर भी जवाब नहीं दे रहे"
+    },
+    {
+      "id": "M-AMB-unresponsive_or_unconscious-1",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for unresponsive_or_unconscious",
+      "expected": "ambiguous including unresponsive_or_unconscious",
+      "actual": "ambiguous / unresponsive_or_unconscious",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "not waking up"
+    },
+    {
+      "id": "M-AMB-unresponsive_or_unconscious-2",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for unresponsive_or_unconscious",
+      "expected": "ambiguous including unresponsive_or_unconscious",
+      "actual": "ambiguous / unresponsive_or_unconscious",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "very drowsy"
+    },
+    {
+      "id": "M-AMB-unresponsive_or_unconscious-3",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for unresponsive_or_unconscious",
+      "expected": "ambiguous including unresponsive_or_unconscious",
+      "actual": "ambiguous / unresponsive_or_unconscious",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "fainted"
+    },
+    {
+      "id": "M-AMB-unresponsive_or_unconscious-4",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for unresponsive_or_unconscious",
+      "expected": "ambiguous including unresponsive_or_unconscious",
+      "actual": "ambiguous / unresponsive_or_unconscious",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "जवाब नहीं दे रहे"
+    },
+    {
+      "id": "M-AMB-unresponsive_or_unconscious-5",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for unresponsive_or_unconscious",
+      "expected": "ambiguous including unresponsive_or_unconscious",
+      "actual": "ambiguous / unresponsive_or_unconscious",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "बहुत नींद आ रही"
+    },
+    {
+      "id": "M-ROM-unresponsive_or_unconscious-1",
+      "category": "1. Emergency detection",
+      "requirement": "Romanised variant is opt-in (Tier C) for unresponsive_or_unconscious",
+      "expected": "none when disabled; clear when enabled",
+      "actual": "disabled=none; enabled=clear/unresponsive_or_unconscious",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "behosh"
+    },
+    {
+      "id": "M-ROM-unresponsive_or_unconscious-2",
+      "category": "1. Emergency detection",
+      "requirement": "Romanised variant is opt-in (Tier C) for unresponsive_or_unconscious",
+      "expected": "none when disabled; clear when enabled",
+      "actual": "disabled=none; enabled=clear/unresponsive_or_unconscious",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "hosh nahi"
+    },
+    {
+      "id": "M-CLEAR-EN-uncontrolled_bleeding-1",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers uncontrolled_bleeding",
+      "expected": "clear / uncontrolled_bleeding",
+      "actual": "clear / uncontrolled_bleeding",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "bleeding will not stop"
+    },
+    {
+      "id": "M-CLEAR-EN-uncontrolled_bleeding-2",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers uncontrolled_bleeding",
+      "expected": "clear / uncontrolled_bleeding",
+      "actual": "clear / uncontrolled_bleeding",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "bleeding wont stop"
+    },
+    {
+      "id": "M-CLEAR-EN-uncontrolled_bleeding-3",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers uncontrolled_bleeding",
+      "expected": "clear / uncontrolled_bleeding",
+      "actual": "clear / uncontrolled_bleeding",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "severe bleeding"
+    },
+    {
+      "id": "M-CLEAR-EN-uncontrolled_bleeding-4",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers uncontrolled_bleeding",
+      "expected": "clear / uncontrolled_bleeding",
+      "actual": "clear / uncontrolled_bleeding",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "losing a lot of blood"
+    },
+    {
+      "id": "M-CLEAR-HI-uncontrolled_bleeding-1",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers uncontrolled_bleeding",
+      "expected": "clear / uncontrolled_bleeding",
+      "actual": "clear / uncontrolled_bleeding",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "खून बंद नहीं हो रहा"
+    },
+    {
+      "id": "M-CLEAR-HI-uncontrolled_bleeding-2",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers uncontrolled_bleeding",
+      "expected": "clear / uncontrolled_bleeding",
+      "actual": "clear / uncontrolled_bleeding",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "बहुत ज्यादा खून बह रहा है"
+    },
+    {
+      "id": "M-CLEAR-HI-uncontrolled_bleeding-3",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers uncontrolled_bleeding",
+      "expected": "clear / uncontrolled_bleeding",
+      "actual": "clear / uncontrolled_bleeding",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "खून रुक नहीं रहा"
+    },
+    {
+      "id": "M-AMB-uncontrolled_bleeding-1",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for uncontrolled_bleeding",
+      "expected": "ambiguous including uncontrolled_bleeding",
+      "actual": "ambiguous / uncontrolled_bleeding",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "bleeding"
+    },
+    {
+      "id": "M-AMB-uncontrolled_bleeding-2",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for uncontrolled_bleeding",
+      "expected": "ambiguous including uncontrolled_bleeding",
+      "actual": "ambiguous / uncontrolled_bleeding",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "lots of blood"
+    },
+    {
+      "id": "M-AMB-uncontrolled_bleeding-3",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for uncontrolled_bleeding",
+      "expected": "ambiguous including uncontrolled_bleeding",
+      "actual": "ambiguous / uncontrolled_bleeding",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "खून बह रहा"
+    },
+    {
+      "id": "M-AMB-uncontrolled_bleeding-4",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for uncontrolled_bleeding",
+      "expected": "ambiguous including uncontrolled_bleeding",
+      "actual": "ambiguous / uncontrolled_bleeding",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "खून आ रहा"
+    },
+    {
+      "id": "M-ROM-uncontrolled_bleeding-1",
+      "category": "1. Emergency detection",
+      "requirement": "Romanised variant is opt-in (Tier C) for uncontrolled_bleeding",
+      "expected": "none when disabled; clear when enabled",
+      "actual": "disabled=none; enabled=clear/uncontrolled_bleeding",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "khoon band nahi ho raha"
+    },
+    {
+      "id": "M-CLEAR-EN-seizure_or_convulsion-1",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers seizure_or_convulsion",
+      "expected": "clear / seizure_or_convulsion",
+      "actual": "clear / seizure_or_convulsion",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "having a seizure now"
+    },
+    {
+      "id": "M-CLEAR-EN-seizure_or_convulsion-2",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers seizure_or_convulsion",
+      "expected": "clear / seizure_or_convulsion",
+      "actual": "clear / seizure_or_convulsion",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "continuous convulsions"
+    },
+    {
+      "id": "M-CLEAR-EN-seizure_or_convulsion-3",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers seizure_or_convulsion",
+      "expected": "clear / seizure_or_convulsion",
+      "actual": "clear / seizure_or_convulsion",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "repeated uncontrollable shaking"
+    },
+    {
+      "id": "M-CLEAR-HI-seizure_or_convulsion-1",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers seizure_or_convulsion",
+      "expected": "clear / seizure_or_convulsion",
+      "actual": "clear / seizure_or_convulsion",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "अभी दौरा पड़ रहा है"
+    },
+    {
+      "id": "M-CLEAR-HI-seizure_or_convulsion-2",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers seizure_or_convulsion",
+      "expected": "clear / seizure_or_convulsion",
+      "actual": "clear / seizure_or_convulsion",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "लगातार झटके आ रहे हैं"
+    },
+    {
+      "id": "M-CLEAR-HI-seizure_or_convulsion-3",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers seizure_or_convulsion",
+      "expected": "clear / seizure_or_convulsion",
+      "actual": "clear / seizure_or_convulsion",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "बार-बार दौरे पड़ रहे हैं"
+    },
+    {
+      "id": "M-AMB-seizure_or_convulsion-1",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for seizure_or_convulsion",
+      "expected": "ambiguous including seizure_or_convulsion",
+      "actual": "ambiguous / seizure_or_convulsion",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "seizure"
+    },
+    {
+      "id": "M-AMB-seizure_or_convulsion-2",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for seizure_or_convulsion",
+      "expected": "ambiguous including seizure_or_convulsion",
+      "actual": "ambiguous / seizure_or_convulsion",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "convulsion"
+    },
+    {
+      "id": "M-AMB-seizure_or_convulsion-3",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for seizure_or_convulsion",
+      "expected": "ambiguous including seizure_or_convulsion",
+      "actual": "ambiguous / seizure_or_convulsion",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "fits"
+    },
+    {
+      "id": "M-AMB-seizure_or_convulsion-4",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for seizure_or_convulsion",
+      "expected": "ambiguous including seizure_or_convulsion",
+      "actual": "ambiguous / seizure_or_convulsion",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "दौरा"
+    },
+    {
+      "id": "M-AMB-seizure_or_convulsion-5",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for seizure_or_convulsion",
+      "expected": "ambiguous including seizure_or_convulsion",
+      "actual": "ambiguous / seizure_or_convulsion",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "झटके"
+    },
+    {
+      "id": "M-AMB-seizure_or_convulsion-6",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for seizure_or_convulsion",
+      "expected": "ambiguous including seizure_or_convulsion",
+      "actual": "ambiguous / seizure_or_convulsion",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "मिर्गी का दौरा"
+    },
+    {
+      "id": "M-ROM-seizure_or_convulsion-1",
+      "category": "1. Emergency detection",
+      "requirement": "Romanised variant is opt-in (Tier C) for seizure_or_convulsion",
+      "expected": "none when disabled; clear when enabled",
+      "actual": "disabled=none; enabled=clear/seizure_or_convulsion",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "daura pad raha hai"
+    },
+    {
+      "id": "M-CLEAR-EN-severe_allergic_reaction-1",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers severe_allergic_reaction",
+      "expected": "clear / severe_allergic_reaction",
+      "actual": "clear / severe_allergic_reaction",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "throat or tongue swelling and trouble breathing"
+    },
+    {
+      "id": "M-CLEAR-EN-severe_allergic_reaction-2",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers severe_allergic_reaction",
+      "expected": "clear / severe_allergic_reaction",
+      "actual": "clear / severe_allergic_reaction",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "face swelling with breathing difficulty"
+    },
+    {
+      "id": "M-CLEAR-EN-severe_allergic_reaction-3",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers severe_allergic_reaction",
+      "expected": "clear / severe_allergic_reaction",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "throat is swelling and i cannot breathe"
+    },
+    {
+      "id": "M-CLEAR-HI-severe_allergic_reaction-1",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers severe_allergic_reaction",
+      "expected": "clear / severe_allergic_reaction",
+      "actual": "clear / severe_allergic_reaction",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "जीभ या गले में सूजन और सांस लेने में दिक्कत"
+    },
+    {
+      "id": "M-CLEAR-HI-severe_allergic_reaction-2",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers severe_allergic_reaction",
+      "expected": "clear / severe_allergic_reaction",
+      "actual": "clear / severe_allergic_reaction",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "जीभ में सूजन और सांस लेने में दिक्कत"
+    },
+    {
+      "id": "M-CLEAR-HI-severe_allergic_reaction-3",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers severe_allergic_reaction",
+      "expected": "clear / severe_allergic_reaction",
+      "actual": "clear / severe_allergic_reaction",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "चेहरे पर सूजन और सांस में परेशानी"
+    },
+    {
+      "id": "M-AMB-severe_allergic_reaction-1",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for severe_allergic_reaction",
+      "expected": "ambiguous including severe_allergic_reaction",
+      "actual": "ambiguous / severe_allergic_reaction",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "throat swelling"
+    },
+    {
+      "id": "M-AMB-severe_allergic_reaction-2",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for severe_allergic_reaction",
+      "expected": "ambiguous including severe_allergic_reaction",
+      "actual": "ambiguous / severe_allergic_reaction",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "tongue swelling"
+    },
+    {
+      "id": "M-AMB-severe_allergic_reaction-3",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for severe_allergic_reaction",
+      "expected": "ambiguous including severe_allergic_reaction",
+      "actual": "ambiguous / severe_allergic_reaction",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "face swelling"
+    },
+    {
+      "id": "M-AMB-severe_allergic_reaction-4",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for severe_allergic_reaction",
+      "expected": "ambiguous including severe_allergic_reaction",
+      "actual": "ambiguous / severe_allergic_reaction",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "गले में सूजन"
+    },
+    {
+      "id": "M-AMB-severe_allergic_reaction-5",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for severe_allergic_reaction",
+      "expected": "ambiguous including severe_allergic_reaction",
+      "actual": "ambiguous / severe_allergic_reaction",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "जीभ में सूजन"
+    },
+    {
+      "id": "M-AMB-severe_allergic_reaction-6",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for severe_allergic_reaction",
+      "expected": "ambiguous including severe_allergic_reaction",
+      "actual": "ambiguous / severe_allergic_reaction",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "चेहरे पर सूजन"
+    },
+    {
+      "id": "M-CLEAR-EN-poisoning_or_overdose-1",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers poisoning_or_overdose",
+      "expected": "clear / poisoning_or_overdose",
+      "actual": "clear / poisoning_or_overdose",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "swallowed poison"
+    },
+    {
+      "id": "M-CLEAR-EN-poisoning_or_overdose-2",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers poisoning_or_overdose",
+      "expected": "clear / poisoning_or_overdose",
+      "actual": "clear / poisoning_or_overdose",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "took too much medicine"
+    },
+    {
+      "id": "M-CLEAR-EN-poisoning_or_overdose-3",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers poisoning_or_overdose",
+      "expected": "clear / poisoning_or_overdose",
+      "actual": "clear / poisoning_or_overdose",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "overdose"
+    },
+    {
+      "id": "M-CLEAR-EN-poisoning_or_overdose-4",
+      "category": "1. Emergency detection",
+      "requirement": "English clear phrase triggers poisoning_or_overdose",
+      "expected": "clear / poisoning_or_overdose",
+      "actual": "clear / poisoning_or_overdose",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "swallowed too many tablets"
+    },
+    {
+      "id": "M-CLEAR-HI-poisoning_or_overdose-1",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers poisoning_or_overdose",
+      "expected": "clear / poisoning_or_overdose",
+      "actual": "clear / poisoning_or_overdose",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "ज़हर निगल लिया"
+    },
+    {
+      "id": "M-CLEAR-HI-poisoning_or_overdose-2",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers poisoning_or_overdose",
+      "expected": "clear / poisoning_or_overdose",
+      "actual": "clear / poisoning_or_overdose",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "जहर निगल लिया"
+    },
+    {
+      "id": "M-CLEAR-HI-poisoning_or_overdose-3",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers poisoning_or_overdose",
+      "expected": "clear / poisoning_or_overdose",
+      "actual": "clear / poisoning_or_overdose",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "दवा की बहुत ज्यादा मात्रा"
+    },
+    {
+      "id": "M-CLEAR-HI-poisoning_or_overdose-4",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi clear phrase triggers poisoning_or_overdose",
+      "expected": "clear / poisoning_or_overdose",
+      "actual": "clear / poisoning_or_overdose",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "गलती से बहुत सारी दवाइयाँ"
+    },
+    {
+      "id": "M-AMB-poisoning_or_overdose-1",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for poisoning_or_overdose",
+      "expected": "ambiguous including poisoning_or_overdose",
+      "actual": "ambiguous / poisoning_or_overdose",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "took extra tablets"
+    },
+    {
+      "id": "M-AMB-poisoning_or_overdose-2",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for poisoning_or_overdose",
+      "expected": "ambiguous including poisoning_or_overdose",
+      "actual": "ambiguous / poisoning_or_overdose",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "swallowed something"
+    },
+    {
+      "id": "M-AMB-poisoning_or_overdose-3",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous phrase requests clarification for poisoning_or_overdose",
+      "expected": "ambiguous including poisoning_or_overdose",
+      "actual": "ambiguous / poisoning_or_overdose",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "ज्यादा दवा ले ली"
+    },
+    {
+      "id": "M-ROM-poisoning_or_overdose-1",
+      "category": "1. Emergency detection",
+      "requirement": "Romanised variant is opt-in (Tier C) for poisoning_or_overdose",
+      "expected": "none when disabled; clear when enabled",
+      "actual": "disabled=none; enabled=clear/poisoning_or_overdose",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "zaher nigal liya"
+    },
+    {
+      "id": "M-NEG-01",
+      "category": "1. Emergency detection",
+      "requirement": "Ordinary statement does not trigger the emergency path",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "my knee hurts when I walk"
+    },
+    {
+      "id": "M-NEG-02",
+      "category": "1. Emergency detection",
+      "requirement": "Ordinary statement does not trigger the emergency path",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "I have a mild cough"
+    },
+    {
+      "id": "M-NEG-03",
+      "category": "1. Emergency detection",
+      "requirement": "Ordinary statement does not trigger the emergency path",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "I feel tired and have a headache"
+    },
+    {
+      "id": "M-NEG-04",
+      "category": "1. Emergency detection",
+      "requirement": "Ordinary statement does not trigger the emergency path",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "routine check-up"
+    },
+    {
+      "id": "M-NEG-05",
+      "category": "1. Emergency detection",
+      "requirement": "Ordinary statement does not trigger the emergency path",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "मुझे घुटने में दर्द है"
+    },
+    {
+      "id": "M-NEG-06",
+      "category": "1. Emergency detection",
+      "requirement": "Ordinary statement does not trigger the emergency path",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "मुझे बुखार है"
+    },
+    {
+      "id": "M-NEG-07",
+      "category": "1. Emergency detection",
+      "requirement": "Ordinary statement does not trigger the emergency path",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "I need a blood pressure medicine refill"
+    },
+    {
+      "id": "M-NEG-08",
+      "category": "1. Emergency detection",
+      "requirement": "Ordinary statement does not trigger the emergency path",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "my skin is itchy"
+    },
+    {
+      "id": "M-NEG-09",
+      "category": "1. Emergency detection",
+      "requirement": "Ordinary statement does not trigger the emergency path",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "no fever, mild cough"
+    },
+    {
+      "id": "M-NEG-10",
+      "category": "1. Emergency detection",
+      "requirement": "Ordinary statement does not trigger the emergency path",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "I have had a rash since yesterday"
+    },
+    {
+      "id": "M-NEGP-01",
+      "category": "1. Emergency detection",
+      "requirement": "Negated mention of the trigger phrase does not trigger",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "I do not have chest pain"
+    },
+    {
+      "id": "M-NEGP-02",
+      "category": "1. Emergency detection",
+      "requirement": "Negated mention of the trigger phrase does not trigger",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "I don't have any chest pain"
+    },
+    {
+      "id": "M-NEGP-03",
+      "category": "1. Emergency detection",
+      "requirement": "Negated mention of the trigger phrase does not trigger",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "no chest pain at all"
+    },
+    {
+      "id": "M-NEGP-04",
+      "category": "1. Emergency detection",
+      "requirement": "Negated mention of the trigger phrase does not trigger",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "I never had severe chest pain"
+    },
+    {
+      "id": "M-NEGP-05",
+      "category": "1. Emergency detection",
+      "requirement": "Negated mention of the trigger phrase does not trigger",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "I am not bleeding"
+    },
+    {
+      "id": "M-NEGP-06",
+      "category": "1. Emergency detection",
+      "requirement": "Negated mention of the trigger phrase does not trigger",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "सीने में दर्द नहीं है"
+    },
+    {
+      "id": "M-NEGP-07",
+      "category": "1. Emergency detection",
+      "requirement": "Negated mention of the trigger phrase does not trigger",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "input": "मुझे सांस लेने में दिक्कत नहीं है"
+    },
+    {
+      "id": "M-NORM-01",
+      "category": "1. Emergency detection",
+      "requirement": "Case/whitespace/punctuation/orthography variant still matches",
+      "expected": "clear",
+      "actual": "clear",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "CANNOT BREATHE"
+    },
+    {
+      "id": "M-NORM-02",
+      "category": "1. Emergency detection",
+      "requirement": "Case/whitespace/punctuation/orthography variant still matches",
+      "expected": "clear",
+      "actual": "clear",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "   I    cannot     breathe   "
+    },
+    {
+      "id": "M-NORM-03",
+      "category": "1. Emergency detection",
+      "requirement": "Case/whitespace/punctuation/orthography variant still matches",
+      "expected": "clear",
+      "actual": "clear",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "I cannot breathe!!!"
+    },
+    {
+      "id": "M-NORM-04",
+      "category": "1. Emergency detection",
+      "requirement": "Case/whitespace/punctuation/orthography variant still matches",
+      "expected": "clear",
+      "actual": "clear",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "cannot-breathe"
+    },
+    {
+      "id": "M-NORM-05",
+      "category": "1. Emergency detection",
+      "requirement": "Case/whitespace/punctuation/orthography variant still matches",
+      "expected": "clear",
+      "actual": "clear",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "I can't breathe"
+    },
+    {
+      "id": "M-NORM-06",
+      "category": "1. Emergency detection",
+      "requirement": "Case/whitespace/punctuation/orthography variant still matches",
+      "expected": "clear",
+      "actual": "clear",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "I can’t breathe"
+    },
+    {
+      "id": "M-NORM-07",
+      "category": "1. Emergency detection",
+      "requirement": "Case/whitespace/punctuation/orthography variant still matches",
+      "expected": "clear",
+      "actual": "clear",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "SEVERE   CHEST   PAIN?"
+    },
+    {
+      "id": "M-NORM-08",
+      "category": "1. Emergency detection",
+      "requirement": "Case/whitespace/punctuation/orthography variant still matches",
+      "expected": "clear",
+      "actual": "clear",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "साँस लेने में बहुत तकलीफ़"
+    },
+    {
+      "id": "M-QUOTE-01",
+      "category": "1. Emergency detection",
+      "requirement": "Double-quoted example does not trigger",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "My friend told me to say \"I cannot breathe\""
+    },
+    {
+      "id": "M-QUOTE-02",
+      "category": "1. Emergency detection",
+      "requirement": "Double-quoted example does not trigger",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "medium",
+      "input": "The form says \"having a seizure now\""
+    },
+    {
+      "id": "M-QUOTE-03",
+      "category": "1. Emergency detection",
+      "requirement": "Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1)",
+      "expected": "none",
+      "actual": "clear / seizure_or_convulsion",
+      "verdict": "FAIL",
+      "severity": "medium",
+      "note": "normalizeAnswer removes apostrophes before stripQuoted runs, so a single-quoted span is never removed (DEFECT D-1).",
+      "input": "The form says 'having a seizure now'"
+    },
+    {
+      "id": "M-QUOTE-04",
+      "category": "1. Emergency detection",
+      "requirement": "Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1)",
+      "expected": "none",
+      "actual": "clear / breathing_emergency",
+      "verdict": "FAIL",
+      "severity": "medium",
+      "note": "normalizeAnswer removes apostrophes before stripQuoted runs, so a single-quoted span is never removed (DEFECT D-1).",
+      "input": "My friend told me to say 'I cannot breathe'"
+    },
+    {
+      "id": "M-NEGSCOPE-01",
+      "category": "1. Emergency detection",
+      "requirement": "A negation of an unrelated symptom does not cancel the trigger mention",
+      "expected": "clear",
+      "actual": "none",
+      "verdict": "FAIL",
+      "severity": "high",
+      "note": "isNegated scans 25 characters after the phrase inside the same clause, so a later 'no <other symptom>' cancels the trigger (DEFECT D-2).",
+      "input": "I cannot breathe but I have no fever"
+    },
+    {
+      "id": "M-NEGSCOPE-02",
+      "category": "1. Emergency detection",
+      "requirement": "A negation of an unrelated symptom does not cancel the trigger mention",
+      "expected": "ambiguous",
+      "actual": "none",
+      "verdict": "FAIL",
+      "severity": "high",
+      "note": "isNegated scans 25 characters after the phrase inside the same clause, so a later 'no <other symptom>' cancels the trigger (DEFECT D-2).",
+      "input": "I have chest pain but no fever"
+    },
+    {
+      "id": "M-NEGSCOPE-03",
+      "category": "1. Emergency detection",
+      "requirement": "A negation of an unrelated symptom does not cancel the trigger mention",
+      "expected": "ambiguous or clear",
+      "actual": "none",
+      "verdict": "FAIL",
+      "severity": "high",
+      "note": "isNegated scans 25 characters after the phrase inside the same clause, so a later 'no <other symptom>' cancels the trigger (DEFECT D-2).",
+      "input": "no chest pain, but chest pain now"
+    },
+    {
+      "id": "M-NEGSCOPE-04",
+      "category": "1. Emergency detection",
+      "requirement": "A negation of an unrelated symptom does not cancel the trigger mention",
+      "expected": "clear",
+      "actual": "none",
+      "verdict": "FAIL",
+      "severity": "high",
+      "note": "isNegated scans 25 characters after the phrase inside the same clause, so a later 'no <other symptom>' cancels the trigger (DEFECT D-2).",
+      "input": "I have severe chest pain and no fever"
+    },
+    {
+      "id": "M-EMPTY-01",
+      "category": "1. Emergency detection",
+      "requirement": "Empty/whitespace answer is not a match",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "low"
+    },
+    {
+      "id": "M-ORDER-01",
+      "category": "1. Emergency detection",
+      "requirement": "Declared rule order decides the rule id when two rules match",
+      "expected": "clear / breathing_emergency",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "low"
+    },
+    {
+      "id": "M-DET-01",
+      "category": "1. Emergency detection",
+      "requirement": "Classification is deterministic across repeated calls",
+      "expected": "one distinct result",
+      "actual": "1 distinct result(s)",
+      "verdict": "PASS",
+      "severity": "high"
+    },
+    {
+      "id": "M-CLAR-01",
+      "category": "1. Emergency detection",
+      "requirement": "Fixed clarification resolution",
+      "expected": "yes / no / unresolved",
+      "actual": "yes / no / unresolved",
+      "verdict": "PASS",
+      "severity": "high"
+    },
+    {
+      "id": "L-NORMAL-01",
+      "category": "5. Regression testing",
+      "requirement": "Normal non-emergency intake still advances the fixed question order",
+      "expected": "name→age→gender→primary_concern, 3 turns, no emergency",
+      "actual": "next=age/gender/primary_concern, turns=3, status=in_progress",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-NORMAL-02",
+      "category": "5. Regression testing",
+      "requirement": "Normal concern answer advances to the scripted adaptive block",
+      "expected": "in_progress, 4 turns, next question duration, no emergency",
+      "actual": "status=in_progress, turns=4, next=duration, emergency=false",
+      "verdict": "PASS",
+      "severity": "high"
+    },
+    {
+      "id": "L-NORMAL-03",
+      "category": "5. Regression testing",
+      "requirement": "Normal non-emergency intake completes and produces a normal draft",
+      "expected": "is_complete=true, can_submit=true, draft present with a summary, no emergency, 10 turns",
+      "actual": "complete=true, can_submit=true, draft=true, summary=true, emergency=false, turns=10",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-NORMAL-04",
+      "category": "2. Execution precedence",
+      "requirement": "The ordinary final adaptive answer reaches the provider stage (same-turn control)",
+      "expected": "at least one Groq reservation on the ordinary final turn",
+      "actual": "delta=1",
+      "verdict": "PASS",
+      "severity": "medium",
+      "note": "The provider endpoint on this local stack is the local stub (GROQ_BASE_URL host.docker.internal:8787); no live provider was contacted."
+    },
+    {
+      "id": "L-PREC-03",
+      "category": "2. Execution precedence",
+      "requirement": "A trigger on the final scripted turn preempts adaptive selection and the provider call",
+      "expected": "emergency_triggered=true, session_status=emergency, no new question, Groq delta 0",
+      "actual": "triggered=true, status=emergency, question=other_symptoms, delta=0",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-PREC-04",
+      "category": "3. Urgent report behaviour",
+      "requirement": "The same-turn trigger still preserves the statement and the partial report",
+      "expected": "urgent_partial with the verbatim statement",
+      "actual": "status=urgent_partial, statement_match=true",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-EMERG-01",
+      "category": "2. Execution precedence",
+      "requirement": "Clear trigger returns the emergency state and no submit path",
+      "expected": "emergency_triggered=true, session_status=emergency, can_submit=false",
+      "actual": "triggered=true, status=emergency, can_submit=false",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-EMERG-02",
+      "category": "3. Urgent report behaviour",
+      "requirement": "Urgent report status is urgent_partial with no generated summary",
+      "expected": "status=urgent_partial, summary=null",
+      "actual": "status=present, summary=null",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-EMERG-03",
+      "category": "3. Urgent report behaviour",
+      "requirement": "Persisted report row is urgent_partial, emergency department, not submitted",
+      "expected": "status=urgent_partial, department=emergency, submitted_at=null, possible_urgent=false",
+      "actual": "status=urgent_partial, department=emergency, submitted_at=null, possible_urgent=false, rule=breathing_emergency",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-EMERG-04",
+      "category": "3. Urgent report behaviour",
+      "requirement": "The triggering patient statement is preserved verbatim",
+      "expected": "emergency.patient_statement equals the submitted answer",
+      "actual": "match=true",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-EMERG-05",
+      "category": "3. Urgent report behaviour",
+      "requirement": "Emergency routing uses the seeded Emergency doctor and stays preliminary",
+      "expected": "department=emergency, preliminary=true, is_fallback=false, doctor name = seeded Emergency doctor",
+      "actual": "department=emergency, preliminary=true, fallback=false, doctor=Dr. Neha Verma",
+      "verdict": "PASS",
+      "severity": "high"
+    },
+    {
+      "id": "L-EMERG-06",
+      "category": "3. Urgent report behaviour",
+      "requirement": "Only reported information is present; unreached fields stay explicit",
+      "expected": "primary_concern=not_asked and no invented clinical values",
+      "actual": "primary_concern=not_asked, missing=7",
+      "verdict": "PASS",
+      "severity": "high"
+    },
+    {
+      "id": "L-EMERG-07",
+      "category": "2. Execution precedence",
+      "requirement": "No provider call is made on the trigger turn",
+      "expected": "Groq counter unchanged across the trigger answer",
+      "actual": "delta=0",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-EMERG-08",
+      "category": "2. Execution precedence",
+      "requirement": "The trigger turn is not accepted as a normal answer and no further question is selected",
+      "expected": "turn_count unchanged; no new adaptive question id",
+      "actual": "turn_before=3, turn_after=3, current_question=primary_concern",
+      "verdict": "PASS",
+      "severity": "high"
+    },
+    {
+      "id": "L-EMERG-09",
+      "category": "2. Execution precedence",
+      "requirement": "After an emergency, the response advertises no further question",
+      "expected": "current_question is absent",
+      "actual": "current_question=primary_concern",
+      "verdict": "FAIL",
+      "severity": "low",
+      "note": "createEmergencyReport does not clear sessions.current_question_id, so the answered question is still returned (DEFECT D-3)."
+    },
+    {
+      "id": "L-EMERG-10",
+      "category": "2. Execution precedence",
+      "requirement": "A further answer after the emergency is refused",
+      "expected": "non-2xx or an error field; no new turn or report",
+      "actual": "status=200, error=turn_cap_reached, turns=3",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-EMERG-11",
+      "category": "2. Execution precedence",
+      "requirement": "The refusal uses a state error, not a turn-cap error",
+      "expected": "error indicates the emergency/ended state",
+      "actual": "error=turn_cap_reached",
+      "verdict": "FAIL",
+      "severity": "low",
+      "note": "canAcceptAnswer() collapses 'not in progress' and 'cap reached' into one refusal, so an emergency session reports turn_cap_reached (DEFECT D-4)."
+    },
+    {
+      "id": "L-EMERG-12",
+      "category": "3. Urgent report behaviour",
+      "requirement": "submit_report rejects an emergency session",
+      "expected": "409 invalid_state",
+      "actual": "status=409, error=invalid_state",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-EMERG-13",
+      "category": "3. Urgent report behaviour",
+      "requirement": "Routine slots and booking are suppressed for an urgent report",
+      "expected": "get_available_slots and book_appointment refuse; no appointment row",
+      "actual": "slots=400/22023, book=400/22023, appointments=0",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-EMERG-14",
+      "category": "3. Urgent report behaviour",
+      "requirement": "Resume restores the emergency state and report without re-offering Submit",
+      "expected": "emergency_triggered=true, urgent_partial row, emergency block present, summary null, can_submit=false",
+      "actual": "triggered=true, row_status=urgent_partial, rule=breathing_emergency, summary=null, can_submit=false",
+      "verdict": "PASS",
+      "severity": "high"
+    },
+    {
+      "id": "L-HI-01",
+      "category": "1. Emergency detection",
+      "requirement": "Hindi Devanagari clear trigger enters the urgent path at any question",
+      "expected": "emergency_triggered=true, rule=breathing_emergency, statement preserved",
+      "actual": "triggered=true, rule=breathing_emergency, statement_match=true",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-HI-02",
+      "category": "3. Urgent report behaviour",
+      "requirement": "The unanswered name field stays explicit in a Hindi urgent report",
+      "expected": "patient.name.status = not_asked",
+      "actual": "name=not_asked",
+      "verdict": "PASS",
+      "severity": "medium"
+    },
+    {
+      "id": "L-AMB-01",
+      "category": "1. Emergency detection",
+      "requirement": "Ambiguous mention asks the fixed Yes/No clarification",
+      "expected": "current_question=emergency_clarification with Yes/No",
+      "actual": "question=emergency_clarification, options=Yes|No, flag=true",
+      "verdict": "PASS",
+      "severity": "high"
+    },
+    {
+      "id": "L-AMB-02",
+      "category": "3. Urgent report behaviour",
+      "requirement": "The ambiguous statement is preserved in the conversation log",
+      "expected": "a patient message with the ambiguous answer",
+      "actual": "stored=true",
+      "verdict": "PASS",
+      "severity": "high"
+    },
+    {
+      "id": "L-AMB-03",
+      "category": "3. Urgent report behaviour",
+      "requirement": "No report is created while the clarification is unresolved",
+      "expected": "no report row",
+      "actual": "report=none",
+      "verdict": "PASS",
+      "severity": "high"
+    },
+    {
+      "id": "L-AMB-04",
+      "category": "1. Emergency detection",
+      "requirement": "An unclear clarification is never treated as safe",
+      "expected": "needs_human_review=true, question stays, no report, no emergency",
+      "actual": "review=true, question=emergency_clarification, report=none",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-AMB-05",
+      "category": "1. Emergency detection",
+      "requirement": "'No' negates only that candidate and never clears the review flag",
+      "expected": "pending cleared, intake continues, needs_human_review stays true",
+      "actual": "pending=null, question=duration, review=true",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-AMB-06",
+      "category": "3. Urgent report behaviour",
+      "requirement": "'Yes' confirms the candidate and creates the urgent report",
+      "expected": "emergency_triggered=true, rule=severe_chest_pain, statement = the ambiguous answer",
+      "actual": "triggered=true, rule=severe_chest_pain, statement_match=true",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-PREC-01",
+      "category": "2. Execution precedence",
+      "requirement": "A clear trigger in a clarification answer still enters the urgent path",
+      "expected": "emergency_triggered=true",
+      "actual": "triggered=false, review=true, question=emergency_clarification",
+      "verdict": "FAIL",
+      "severity": "medium",
+      "note": "The clarification branch runs before classifyAnswer, so a clear emergency phrase typed as the answer is only marked needs_human_review (DEFECT D-5). It is never presented as safe and booking stays held."
+    },
+    {
+      "id": "L-PREC-02",
+      "category": "2. Execution precedence",
+      "requirement": "A present clear trigger is not cancelled by an unrelated negation",
+      "expected": "emergency_triggered=true",
+      "actual": "triggered=false, status=in_progress",
+      "verdict": "FAIL",
+      "severity": "high",
+      "note": "Live confirmation of DEFECT D-2 at the API boundary: the emergency path is not entered."
+    },
+    {
+      "id": "L-OWN-01",
+      "category": "4. Doctor access and RLS",
+      "requirement": "Another patient cannot resume or read the urgent session",
+      "expected": "resume rejected; direct report read returns 0 rows",
+      "actual": "resume=404/not_found, reports=0",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-OWN-02",
+      "category": "4. Doctor access and RLS",
+      "requirement": "The patient cannot read server-owned reports or messages directly",
+      "expected": "0 rows for the owning patient",
+      "actual": "reports=0, messages=0",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-CLAIM-01",
+      "category": "3. Urgent report behaviour",
+      "requirement": "The response does not claim any emergency service was contacted or dispatched",
+      "expected": "no notification/dispatch claim in the response",
+      "actual": "claim=false",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-CLAIM-02",
+      "category": "3. Urgent report behaviour",
+      "requirement": "Approved plain-text 112 guidance is present in both languages",
+      "expected": "English and Hindi guidance strings present; no tap-to-call link in the docs",
+      "actual": "en=true, hi=true, tel=false",
+      "verdict": "PASS",
+      "severity": "high",
+      "note": "UI rendering is frontend-owned; see docs/emergency-certification/audit-report.md §6."
+    },
+    {
+      "id": "L-SPEAK-01",
+      "category": "2. Execution precedence",
+      "requirement": "No paid TTS call is made for an emergency session",
+      "expected": "text response, Timbre counter unchanged",
+      "actual": "status=200, audio=false, timbre_delta=0",
+      "verdict": "PASS",
+      "severity": "high"
+    },
+    {
+      "id": "L-LIMIT-01",
+      "category": "5. Regression testing",
+      "requirement": "Answer-turn and adaptive-question limits are unchanged",
+      "expected": "MAX_ANSWER_TURNS=15, MAX_ADAPTIVE_QUESTIONS=3",
+      "actual": "turns=15, adaptive=3",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-SCHEMA-01",
+      "category": "5. Regression testing",
+      "requirement": "Report schema version is unchanged",
+      "expected": "REPORT_SCHEMA_VERSION=1 and response schema_version=1",
+      "actual": "constant=1, document=1, row=1",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-CLEANUP-01",
+      "category": "6. Hygiene",
+      "requirement": "The harness deletes only the identities it created",
+      "expected": "0 residual sessions for created users",
+      "actual": "residual=0, users=9",
+      "verdict": "PASS",
+      "severity": "high"
+    },
+    {
+      "id": "L-DOC-01",
+      "category": "4. Doctor access and RLS",
+      "requirement": "General Medicine and Emergency doctors can read the urgent report; another department cannot",
+      "expected": "gm=true, em=true, orthopedics=false",
+      "actual": "gm=true, em=true, orthopedics=false",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-DOC-02",
+      "category": "4. Doctor access and RLS",
+      "requirement": "Conversation access follows report access",
+      "expected": "gm>0, em>0, orthopedics=0",
+      "actual": "gm=3, em=3, orthopedics=0",
+      "verdict": "PASS",
+      "severity": "high"
+    },
+    {
+      "id": "L-DOC-03",
+      "category": "4. Doctor access and RLS",
+      "requirement": "Unauthorized writes are rejected",
+      "expected": "no doctor write path to reports/appointments",
+      "actual": "patch=403, delete=403, appointment_insert=403",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-DOC-04",
+      "category": "4. Doctor access and RLS",
+      "requirement": "Mark Reviewed authorisation (OD-03 interim)",
+      "expected": "gm denied, orthopedics denied, emergency doctor allowed and idempotent",
+      "actual": "gm=403/42501, orthopedics=403/42501, em=200, repeat_already=true",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-DOC-05",
+      "category": "4. Doctor access and RLS",
+      "requirement": "Review never unlocks an emergency report",
+      "expected": "urgent_partial still refuses slots and booking after Mark Reviewed",
+      "actual": "slots=400/22023, book=400/22023",
+      "verdict": "PASS",
+      "severity": "critical"
+    }
+  ]
+}

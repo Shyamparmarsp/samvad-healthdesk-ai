@@ -1,0 +1,25 @@
+commit_under_test=e5d77e53100f62d3ac5954cce7d4e9c5872f3053
+certification_worktree=/Users/shyamparmar/Desktop/gnani ai project/samvad-emergency-certification
+certification_branch=feat/emergency-certification-v2
+date=2026-11-02T11:28:18Z
+deno=deno 2.9.7 (stable, release, aarch64-apple-darwin)
+platform=Darwin arm64
+target=http://127.0.0.1:54321 (local stack only)
+migrations:
+20261101120000
+20261101120100
+20261101120200
+20261101120300
+20261101120400
+20261102120000
+20261102130000
+20261102140000
+20261102150000
+20261102160000
+20261102170000
+provider_endpoints_in_local_runtime:
+GROQ_BASE_URL=http://host.docker.internal:8787
+PRISMA_BASE_URL=http://host.docker.internal:8787
+TIMBRE_ENDPOINT=http://host.docker.internal:8787/tts
+application_diff_vs_base:
+(empty above means no application change)
