@@ -24,26 +24,6 @@ export const ConfirmationView: React.FC<ConfirmationViewProps> = ({
   const { t, language } = useI18n();
   const isBooking = type === 'appointment';
 
-  const formatSlotDateTime = (isoString?: string) => {
-    if (!isoString) return 'Date to be confirmed';
-    const d = new Date(isoString);
-    if (isNaN(d.getTime())) {
-      return 'Mon 02 Nov 2026 • 03:30 PM';
-    }
-    const datePart = d.toLocaleDateString('en-US', {
-      weekday: 'short',
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-    const timePart = d.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
-    return `${datePart} • ${timePart}`;
-  };
-
   return (
     <div className="flex flex-col h-full justify-between pb-4 select-none relative overflow-hidden">
       {/* Top Header & Language Toggle */}

@@ -509,12 +509,6 @@ export const PatientShell: React.FC = () => {
       navigateToScreen('confirmed_booking');
       return;
     }
-    const resolvedSlotStart =
-      slotStartTime && !isNaN(new Date(slotStartTime).getTime())
-        ? slotStartTime
-        : slotId && slotId.includes('T') && !isNaN(new Date(slotId).getTime())
-        ? slotId
-        : new Date().toISOString();
 
     const res = await bookAppointment({
       report_id: chatState.submitted_report.id,

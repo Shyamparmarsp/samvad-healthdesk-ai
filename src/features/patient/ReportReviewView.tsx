@@ -178,28 +178,28 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
           </div>
         )}
 
-        {/* Allowlisted Patient Details Card (Figma 81:306) */}
+        {/* Allowlisted Patient Details Card (Figma P6 / 81:306) */}
         <div className="backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[24px] p-4 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)]">
           <div className="divide-y divide-slate-200/60 text-xs">
             {rows.map((row) => (
-              <div key={row.key} className="py-2.5 flex items-start justify-between gap-2">
-                <div>
-                  <span className="text-[11px] text-[#4a5470] block">{row.label}</span>
-                  <span
-                    className={`font-semibold text-[13px] ${
-                      row.isAbsent ? 'text-[#4a5470] italic' : 'text-[#1d2433]'
-                    }`}
-                  >
-                    {row.text}
-                  </span>
-                </div>
+              <div key={row.key} className="py-2.5 flex items-center justify-between gap-3">
+                <span className="w-[110px] text-[13px] text-[#4a5470] flex-shrink-0 font-normal">
+                  {row.label}
+                </span>
+                <span
+                  className={`flex-1 text-[13px] font-bold ${
+                    row.isAbsent ? 'text-[#4a5470] italic font-normal' : 'text-[#1d2433]'
+                  }`}
+                >
+                  {row.text}
+                </span>
                 {!isReadOnly && (
                   <button
                     type="button"
                     onClick={() => startEdit(row.field, row.value)}
                     disabled={isSubmitting}
                     aria-label={`Edit ${row.label}`}
-                    className="group p-1.5 rounded-lg text-[#4a5470] hover:text-[#1f2a44] hover:bg-slate-200/50 transition-colors disabled:opacity-50 focus:outline-none"
+                    className="p-1 rounded text-[#4a5470] hover:text-[#1f2a44] transition-colors disabled:opacity-50 focus:outline-none flex-shrink-0"
                   >
                     <EditIcon />
                     <span className="sr-only">{t.common.edit}</span>
@@ -210,18 +210,18 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
           </div>
         </div>
 
-        {/* Suggested Department Card (Figma 81:360) */}
+        {/* Suggested Department Card (Figma P6 / 81:360) */}
         <div className="backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[20px] p-4 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)]">
-          <span className="text-[11px] font-semibold uppercase text-[#4a5470] tracking-wider block">
+          <h3 className="text-[14px] font-bold text-[#1d2433]">
             {t.review.departmentRecommendation}
-          </span>
-          <div className="mt-1.5 flex items-center gap-2">
-            <span className="px-3 py-1 rounded-[14px] bg-[#e1ebfd] text-[#284c91] font-semibold text-[11px] inline-block shadow-sm">
-              {report.routing_snapshot.department_name} (preliminary)
+          </h3>
+          <div className="mt-2">
+            <span className="px-5 py-2 rounded-full bg-[#e6effc] text-[#1f2a44] font-semibold text-[13px] inline-block shadow-sm">
+              {report.routing_snapshot.department_name}
             </span>
           </div>
           <p className="text-[11px] text-[#4a5470] mt-1.5 leading-snug">
-            {report.routing_snapshot.doctor_name} · "{t.review.departmentDisclaimer}"
+            {t.review.departmentDisclaimer}
           </p>
         </div>
       </div>
@@ -273,15 +273,15 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
         </div>
       )}
 
-      {/* Action Footer (Figma 81:365 & 81:367) */}
-      <div className="px-5 pt-2 space-y-2">
+      {/* Action Footer (Figma P6 / 81:365 & 81:367) */}
+      <div className="px-5 pt-2 space-y-2.5">
         {isReadOnly ? (
           <>
             {onContinueBooking && (
               <button
                 type="button"
                 onClick={onContinueBooking}
-                className="w-full h-[50px] rounded-[25px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
+                className="w-full h-[52px] rounded-full bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
               >
                 {t.review.viewBooking}
               </button>
@@ -289,7 +289,7 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
             <button
               type="button"
               onClick={onFinish ?? onDontSubmit}
-              className="w-full h-[40px] rounded-[20px] bg-transparent text-[#4a5470] hover:text-[#1d2433] font-semibold text-[13px] transition-colors flex items-center justify-center focus:outline-none"
+              className="w-full h-[52px] rounded-full bg-[rgba(255,255,255,0.74)] backdrop-blur-[9px] border border-white text-[#1d2433] font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.1)] hover:bg-white active:scale-[0.99] transition-all flex items-center justify-center focus:outline-none"
             >
               {t.review.endAndFinish}
             </button>
@@ -303,21 +303,18 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
               disabled={isSubmitting}
               aria-label={t.review.submitToHospital}
               aria-busy={isSubmitting}
-              className="w-full h-[50px] rounded-[25px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44] disabled:opacity-50"
+              className="w-full h-[52px] rounded-full bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44] disabled:opacity-50"
             >
-              <svg className="w-4 h-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-              </svg>
               <span>{isSubmitting ? t.common.loading : t.review.submitToHospital}</span>
             </button>
 
-            {/* Don't submit (Figma 81:367) */}
+            {/* Don't submit frosted pill button (Figma P6 / 81:367) */}
             <button
               type="button"
               onClick={onDontSubmit}
               disabled={isSubmitting}
               aria-label={t.review.dontSubmit}
-              className="w-full h-[40px] rounded-[20px] bg-transparent text-[#4a5470] hover:text-[#1d2433] font-semibold text-[13px] transition-colors flex items-center justify-center focus:outline-none disabled:opacity-50"
+              className="w-full h-[52px] rounded-full bg-[rgba(255,255,255,0.74)] backdrop-blur-[9px] border border-white text-[#1d2433] font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.1)] hover:bg-white active:scale-[0.99] transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#1f2a44] disabled:opacity-50"
             >
               {t.review.dontSubmit}
             </button>
@@ -329,7 +326,7 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
               type="button"
               onClick={onEndSessionCap}
               aria-label={t.review.endSession}
-              className="w-full h-[50px] rounded-[25px] bg-[#1f2a44] text-white font-semibold text-[14px] shadow hover:bg-[#2a3a5c] active:scale-[0.99] transition-all focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
+              className="w-full h-[52px] rounded-full bg-[#1f2a44] text-white font-semibold text-[14px] shadow hover:bg-[#2a3a5c] active:scale-[0.99] transition-all focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
             >
               {t.review.endSession}
             </button>

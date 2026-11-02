@@ -55,7 +55,6 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
     }
   };
 
-  const capitalize = (s?: string | null) => (s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '');
   const patient = report.report.patient;
   const routing = report.report.routing_snapshot;
 

@@ -32,16 +32,6 @@ export const WhatWeHeardView: React.FC<WhatWeHeardViewProps> = ({
     }
   };
 
-  const handlePlayAgain = () => {
-    try {
-      const audio = new Audio('/audio/question.wav');
-      audio.play().catch(() => {});
-    } catch {}
-    if (onReplayAudio) {
-      onReplayAudio();
-    }
-  };
-
   return (
     <div className="flex flex-col h-full justify-between pb-4 select-none relative">
       {/* Top Header & Language Toggle */}
