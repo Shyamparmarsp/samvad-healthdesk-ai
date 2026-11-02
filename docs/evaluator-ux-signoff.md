@@ -2,8 +2,8 @@
 
 **Document Version:** 1.0  
 **Date:** 2 November 2026  
-**Evaluated Commit (Frontend):** `6d786a0` (`feat/frontend` in `../samvad-frontend`)  
-**Evaluated Commit (Integration Release):** `ace1a5c` (`release/samvad-rc1` in `../samvad-integration`)  
+**Evaluated Commit (Frontend):** `e98b811` (`feat/frontend` in `../samvad-frontend`)  
+**Evaluated Commit (Integration Release):** `e98b811` (`release/samvad-rc1` in `../samvad-integration`)  
 **Backend Reference:** `feat/backend` (`8b90b7d` in `../samvad-backend`)  
 **Product Name in UI:** **Samvad HealthDesk AI**  
 **Formal Release Verdict:** **PASS WITH DOCUMENTED LIMITATIONS**
