@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-11-02T13:39:29.176Z",
-  "commit": "e5d77e53100f62d3ac5954cce7d4e9c5872f3053",
+  "generated_at": "2026-11-02T20:44:33.126Z",
+  "commit": null,
   "target": "http://127.0.0.1:54321",
   "local_only": true,
   "summary": {
@@ -13,7 +13,7 @@
   "blocking_findings": [],
   "notes": [
     "Base URL: http://127.0.0.1:54321 (local only).",
-    "Commit under test: e5d77e53100f62d3ac5954cce7d4e9c5872f3053.",
+    "Commit under test: (unset).",
     "Usage counters were read and left unchanged; only ordinary app usage moved them."
   ],
   "cases": [
