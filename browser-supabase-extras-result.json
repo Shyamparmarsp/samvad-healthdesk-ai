@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-02T05:09:58.109Z",
+  "generatedAt": "2026-11-02T05:14:34.181Z",
   "target": "http://127.0.0.1:54321",
   "mode": "supabase (real Auth, Edge Functions, Postgres, RPCs)",
   "providers": "stubbed (Groq, Prisma, Timbre)",
@@ -8,7 +8,7 @@
       "name": "consent denied stops intake and collects no health data",
       "ok": true,
       "layer": "browser+supabase",
-      "detail": "session declined, 3 recent reports (none from this run)"
+      "detail": "session declined, 0 recent reports (none from this run)"
     },
     {
       "name": "Hindi consent and Hinglish answers render in Devanagari",

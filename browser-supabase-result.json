@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-02T05:09:31.708Z",
+  "generatedAt": "2026-11-02T05:14:00.321Z",
   "target": "http://127.0.0.1:54321",
   "preview": "http://127.0.0.1:4180",
   "mode": "supabase (real Auth, Edge Functions, Postgres, RPCs)",
@@ -69,7 +69,7 @@
       "name": "11. booking persists and confirmation shows server data",
       "ok": true,
       "layer": "browser+supabase",
-      "detail": "confirmed APT-20261103-387D0E"
+      "detail": "confirmed APT-20261103-17796E"
     },
     {
       "name": "12. doctor signs in with email/password against real Auth",
@@ -93,13 +93,13 @@
       "name": "15. review is persisted for the assigned doctor",
       "ok": true,
       "layer": "browser+supabase",
-      "detail": "reviewed_at=2026-11-02T05:09:31.183407+00:00"
+      "detail": "reviewed_at=2026-11-02T05:13:59.766352+00:00"
     },
     {
       "name": "16. the appointment exists in PostgreSQL with the UI reference",
       "ok": true,
       "layer": "browser+supabase",
-      "detail": "APT-20261103-387D0E @ 2026-11-03T03:30:00+00:00"
+      "detail": "APT-20261103-17796E @ 2026-11-03T03:30:00+00:00"
     },
     {
       "name": "17. no uncaught page errors during the journey",
