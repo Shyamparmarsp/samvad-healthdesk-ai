@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-01T23:00:52.883Z",
-  "rehearsalDatabase": "samvad_rehearsal_20261101230049",
+  "generatedAt": "2026-11-02T05:10:31.212Z",
+  "rehearsalDatabase": "samvad_rehearsal_20261102051028",
   "kept": false,
   "migrations": [
     "ok  20261101120000_enums_and_helpers.sql",
@@ -30,7 +30,7 @@
     {
       "step": "1. create empty database",
       "status": "PASS",
-      "detail": "samvad_rehearsal_20261101230049"
+      "detail": "samvad_rehearsal_20261102051028"
     },
     {
       "step": "2. clone auth/extensions schema (no rows)",
@@ -165,7 +165,7 @@
     {
       "step": "7. cleanup",
       "status": "PASS",
-      "detail": "dropped samvad_rehearsal_20261101230049"
+      "detail": "dropped samvad_rehearsal_20261102051028"
     }
   ],
   "ok": true,
