@@ -517,9 +517,32 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                 {displayedContent}
               </div>
               {!isAssistant && (
-                <div className="w-[28px] h-[28px] rounded-full bg-white/80 border border-white text-[#1f2a44] flex items-center justify-center flex-shrink-0 shadow-sm">
-                  <svg className="w-4 h-4 text-[#4a5470]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2m8-10a4 4 0 11-8 0 4 4 0 018 0z" />
+                <div
+                  className="w-[28px] h-[28px] rounded-full bg-white/80 border border-white text-[#1f2a44] flex items-center justify-center flex-shrink-0 shadow-sm"
+                  aria-hidden="true"
+                >
+                  <svg
+                    width="28"
+                    height="28"
+                    viewBox="0 0 28 28"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-[28px] h-[28px] block"
+                  >
+                    <path
+                      d="M18.0833 9.33333C18.0833 11.5885 16.2552 13.4167 14 13.4167C11.7448 13.4167 9.91667 11.5885 9.91667 9.33333C9.91667 7.07817 11.7448 5.25 14 5.25C16.2552 5.25 18.0833 7.07817 18.0833 9.33333Z"
+                      stroke="#1F2A44"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M5.83333 24.5C5.83333 22.3341 6.69375 20.2568 8.22529 18.7253C9.75684 17.1937 11.8341 16.3333 14 16.3333C16.1659 16.3333 18.2432 17.1937 19.7747 18.7253C21.3063 20.2568 22.1667 22.3341 22.1667 24.5"
+                      stroke="#1F2A44"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                 </div>
               )}
