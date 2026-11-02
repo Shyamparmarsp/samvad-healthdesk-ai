@@ -29,21 +29,14 @@ export const WhatWeHeardView: React.FC<WhatWeHeardViewProps> = ({
       <PatientHeader onBack={onCancel} />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col justify-between px-5 py-4">
-        {/* Title */}
-        <div className="pt-1">
-          <h1 className="text-[21px] font-bold text-[#1d2433] tracking-tight">
-            {t.chat.whatWeHeard}
-          </h1>
-          <p className="text-[12px] text-[#4a5470] mt-0.5">
-            You can edit the text before sending if something was misheard.
-          </p>
-        </div>
+      <div className="flex-1 flex flex-col justify-between px-5 py-3">
+        {/* Screen Reader Header */}
+        <h1 className="sr-only">{t.chat.whatWeHeard}</h1>
 
-        {/* Editable Transcript Card (Figma 81:232) */}
+        {/* Editable Transcript Card (Figma 72:167) */}
         <div className="my-auto backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[24px] p-5 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)]">
-          <label className="block text-[11px] font-semibold text-[#4a5470] mb-2 uppercase tracking-wider">
-            {t.chat.editTranscript}
+          <label className="block text-[14px] font-bold text-[#1d2433] mb-3">
+            What we heard. Tap to edit.
           </label>
           <textarea
             value={transcript}
@@ -55,7 +48,7 @@ export const WhatWeHeardView: React.FC<WhatWeHeardViewProps> = ({
           />
         </div>
 
-        {/* Action Buttons (Figma 81:236 & 81:241) */}
+        {/* Action Buttons (Figma 72:167) */}
         <div className="space-y-3 pt-2">
           {/* Send Answer Button (Primary Action, h=54px) */}
           <button
@@ -65,24 +58,33 @@ export const WhatWeHeardView: React.FC<WhatWeHeardViewProps> = ({
             aria-label={t.chat.confirmTranscript}
             className="w-full h-[54px] rounded-[27px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] disabled:opacity-50 transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
           >
-            <svg className="w-4 h-4 text-emerald-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-            </svg>
-            <span>{t.chat.confirmTranscript}</span>
+            <span>→ Send</span>
+            <span className="sr-only"> · {t.chat.confirmTranscript}</span>
           </button>
 
           {/* Speak Again / Cancel Button (Secondary Action, h=52px) */}
           <button
             type="button"
             onClick={onCancel}
-            aria-label={t.common.cancel}
+            aria-label="Speak again"
             className="w-full h-[52px] rounded-[26px] bg-[rgba(255,255,255,0.74)] backdrop-blur-[9px] border border-white text-[#1f2a44] font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.1)] hover:bg-white active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
           >
             <svg className="w-4 h-4 text-[#1f2a44]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
             </svg>
             <span>Speak again</span>
           </button>
+
+          {/* Play question again link */}
+          <div className="text-center pt-0.5">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-[12px] font-medium text-[#4a5470] hover:text-[#1d2433] transition-colors"
+            >
+              Play question again
+            </button>
+          </div>
 
           {/* Footer Disclaimer */}
           <p className="text-[9px] text-center text-[#4a5470] pt-1 leading-normal font-normal">

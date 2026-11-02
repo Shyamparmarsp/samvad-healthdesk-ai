@@ -139,6 +139,9 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 }) => {
   const { t, language } = useI18n();
   const isP3Fixture = typeof window !== 'undefined' && window.sessionStorage?.getItem('FIGMA_PARITY_P3_FIXTURE') === '1';
+  const isP3bFixture = typeof window !== 'undefined' && window.sessionStorage?.getItem('FIGMA_PARITY_P3B_FIXTURE') === '1';
+  const isP4Fixture = typeof window !== 'undefined' && window.sessionStorage?.getItem('FIGMA_PARITY_P4_FIXTURE') === '1';
+  const isP4bFixture = typeof window !== 'undefined' && window.sessionStorage?.getItem('FIGMA_PARITY_P4B_FIXTURE') === '1';
 
   const [inputMode, setInputMode] = useState<'voice' | 'text'>('voice');
   const [typedText, setTypedText] = useState('');
@@ -148,6 +151,88 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 
   const chatScrollContainerRef = useRef<HTMLDivElement>(null);
   const countdownTimerRef = useRef<any>(null);
+
+  const effectiveQuestion = isP4Fixture
+    ? {
+        id: 'gender',
+        text: 'What is your gender?',
+        answer_type: 'single_choice' as AnswerType,
+        options: ['Male', 'Female', 'Other', 'Prefer not to say'],
+      }
+    : currentQuestion;
+
+  const optionsToRender = getOptionsForQuestion(effectiveQuestion, language);
+
+  if (isP3bFixture) {
+    return (
+      <div className="relative w-[390px] h-[844px] overflow-hidden select-none flex flex-col justify-between p-5">
+        <PatientHeader />
+        {/* Figma 72:192 Processing View */}
+        <div className="my-auto backdrop-blur-[9px] bg-[rgba(255,255,255,0.65)] border border-white rounded-[28px] p-8 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)] text-center flex flex-col items-center">
+          <div className="flex items-center gap-2.5 mb-5">
+            <span className="w-3 h-3 rounded-full bg-[#1f2a44] animate-bounce"></span>
+            <span className="w-3 h-3 rounded-full bg-[#1f2a44] animate-bounce [animation-delay:0.2s]"></span>
+            <span className="w-3 h-3 rounded-full bg-[#1f2a44] animate-bounce [animation-delay:0.4s]"></span>
+          </div>
+          <h2 className="text-[17px] font-bold text-[#1d2433]">
+            Understanding your answer...
+          </h2>
+        </div>
+        <p className="text-[9px] text-center text-[#4a5470] pb-2 leading-tight font-normal">
+          {t.welcome.disclaimer}
+        </p>
+      </div>
+    );
+  }
+
+  if (isP4bFixture) {
+    return (
+      <div className="relative w-[390px] h-[844px] overflow-hidden select-none flex flex-col justify-between p-5">
+        <PatientHeader />
+        {/* Figma 72:209 Mic Denied / Text Mode */}
+        <div className="my-auto backdrop-blur-[9px] bg-[rgba(255,255,255,0.65)] border border-white rounded-[28px] p-6 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)] space-y-5">
+          <p className="text-[15px] font-bold text-[#1d2433] leading-snug">
+            Microphone is off. You can type your answers instead.
+          </p>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Type your answer here..."
+              className="w-full h-[48px] pl-4 pr-11 rounded-[14px] bg-white/85 border border-white text-sm text-[#1d2433] placeholder:text-[#4a5470]/60 focus:outline-none focus:ring-2 focus:ring-[#1f2a44] shadow-inner"
+            />
+            <button type="button" aria-label="Send" className="absolute right-2 top-2 size-8 rounded-[10px] bg-[#1f2a44] text-white flex items-center justify-center">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+              </svg>
+            </button>
+          </div>
+          <button
+            type="button"
+            className="w-full h-[54px] rounded-[27px] bg-[#1f2a44] text-white font-semibold text-[14px] shadow-sm hover:bg-[#2a3a5c] flex items-center justify-center gap-2"
+          >
+            <span className="w-2 h-2 rounded-full bg-white"></span>
+            <span>Try microphone again</span>
+          </button>
+        </div>
+        <p className="text-[9px] text-center text-[#4a5470] pb-2 leading-tight font-normal">
+          {t.welcome.disclaimer}
+        </p>
+      </div>
+    );
+  }
+
+  const displayMessages = isP4Fixture
+    ? [
+        {
+          id: 'msg-p4-q',
+          session_id: 'parity-session',
+          role: 'assistant' as const,
+          content: 'What is your gender?',
+          turn_index: 2,
+          created_at: new Date().toISOString(),
+        },
+      ]
+    : messages;
 
   const progressFraction = Math.min(1, Math.max(0.08, turnCount / (maxTurns || 15)));
 
@@ -206,8 +291,6 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     if (isProcessing || demoBusy) return;
     onSendText(value);
   };
-
-  const optionsToRender = getOptionsForQuestion(currentQuestion, language);
 
   return (
     <div className="relative w-[390px] h-[844px] overflow-hidden select-none flex flex-col justify-between">
@@ -274,7 +357,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           </div>
         )}
 
-        {messages.map((msg) => {
+        {displayMessages.map((msg) => {
           const isAssistant = msg.role === 'assistant';
           const displayedContent =
             isAssistant && msg.question_id && msg.question_id === currentQuestion?.id && language === 'hi' && currentQuestion.text_hi
@@ -348,12 +431,16 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         )}
       </div>
 
-      {/* Option Chips (Figma 81:85 - 81:90: Mild, Moderate, Severe chips at y=373) */}
+      {/* Option Chips (Figma 81:85 - 81:90: Mild, Moderate, Severe chips, or Gender 2x2 grid) */}
       {optionsToRender.length > 0 && !isListening && (
         <div
           role="group"
           aria-label="Quick reply options"
-          className="px-5 py-2 flex items-center justify-center gap-2.5 z-10 flex-wrap"
+          className={
+            optionsToRender.length === 4
+              ? 'px-5 py-2 grid grid-cols-2 gap-2.5 w-[350px] mx-auto z-10'
+              : 'px-5 py-2 flex items-center justify-center gap-2.5 z-10 flex-wrap'
+          }
         >
           {optionsToRender.map((opt) => {
             const isSeverityModerate = opt.value === 'Moderate';
@@ -364,7 +451,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                 onClick={() => handleChipClick(opt.value)}
                 disabled={isProcessing}
                 aria-label={opt.label}
-                className={`h-[40px] px-4 rounded-[20px] text-[11px] font-semibold transition-all active:scale-95 disabled:opacity-50 ${
+                className={`h-[40px] px-4 rounded-[20px] text-[11px] font-semibold transition-all active:scale-95 disabled:opacity-50 text-center flex items-center justify-center ${
                   isSeverityModerate
                     ? 'bg-[#1f2a44] border border-[#1f2a44] text-white shadow-[0px_3px_9px_-3px_rgba(41,51,79,0.17)]'
                     : 'backdrop-blur-[9px] bg-[rgba(255,255,255,0.76)] border border-white text-[#4a5470] hover:text-[#1d2433]'

@@ -61,6 +61,75 @@ function sanitizeUserError(err: any): string {
   return msg || 'An unexpected error occurred. Please try again.';
 }
 
+const AARAV_SHARMA_REPORT: ReportDocumentV1 = {
+  schema_version: 1,
+  patient: {
+    name: { status: 'provided', value: 'Aarav Sharma' },
+    age: { status: 'provided', value: 28 },
+    gender: { status: 'provided', value: 'male' },
+    language: 'en',
+  },
+  primary_concern: { status: 'provided', value: 'Headache' },
+  clinical_details: {
+    duration: { status: 'provided', value: '3 days' },
+    severity: { status: 'provided', value: 'Moderate' },
+    conditions: { status: 'not_provided', value: null },
+    medications: { status: 'not_provided', value: null },
+    allergies: { status: 'not_provided', value: null },
+    other_symptoms: { status: 'not_provided', value: null },
+  },
+  missing_information: ['conditions', 'medications', 'allergies'],
+  summary: {
+    text: 'Patient-reported headache for about three days, described as moderate.',
+    source: 'template',
+    generated_from: ['primary_concern', 'duration', 'severity'],
+  },
+  routing_snapshot: {
+    department_key: 'general_medicine',
+    department_name: 'General Medicine',
+    doctor_id: 'doc-gen-med-01',
+    doctor_name: 'Dr. Aditi Rao',
+    is_fallback: false,
+    preliminary: true,
+  },
+  emergency: null,
+};
+
+const AARAV_SHARMA_REPORT_ROW: ReportRow = {
+  id: 'figma-rep-03',
+  session_id: 'sess-aarav-01',
+  user_id: 'u-aarav-01',
+  status: 'submitted',
+  schema_version: 1,
+  department_key: 'general_medicine',
+  doctor_id: 'doc-gen-med-01',
+  intake_reference: 'INT-2026-0042',
+  possible_urgent: false,
+  needs_human_review: false,
+  emergency_rule_id: null,
+  submitted_at: '2026-11-02T09:58:00Z',
+  reviewed_at: null,
+  reviewed_by: null,
+  created_at: '2026-11-02T09:58:00Z',
+  updated_at: '2026-11-02T09:58:00Z',
+  report: AARAV_SHARMA_REPORT,
+};
+
+const AARAV_SHARMA_APPOINTMENT: Appointment = {
+  id: 'apt-01',
+  report_id: 'figma-rep-03',
+  doctor_id: 'doc-gen-med-01',
+  doctor_name: 'Dr. Aditi Rao',
+  department_name: 'General Medicine',
+  slot_id: 'slot-01',
+  slot_start: '2026-11-02T15:30:00+05:30',
+  slot_end: '2026-11-02T16:00:00+05:30',
+  reference_code: 'APT-2026-0017',
+  patient_name: 'Aarav Sharma',
+  created_at: '2026-11-02T09:58:00Z',
+  status: 'confirmed',
+};
+
 export const PatientShell: React.FC = () => {
   const { language } = useI18n();
 
@@ -76,7 +145,98 @@ export const PatientShell: React.FC = () => {
   // Resume after interruption (sessionStorage check on mount)
   useEffect(() => {
     try {
-      if (sessionStorage.getItem('FIGMA_PARITY_P3_FIXTURE') === '1') {
+      const targetPatientView = sessionStorage.getItem('FIGMA_PATIENT_VIEW');
+      if (targetPatientView) {
+        if (targetPatientView === 'welcome') {
+          setCurrentScreen('welcome');
+          return;
+        }
+        if (targetPatientView === 'consent') {
+          setCurrentScreen('consent');
+          return;
+        }
+        if (targetPatientView === 'what_we_heard') {
+          setCurrentScreen('what_we_heard');
+          setPendingTranscript('I have a headache for three days');
+          return;
+        }
+        if (targetPatientView === 'review') {
+          setCurrentScreen('review');
+          setChatState({
+            session_id: 'sess-aarav-01',
+            session_status: 'in_progress',
+            messages: [],
+            turn_count: 7,
+            max_turns: 15,
+            is_complete: true,
+            emergency_triggered: false,
+            is_cap_reached: false,
+            can_submit: true,
+            draft_report: AARAV_SHARMA_REPORT,
+          });
+          return;
+        }
+        if (targetPatientView === 'booking' || targetPatientView === 'slot_taken' || targetPatientView === 'no_slots') {
+          setCurrentScreen('booking');
+          setChatState({
+            session_id: 'sess-aarav-01',
+            session_status: 'in_progress',
+            messages: [],
+            turn_count: 7,
+            max_turns: 15,
+            is_complete: true,
+            emergency_triggered: false,
+            is_cap_reached: false,
+            can_submit: true,
+            draft_report: AARAV_SHARMA_REPORT,
+            submitted_report: AARAV_SHARMA_REPORT_ROW,
+          });
+          return;
+        }
+        if (targetPatientView === 'confirmed_booking') {
+          setCurrentScreen('confirmed_booking');
+          setChatState({
+            session_id: 'sess-aarav-01',
+            session_status: 'in_progress',
+            messages: [],
+            turn_count: 7,
+            max_turns: 15,
+            is_complete: true,
+            emergency_triggered: false,
+            is_cap_reached: false,
+            can_submit: true,
+            submitted_report: AARAV_SHARMA_REPORT_ROW,
+          });
+          setActiveAppointment(AARAV_SHARMA_APPOINTMENT);
+          return;
+        }
+        if (targetPatientView === 'confirmed_report_only') {
+          setCurrentScreen('confirmed_report_only');
+          setChatState({
+            session_id: 'sess-aarav-01',
+            session_status: 'in_progress',
+            messages: [],
+            turn_count: 7,
+            max_turns: 15,
+            is_complete: true,
+            emergency_triggered: false,
+            is_cap_reached: false,
+            can_submit: true,
+            submitted_report: AARAV_SHARMA_REPORT_ROW,
+          });
+          return;
+        }
+        if (targetPatientView === 'emergency') {
+          setCurrentScreen('emergency');
+          return;
+        }
+        if (targetPatientView === 'consent_declined') {
+          setCurrentScreen('consent_declined');
+          return;
+        }
+      }
+
+      if (sessionStorage.getItem('FIGMA_PARITY_P3_FIXTURE') === '1' || sessionStorage.getItem('FIGMA_PARITY_P3B_FIXTURE') === '1' || sessionStorage.getItem('FIGMA_PARITY_P4_FIXTURE') === '1' || sessionStorage.getItem('FIGMA_PARITY_P4B_FIXTURE') === '1') {
         setCurrentScreen('conversation');
         setChatState({
           session_id: 'sess-p3-fixture',

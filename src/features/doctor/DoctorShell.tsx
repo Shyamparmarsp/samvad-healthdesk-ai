@@ -6,6 +6,7 @@ import {
   getDoctorAppointments,
   getDoctorDashboardStats,
   doctorLogout,
+  FICTIONAL_DOCTORS,
 } from '../../lib/api';
 
 import { DoctorLogin } from './DoctorLogin';
@@ -23,10 +24,76 @@ type DoctorView =
   | 'urgent'
   | 'appointments';
 
+const FIGMA_REFERENCE_APPOINTMENTS: Appointment[] = [
+  {
+    id: 'apt-01',
+    report_id: 'figma-rep-03',
+    doctor_id: 'doc-gen-med-01',
+    doctor_name: 'Dr. Aditi Rao',
+    department_name: 'General Medicine',
+    slot_id: 'slot-01',
+    slot_start: '2026-11-02T15:30:00+05:30',
+    slot_end: '2026-11-02T16:00:00+05:30',
+    reference_code: 'APT-2026-0017',
+    patient_name: 'Aarav Sharma',
+    created_at: '2026-11-02T09:58:00Z',
+    status: 'confirmed',
+  },
+  {
+    id: 'apt-02',
+    report_id: 'figma-rep-05',
+    doctor_id: 'doc-gen-med-01',
+    doctor_name: 'Dr. Aditi Rao',
+    department_name: 'General Medicine',
+    slot_id: 'slot-02',
+    slot_start: '2026-11-02T16:00:00+05:30',
+    slot_end: '2026-11-02T16:30:00+05:30',
+    reference_code: 'APT-2026-0018',
+    patient_name: 'Sana Ali',
+    created_at: '2026-11-01T14:30:00Z',
+    status: 'confirmed',
+  },
+  {
+    id: 'apt-03',
+    report_id: 'figma-rep-04',
+    doctor_id: 'doc-gen-med-01',
+    doctor_name: 'Dr. Aditi Rao',
+    department_name: 'General Medicine',
+    slot_id: 'slot-03',
+    slot_start: '2026-10-30T11:00:00+05:30',
+    slot_end: '2026-10-30T11:30:00+05:30',
+    reference_code: 'APT-2026-0015',
+    patient_name: 'Rohan Das',
+    created_at: '2026-10-30T09:00:00Z',
+    status: 'confirmed',
+  },
+];
+
 export const DoctorShell: React.FC = () => {
-  const [currentDoctor, setCurrentDoctor] = useState<DoctorProfile | null>(null);
-  const [currentView, setCurrentView] = useState<DoctorView>('dashboard');
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [currentDoctor, setCurrentDoctor] = useState<DoctorProfile | null>(() => {
+    if (typeof window !== 'undefined' && (window.sessionStorage?.getItem('FIGMA_PARITY_FIXTURE') === '1' || Boolean(window.sessionStorage?.getItem('FIGMA_DOCTOR_VIEW')))) {
+      return FICTIONAL_DOCTORS.general_medicine;
+    }
+    return null;
+  });
+  const [currentView, setCurrentView] = useState<DoctorView>(() => {
+    if (typeof window !== 'undefined') {
+      const v = window.sessionStorage?.getItem('FIGMA_DOCTOR_VIEW');
+      if (v === 'report_detail' || v === 'urgent_detail') return 'report_detail';
+      if (v === 'reports') return 'reports';
+      if (v === 'appointments') return 'appointments';
+      if (v === 'urgent') return 'urgent';
+    }
+    return 'dashboard';
+  });
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const v = window.sessionStorage?.getItem('FIGMA_DOCTOR_VIEW');
+      if (v === 'report_detail') return 'figma-rep-03';
+      if (v === 'urgent_detail') return 'figma-rep-01';
+    }
+    return null;
+  });
 
   const [reports, setReports] = useState<ReportRow[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -51,6 +118,27 @@ export const DoctorShell: React.FC = () => {
   };
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const targetView = window.sessionStorage?.getItem('FIGMA_DOCTOR_VIEW');
+      if (targetView === 'reports') {
+        setCurrentView('reports');
+      } else if (targetView === 'report_detail') {
+        setCurrentView('report_detail');
+        setSelectedReportId('figma-rep-03');
+      } else if (targetView === 'urgent_detail') {
+        setCurrentView('report_detail');
+        setSelectedReportId('figma-rep-01');
+      } else if (targetView === 'appointments') {
+        setCurrentView('appointments');
+      } else if (targetView === 'urgent') {
+        setCurrentView('urgent');
+      } else if (targetView === 'dashboard') {
+        setCurrentView('dashboard');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (currentDoctor) {
       loadData(currentDoctor.id);
     }
@@ -73,13 +161,17 @@ export const DoctorShell: React.FC = () => {
   const isFixtureMode =
     typeof window !== 'undefined' &&
     (Boolean((window as any).__FIGMA_PARITY_FIXTURE__) ||
-      window.sessionStorage?.getItem('FIGMA_PARITY_FIXTURE') === '1');
+      window.sessionStorage?.getItem('FIGMA_PARITY_FIXTURE') === '1' ||
+      Boolean(window.sessionStorage?.getItem('FIGMA_DOCTOR_VIEW')));
 
   const allReports = isFixtureMode
     ? [...FIGMA_REFERENCE_REPORTS, ...reports]
     : reports;
+  const allAppointments = isFixtureMode
+    ? [...FIGMA_REFERENCE_APPOINTMENTS, ...appointments]
+    : appointments;
   const selectedReport = allReports.find((r) => r.id === selectedReportId);
-  const bookedReportIds = new Set(appointments.map((a) => a.report_id));
+  const bookedReportIds = new Set(allAppointments.map((a) => a.report_id));
   const urgentReports = isFixtureMode
     ? FIGMA_REFERENCE_REPORTS.filter((r) => r.status === 'urgent_partial')
     : reports.filter((r) => r.status === 'urgent_partial');
@@ -238,7 +330,7 @@ export const DoctorShell: React.FC = () => {
 
           {currentView === 'appointments' && (
             <DoctorAppointmentsView
-              appointments={appointments}
+              appointments={allAppointments}
               onSelectReport={handleSelectReport}
             />
           )}

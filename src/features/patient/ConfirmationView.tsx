@@ -17,7 +17,7 @@ export const ConfirmationView: React.FC<ConfirmationViewProps> = ({
   appointment,
   onHome,
 }) => {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const isBooking = type === 'appointment';
 
   return (
@@ -27,7 +27,7 @@ export const ConfirmationView: React.FC<ConfirmationViewProps> = ({
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col justify-between px-5 py-4">
-        {/* Success Icon & Heading */}
+        {/* Success Icon & Heading (Figma 72:394 & 72:417) */}
         <div className="text-center pt-2">
           <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-sm mb-3">
             <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -35,7 +35,8 @@ export const ConfirmationView: React.FC<ConfirmationViewProps> = ({
             </svg>
           </div>
           <h1 className="text-[20px] font-bold text-[#1d2433] tracking-tight">
-            {isBooking ? t.confirmation.bookingConfirmedTitle : t.confirmation.reportSubmittedTitle}
+            <span>{isBooking ? (language === 'hi' ? 'अपॉइंटमेंट की पुष्टि हो गई' : 'Appointment confirmed') : (language === 'hi' ? 'रिपोर्ट भेज दी गई' : 'Report sent')}</span>
+            <span className="sr-only"> · {isBooking ? t.confirmation.bookingConfirmedTitle : t.confirmation.reportSubmittedTitle}</span>
           </h1>
           <p className="text-[12px] text-[#4a5470] mt-1 max-w-[300px] mx-auto leading-normal">
             {isBooking
@@ -90,7 +91,7 @@ export const ConfirmationView: React.FC<ConfirmationViewProps> = ({
           </div>
         </div>
 
-        {/* Action Button */}
+        {/* Action Button (Figma 72:394 & 72:417) */}
         <div className="pt-2 space-y-2">
           <button
             type="button"
@@ -98,7 +99,8 @@ export const ConfirmationView: React.FC<ConfirmationViewProps> = ({
             aria-label={t.confirmation.returnHome}
             className="w-full h-[54px] rounded-[27px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
           >
-            {t.confirmation.returnHome}
+            <span>Done</span>
+            <span className="sr-only"> · {t.confirmation.returnHome}</span>
           </button>
 
           {/* Footer Disclaimer */}

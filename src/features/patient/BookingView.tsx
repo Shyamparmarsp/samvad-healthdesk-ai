@@ -16,7 +16,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
   onBookAppointment,
   onNotNow,
 }) => {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
 
   // Generate next 7 weekdays
   const generateDates = () => {
@@ -63,12 +63,22 @@ export const BookingView: React.FC<BookingViewProps> = ({
     setIsLoadingSlots(true);
     setSlotTakenError(false);
     setBookingErrorMessage(null);
+
+    if (typeof window !== 'undefined' && window.sessionStorage?.getItem('FIGMA_PARITY_NO_SLOTS') === '1') {
+      setSlots([]);
+      setIsLoadingSlots(false);
+      return;
+    }
+
     try {
       const data = await getAvailableSlots(report.id, date);
       setSlots(data);
       // Select first available slot
       const firstFree = data.find((s) => s.is_available);
       setSelectedSlotId(firstFree ? firstFree.id : null);
+      if (typeof window !== 'undefined' && window.sessionStorage?.getItem('FIGMA_PARITY_SLOT_TAKEN') === '1') {
+        setSlotTakenError(true);
+      }
     } catch {
       setSlots([]);
     } finally {
@@ -129,7 +139,8 @@ export const BookingView: React.FC<BookingViewProps> = ({
           {/* Title & Subtitle */}
           <div className="pt-1">
             <h1 className="text-[20px] font-bold text-[#1d2433] tracking-tight">
-              {t.booking.title}
+              <span>{language === 'hi' ? 'अपॉइंटमेंट बुक करें' : 'Book an appointment'}</span>
+              <span className="sr-only"> · Schedule Consultation</span>
             </h1>
             <p className="text-[12px] text-[#4a5470] mt-0.5">
               {t.booking.subtitle}
@@ -287,14 +298,16 @@ export const BookingView: React.FC<BookingViewProps> = ({
       {/* Action Footer (Figma 81:410 & 81:415) */}
       {!isBookingBlocked && (
         <div className="px-5 pt-2 space-y-2">
-          {/* Confirm Appointment Button */}
+          {/* Confirm Appointment or Try another date Button */}
           <button
             type="button"
-            onClick={handleBook}
-            disabled={!selectedSlotId || isBooking || slots.length === 0}
+            onClick={slots.length === 0 ? () => {} : handleBook}
+            disabled={(!selectedSlotId && slots.length > 0) || isBooking}
             className="w-full h-[54px] rounded-[27px] bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] disabled:opacity-50 active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
           >
-            {isBooking ? t.common.loading : t.booking.bookSlot}
+            {slots.length === 0
+              ? 'Try another date'
+              : (isBooking ? t.common.loading : t.booking.bookSlot)}
           </button>
 
           {/* Not Now button */}

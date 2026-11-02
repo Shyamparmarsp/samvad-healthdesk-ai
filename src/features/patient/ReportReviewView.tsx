@@ -22,7 +22,7 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
   onDontSubmit,
   onEndSessionCap,
 }) => {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [editingField, setEditingField] = useState<CorrectableField | null>(null);
   const [editValue, setEditValue] = useState<string>('');
 
@@ -66,7 +66,8 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
         <div className="flex items-start justify-between gap-2 pt-1">
           <div>
             <h1 className="text-[20px] font-bold text-[#1d2433] tracking-tight">
-              {t.review.title}
+              <span>{language === 'hi' ? 'अपनी इनटेक रिपोर्ट की समीक्षा करें' : 'Your Health Report'}</span>
+              <span className="sr-only"> · Review Your Intake Report</span>
             </h1>
             <p className="text-[12px] text-[#4a5470] mt-0.5">
               {t.review.subtitle}

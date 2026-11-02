@@ -14,35 +14,22 @@ export const EmergencyView: React.FC<EmergencyViewProps> = ({ onEndDemo }) => {
       {/* Top Header & Language Toggle (Figma 72:436) */}
       <PatientHeader />
 
-      {/* Main Urgent Guidance Card */}
-      <div className="flex-1 flex flex-col justify-between px-5 py-3">
-        <div className="my-auto py-2 text-center flex flex-col items-center">
-          {/* Large Plain Text 112 Display — NO tap-to-call link per G3 / docs */}
-          <div className="my-3 p-5 rounded-[24px] backdrop-blur-[9px] bg-[rgba(255,255,255,0.75)] border-2 border-red-200 shadow-md w-full max-w-xs">
-            <span className="text-[11px] font-bold text-red-600 uppercase tracking-widest block mb-1">
-              Emergency Helpline
-            </span>
-            <div className="text-5xl font-black text-red-700 tracking-wider py-1 font-mono">
-              {t.emergency.plainEmergencyNumber}
-            </div>
-            <p className="text-[11px] text-[#4a5470] mt-1.5">
-              {t.emergency.subtext}
-            </p>
-          </div>
-
-          <h1 className="text-[22px] font-bold text-red-950 tracking-tight mt-1">
+      {/* Main Urgent Guidance Card (Figma 72:436) */}
+      <div className="flex-1 flex flex-col justify-between px-5 py-4">
+        {/* Single Centered Frosted Emergency Card */}
+        <div className="my-auto backdrop-blur-[9px] bg-[rgba(255,255,255,0.65)] border border-white rounded-[28px] p-6 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)] text-center flex flex-col items-center">
+          <h1 className="text-[22px] font-bold text-red-600 tracking-tight mb-3">
             {t.emergency.title}
           </h1>
 
-          <div className="p-4 rounded-[18px] backdrop-blur-[9px] bg-[rgba(255,255,255,0.75)] border border-red-100 text-xs text-red-900 leading-relaxed text-left mt-3 shadow-sm w-full max-w-xs">
-            <p className="font-medium">
-              {t.emergency.guidance}
-            </p>
-          </div>
-
-          <p className="text-[11px] text-[#4a5470] mt-3 leading-normal max-w-xs">
-            {t.emergency.notice}
+          <p className="text-[13px] text-[#1d2433] leading-relaxed mb-6 font-normal">
+            Your answer may indicate an urgent situation. This demonstration cannot assess or treat emergencies. Please call 112 now or go to the nearest emergency department. Do not wait for a routine appointment.
           </p>
+
+          {/* Plain Text 112 Display — NO tap-to-call link per G3 / docs */}
+          <div className="text-[64px] font-black text-red-600 tracking-wider font-mono select-text leading-none py-2">
+            112
+          </div>
         </div>
 
         {/* Footer End Demo Action */}

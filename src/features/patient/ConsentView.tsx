@@ -25,29 +25,25 @@ export const ConsentView: React.FC<ConsentViewProps> = ({ onAgree, onDecline }) 
       <PatientHeader />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col justify-between px-5 py-4">
-        {/* Title */}
-        <div className="pt-1">
-          <h1 className="text-[21px] font-bold text-[#1d2433] tracking-tight">
-            {t.consent.title}
-          </h1>
-          <p className="text-[12px] text-[#4a5470] mt-0.5">
-            {t.common.appName}
-          </p>
-        </div>
+      <div className="flex-1 flex flex-col justify-between px-5 py-3">
+        {/* Screen Reader Header */}
+        <h1 className="sr-only">{t.consent.title}</h1>
 
-        {/* Assistant Consent Bubble (Figma 81:50) */}
+        {/* Assistant Consent Bubble (Figma 72:42) */}
         <div className="my-auto space-y-3">
           <div className="flex items-start gap-2.5">
-            {/* Assistant Avatar (Figma 81:47) */}
+            {/* Assistant Avatar */}
             <div className="w-[30px] h-[30px] rounded-full bg-[#1f2a44] border border-white text-white flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <rect x="4" y="8" width="16" height="12" rx="4" strokeWidth={1.8} />
+                <circle cx="9" cy="14" r="1.5" fill="currentColor" />
+                <circle cx="15" cy="14" r="1.5" fill="currentColor" />
+                <path d="M12 4v4m-3-4h6" strokeWidth={1.8} strokeLinecap="round" />
               </svg>
             </div>
 
             {/* Bubble */}
-            <div className="flex-1 backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white rounded-[20px] p-4 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)]">
+            <div className="flex-1 backdrop-blur-[9px] bg-[rgba(255,255,255,0.7)] border border-white rounded-[20px] rounded-tl-sm p-4 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.1)]">
               <p className="text-[13px] text-[#1d2433] leading-relaxed font-normal">
                 {CONSENT_TEXT[language]}
               </p>
@@ -71,7 +67,7 @@ export const ConsentView: React.FC<ConsentViewProps> = ({ onAgree, onDecline }) 
           </div>
         </div>
 
-        {/* Action Buttons (Figma 81:53 & 81:55) */}
+        {/* Action Buttons (Figma 72:42) */}
         <div className="space-y-3 pt-2">
           {/* Yes, I agree (Primary Action, h=54px) */}
           <button
