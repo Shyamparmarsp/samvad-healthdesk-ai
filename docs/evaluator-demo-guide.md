@@ -118,7 +118,7 @@ Report Detail ➔ Mark Reviewed (Audit Stamp) ➔ Appointments Schedule
    * Navigate to `/doctor`.
    * Log in with evaluator credentials for **Dr. Aditi Rao** (Department of General Medicine).
 2. **Dashboard Overview:**
-   * **Stat Cards:** Inspect real-time totals: Total Intake Reports, Pending Doctor Review, Confirmed Bookings, and Urgent Cases.
+   * **Stat Cards:** Inspect current overview totals (fetched snapshot, no WebSocket push): Total Intake Reports, Pending Doctor Review, Confirmed Bookings, and Urgent Cases.
    * **Report Queue Tabs:** Switch between `All`, `Urgent`, `Booked`, and `Not Booked`.
 3. **Report Detail & Triage:**
    * Click on Ramesh Kumar's report.
