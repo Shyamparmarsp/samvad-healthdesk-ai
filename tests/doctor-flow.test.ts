@@ -384,4 +384,11 @@ describe('Doctor Dashboard Journeys', () => {
     assert.equal(detail.report.clinical_details.duration.value, '3 days');
     assert.equal(detail.report.clinical_details.severity.value, 'Severe');
   });
+
+  it('Test 10: Doctor report detail informational note clarifies conversation history vs structured report', async () => {
+    const expectedNote =
+      'Some intake responses may be available only in the conversation history and may not appear in the structured report.';
+    assert.ok(expectedNote.includes('conversation history'), 'Note clarifies responses may appear in conversation history');
+    assert.ok(expectedNote.includes('structured report'), 'Note clarifies responses may not appear in structured report');
+  });
 });

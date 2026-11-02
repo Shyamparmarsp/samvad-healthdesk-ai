@@ -585,6 +585,12 @@ async function runVerification() {
     await sleep(600);
 
     await cdp.waitForText(/Clinical Intake Summary/i);
+    const detailContent = await cdp.eval('document.body.innerText');
+    assert.ok(
+      detailContent.includes('Some intake responses may be available only in the conversation history and may not appear in the structured report.'),
+      'Compact informational note must be rendered above conversation history in doctor report detail'
+    );
+
     await cdp.eval(`
       (() => {
         const btns = Array.from(document.querySelectorAll('button'));

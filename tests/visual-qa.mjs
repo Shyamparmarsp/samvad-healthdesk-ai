@@ -391,6 +391,22 @@ async function runVisualQA() {
     await cdp.waitForText(/Patient Intake Reports/i);
     await cdp.captureScreenshot('doctor-reports-1280x820.png');
 
+    // Click into first report detail to capture informational note
+    await cdp.eval(`
+      (() => {
+        const trs = Array.from(document.querySelectorAll('tbody tr'));
+        if (trs.length > 0) {
+          const firstTd = trs[0].querySelector('td');
+          if (firstTd) firstTd.click();
+          else trs[0].click();
+        }
+      })()
+    `);
+    await sleep(600);
+    await cdp.waitForText(/Clinical Intake Summary/i);
+    await cdp.captureScreenshot('doctor-report-detail-1280x820.png');
+    console.log('  ✓ Captured doctor-report-detail-1280x820.png showing compact conversation history note');
+
     // Urgent Triage Queue
     await cdp.eval(`
       (() => {

@@ -208,6 +208,16 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
         )}
       </div>
 
+      {/* Informational note: conversation history context */}
+      <div className="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200/80 text-xs text-blue-900 flex items-start gap-2.5 shadow-sm">
+        <svg className="w-4 h-4 text-brand-navy flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p className="leading-relaxed">
+          Some intake responses may be available only in the conversation history and may not appear in the structured report.
+        </p>
+      </div>
+
       {/* Collapsed Full Conversation Log (D4 specification) */}
       <div className="rounded-card bg-white border border-slate-200 shadow-sm overflow-hidden">
         <button
