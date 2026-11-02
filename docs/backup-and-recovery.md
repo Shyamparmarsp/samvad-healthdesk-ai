@@ -11,9 +11,19 @@ dry run and `--execute` creates/drops a uniquely named local scratch database.
 ## 1. Back up (owner, before any migration)
 
 ```bash
+# Full schema (keeps every public constraint, including the auth.users references)
 supabase db dump -f backup-schema-$(date +%Y%m%d-%H%M).sql
-supabase db dump --data-only -f backup-data-$(date +%Y%m%d-%H%M).sql
+
+# Data scoped to the schema this repository owns. Supabase-managed identity rows
+# (auth.users, auth.identities) are owned by the platform and are restored by the
+# provider, not by this project's seed.
+supabase db dump --data-only --schema public -f backup-data-$(date +%Y%m%d-%H%M).sql
 ```
+
+A data-only dump of the whole database cannot be restored into a bare database: it
+contains `auth.*` rows whose tables are created by the platform. Scope it to `public`
+for a reproducible rehearsal, or restore into a fresh Supabase project (which already
+has the managed schemas).
 
 Verify a dump is usable before relying on it:
 
@@ -35,6 +45,19 @@ docker exec -i supabase_db_samvad-backend psql -U postgres -d samvad_restore_reh
 docker exec -i supabase_db_samvad-backend psql -U postgres -d samvad_restore_rehearsal \
   -v ON_ERROR_STOP=1 -f /backup/data.sql
 ```
+
+`scripts/verify-backup-restore.ts` performs the same procedure non-interactively and
+creates the platform baseline (`extensions`, `auth.users` stub, `auth.uid()`, API roles,
+the `supabase_realtime` publication) inside the scratch database only:
+
+```bash
+deno run --allow-read --allow-run --allow-env scripts/verify-backup-restore.ts \
+  --schema backup-schema.sql --data backup-data.sql --execute
+```
+
+Verified on 3 November 2026 against the local stack: 11 tables, the seed rows and all
+five SQL functions restored, scratch database dropped. The auth identities are not part
+of that check — they are platform-owned.
 
 Then verify integrity in the scratch database:
 

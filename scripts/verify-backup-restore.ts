@@ -9,6 +9,18 @@
  *   deno run --allow-read scripts/verify-backup-restore.ts \
  *     --schema backup-schema.sql --data backup-data.sql
  *
+ * Recommended dump pair for a reproducible rehearsal:
+ *
+ *   supabase db dump -f backup-schema.sql                    # full schema, keeps the FKs
+ *   supabase db dump --data-only --schema public -f backup-data.sql
+ *
+ * The data dump is scoped to `public` because Supabase-managed identity rows
+ * (`auth.users`, `auth.identities`) are owned by the platform and are restored by the
+ * provider, not by this repository's seed. The scratch database therefore gets a minimal
+ * `auth.users` stub so the public FKs can be created; pg_dump already sets
+ * `session_replication_role = replica`, so those FKs are not enforced while the scoped
+ * data is loaded.
+ *
  *   deno run --allow-read --allow-run scripts/verify-backup-restore.ts \
  *     --schema backup-schema.sql --data backup-data.sql --execute
  *
@@ -56,6 +68,50 @@ export function validateContainerName(name: string): string[] {
     problems.push("container must be a docker container name, not a URL or path");
   }
   return problems;
+}
+
+/**
+ * Baseline objects that the Supabase platform always provides and that a restored dump
+ * expects: the `extensions` schema for pgcrypto/uuid-ossp, the `auth` schema with
+ * `auth.uid()`, and the three API roles referenced by grants and policies.
+ *
+ * They are created only inside the disposable scratch database.
+ */
+export function baselineSql(): string {
+  return `
+create schema if not exists extensions;
+create schema if not exists vault;
+create schema if not exists auth;
+create table if not exists auth.users (id uuid primary key);
+create schema if not exists storage;
+create schema if not exists graphql;
+create schema if not exists graphql_public;
+create schema if not exists realtime;
+create schema if not exists supabase_migrations;
+create schema if not exists cron;
+create schema if not exists net;
+create extension if not exists pgcrypto with schema extensions;
+create extension if not exists "uuid-ossp" with schema extensions;
+create or replace function auth.uid() returns uuid
+language sql stable
+as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+create or replace function auth.role() returns text
+language sql stable
+as $$ select coalesce(nullif(current_setting('request.jwt.claim.role', true), ''), 'anon') $$;
+do $$
+begin
+  if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon nologin noinherit; end if;
+  if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin noinherit; end if;
+  if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin noinherit; end if;
+end $$;
+do $$
+begin
+  if not exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    create publication supabase_realtime;
+  end if;
+end $$;
+grant usage on schema extensions to public;
+`;
 }
 
 export function verificationSql(): string {
@@ -163,6 +219,9 @@ async function main(): Promise<void> {
       const create = await psql(options.container, "postgres", `create database ${name}`);
       if (create.code !== 0) throw new Error(`create database failed: ${create.stderr.slice(0, 160)}`);
       created = true;
+
+      const baseline = await psql(options.container, name, baselineSql());
+      if (baseline.code !== 0) throw new Error(`baseline preparation failed: ${baseline.stderr.slice(0, 200)}`);
 
       const schemaRestore = await psqlFile(options.container, name, schema);
       if (schemaRestore.code !== 0) throw new Error(`schema restore failed: ${schemaRestore.stderr.slice(0, 160)}`);
