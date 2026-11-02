@@ -1,0 +1,540 @@
+/**
+ * Demo lifecycle operations — retention planning, post-deletion verification and doctor
+ * account shutdown.
+ *
+ * Defaults are READ-ONLY. There is deliberately no automatic retention deletion:
+ * the project has no demo-run identifier, so a safe command must present a cutoff-based
+ * plan and SQL for owner review. Doctor shutdown is dry-run unless --execute is supplied
+ * with the exact confirmation, and it bans only the two allowlisted profiles.
+ *
+ *   deno run --allow-net --allow-env --allow-read --allow-write \
+ *     scripts/demo-lifecycle.ts retention --cutoff 2026-12-10
+ *   deno run ... scripts/demo-lifecycle.ts verify-retention --manifest plan.json
+ *   deno run ... scripts/demo-lifecycle.ts doctors --target local
+ *   deno run ... scripts/demo-lifecycle.ts doctors --target hosted --execute \
+ *     --confirm "DISABLE DEMO DOCTORS"
+ *   deno run ... scripts/demo-lifecycle.ts backup-checklist
+ */
+
+const DEFAULT_LOCAL_URL = "http://127.0.0.1:54321";
+const DISABLE_CONFIRMATION = "DISABLE DEMO DOCTORS";
+const RETENTION_POLICY_DAYS = 30;
+
+export interface Cutoff {
+  iso: string;
+  ms: number;
+}
+
+/** Accept YYYY-MM-DD (UTC midnight) or a full ISO-8601 timestamp with an explicit zone. */
+export function parseCutoff(input: string, now = Date.now()): Cutoff {
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input);
+  let ms: number;
+  if (dateOnly) {
+    ms = Date.UTC(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
+  } else {
+    if (!/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:?\d{2})$/.test(input)) {
+      throw new Error("cutoff must be YYYY-MM-DD or an ISO timestamp with Z/offset");
+    }
+    ms = Date.parse(input);
+  }
+  if (!Number.isFinite(ms)) throw new Error("cutoff is not a valid date");
+  return { iso: new Date(ms).toISOString(), ms };
+}
+
+export function maskUid(uid: string): string {
+  if (uid.length <= 12) return `${uid.slice(0, 4)}…`;
+  return `${uid.slice(0, 8)}…${uid.slice(-4)}`;
+}
+
+export interface DoctorProfileRow {
+  user_id: string;
+  doctor_id: string;
+}
+
+export interface DoctorRow {
+  id: string;
+  display_name: string;
+  department_key: string;
+}
+
+export interface DoctorTarget {
+  uid: string;
+  displayName: string;
+  department: "general_medicine" | "emergency";
+}
+
+export interface AllowlistResult {
+  ok: boolean;
+  accounts: DoctorTarget[];
+  problems: string[];
+}
+
+/**
+ * Exact two-account allowlist. Extra profiles, missing profiles, duplicate UIDs or an
+ * unexpected display name/department abort. Nothing unrelated may ever be banned.
+ */
+export function validateDoctorAllowlist(
+  profiles: readonly DoctorProfileRow[],
+  doctors: readonly DoctorRow[],
+  gmUid: string,
+  emUid: string,
+): AllowlistResult {
+  const problems: string[] = [];
+  const byId = new Map(doctors.map((doctor) => [doctor.id, doctor]));
+  const expected: Array<[string, "general_medicine" | "emergency", string]> = [
+    [gmUid, "general_medicine", "Dr. Aditi Rao"],
+    [emUid, "emergency", "Dr. Neha Verma"],
+  ];
+
+  if (!gmUid || !emUid) problems.push("both DOCTOR_GM_UID and DOCTOR_EM_UID are required");
+  if (gmUid && emUid && gmUid === emUid) problems.push("the two doctor UIDs must be different");
+  if (profiles.length !== 2) problems.push(`expected exactly 2 doctor_profiles rows, found ${profiles.length}`);
+
+  const accounts: DoctorTarget[] = [];
+  for (const [uid, department, displayName] of expected) {
+    const profile = profiles.find((row) => row.user_id === uid);
+    if (!profile) {
+      problems.push(`${displayName}: UID is not mapped in doctor_profiles`);
+      accounts.push({ uid, displayName, department });
+      continue;
+    }
+    const doctor = byId.get(profile.doctor_id);
+    if (!doctor) {
+      problems.push(`${displayName}: profile points to an unknown doctor`);
+    } else {
+      if (doctor.department_key !== department) {
+        problems.push(`${displayName}: mapped department is ${doctor.department_key}, expected ${department}`);
+      }
+      if (doctor.display_name !== displayName) {
+        problems.push(`${displayName}: mapped display name is ${doctor.display_name}`);
+      }
+    }
+    accounts.push({ uid, displayName, department });
+  }
+
+  const mappedUids = new Set(profiles.map((row) => row.user_id));
+  for (const profile of profiles) {
+    if (profile.user_id !== gmUid && profile.user_id !== emUid) {
+      problems.push(`unexpected doctor_profiles row for UID ${maskUid(profile.user_id)}`);
+    }
+  }
+  for (const uid of [gmUid, emUid]) {
+    if (uid && !mappedUids.has(uid)) problems.push(`allowlisted UID ${maskUid(uid)} has no profile`);
+  }
+
+  return { ok: problems.length === 0, accounts, problems };
+}
+
+/** SQL is generated for owner review only; this script never executes it. */
+export function buildRetentionSql(cutoff: Cutoff): string {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(cutoff.iso)) {
+    throw new Error("cutoff is not a canonical UTC timestamp");
+  }
+  return `-- Owner review required. Generated by scripts/demo-lifecycle.ts (no execution).
+-- Selector limitation: sessions.created_at is the only dataset marker. Run this only when
+-- the project contains synthetic demonstration data exclusively.
+begin;
+
+create temp table doomed_sessions on commit drop as
+  select id from public.sessions where created_at < '${cutoff.iso}'::timestamptz;
+
+create temp table doomed_reports on commit drop as
+  select id from public.reports where session_id in (select id from doomed_sessions);
+
+-- Pre-deletion verification: every selected session is before the cutoff.
+select count(*) as selected_sessions from doomed_sessions;
+select count(*) as selected_reports from doomed_reports;
+
+delete from public.appointments
+ where report_id in (select id from doomed_reports);
+delete from public.reports
+ where id in (select id from doomed_reports);
+delete from public.messages
+ where session_id in (select id from doomed_sessions);
+delete from public.consent_records
+ where session_id in (select id from doomed_sessions);
+delete from public.sessions
+ where id in (select id from doomed_sessions);
+
+-- Post-deletion verification inside the same transaction.
+select
+  (select count(*) from public.sessions where created_at < '${cutoff.iso}'::timestamptz) as sessions_before_cutoff,
+  (select count(*) from public.reports where session_id in (select id from doomed_sessions)) as reports_left,
+  (select count(*) from public.messages where session_id in (select id from doomed_sessions)) as messages_left,
+  (select count(*) from public.consent_records where session_id in (select id from doomed_sessions)) as consent_left;
+
+-- Review the counts. Commit only when they are all zero/satisfactory.
+-- commit;
+-- rollback;
+`;
+}
+
+interface RestOptions {
+  base: string;
+  key: string;
+}
+
+function assertLocal(base: string): void {
+  let host: string;
+  try {
+    host = new URL(base).hostname;
+  } catch {
+    throw new Error(`invalid URL: ${base}`);
+  }
+  if (host !== "127.0.0.1" && host !== "localhost") {
+    throw new Error("retention planning is local-only; hosted deletion is an owner SQL action");
+  }
+}
+
+async function rest<T>(options: RestOptions, path: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers ?? {});
+  headers.set("apikey", options.key);
+  headers.set("authorization", `Bearer ${options.key}`);
+  if (init.body) headers.set("content-type", "application/json");
+  const response = await fetch(`${options.base}/rest/v1/${path}`, { ...init, headers });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`REST ${path} failed (${response.status})`);
+  return (text ? JSON.parse(text) : null) as T;
+}
+
+interface SessionRow { id: string; created_at: string }
+interface ReportRow { id: string; session_id: string }
+
+async function selectedSessions(options: RestOptions, cutoff: Cutoff): Promise<SessionRow[]> {
+  const rows: SessionRow[] = [];
+  for (let offset = 0; offset < 100_000; offset += 1000) {
+    const page = await rest<SessionRow[]>(
+      options,
+      `sessions?select=id,created_at&created_at=lt.${encodeURIComponent(cutoff.iso)}&order=created_at.asc&limit=1000&offset=${offset}`,
+    );
+    rows.push(...page);
+    if (page.length < 1000) break;
+  }
+  return rows;
+}
+
+async function countForSessions(options: RestOptions, table: string, sessionIds: string[]): Promise<number> {
+  let total = 0;
+  for (let start = 0; start < sessionIds.length; start += 100) {
+    const chunk = sessionIds.slice(start, start + 100);
+    const query = `${table}?session_id=in.(${chunk.join(",")})&select=id&limit=1`;
+    const response = await fetch(`${options.base}/rest/v1/${query}`, {
+      method: "HEAD",
+      headers: {
+        apikey: options.key,
+        authorization: `Bearer ${options.key}`,
+        prefer: "count=exact",
+        range: "0-0",
+      },
+    });
+    if (!response.ok) throw new Error(`count ${table} failed (${response.status})`);
+    const range = response.headers.get("content-range") ?? "";
+    const count = Number(range.split("/")[1]);
+    if (!Number.isFinite(count)) throw new Error(`count ${table} returned no Content-Range`);
+    total += count;
+  }
+  return total;
+}
+
+async function countById(options: RestOptions, table: string, column: string, ids: string[]): Promise<number> {
+  let total = 0;
+  for (let start = 0; start < ids.length; start += 100) {
+    const chunk = ids.slice(start, start + 100);
+    const response = await fetch(
+      `${options.base}/rest/v1/${table}?${column}=in.(${chunk.join(",")})&select=${column}&limit=1`,
+      {
+        method: "HEAD",
+        headers: {
+          apikey: options.key,
+          authorization: `Bearer ${options.key}`,
+          prefer: "count=exact",
+          range: "0-0",
+        },
+      },
+    );
+    if (!response.ok) throw new Error(`count ${table} failed (${response.status})`);
+    const range = response.headers.get("content-range") ?? "";
+    const count = Number(range.split("/")[1]);
+    if (!Number.isFinite(count)) throw new Error(`count ${table} returned no Content-Range`);
+    total += count;
+  }
+  return total;
+}
+
+async function countForReports(options: RestOptions, reportIds: string[]): Promise<number> {
+  let total = 0;
+  for (let start = 0; start < reportIds.length; start += 100) {
+    const chunk = reportIds.slice(start, start + 100);
+    const response = await fetch(
+      `${options.base}/rest/v1/appointments?report_id=in.(${chunk.join(",")})&select=id&limit=1`,
+      {
+        method: "HEAD",
+        headers: {
+          apikey: options.key,
+          authorization: `Bearer ${options.key}`,
+          prefer: "count=exact",
+          range: "0-0",
+        },
+      },
+    );
+    const range = response.headers.get("content-range") ?? "";
+    const count = Number(range.split("/")[1]);
+    if (!response.ok || !Number.isFinite(count)) {
+      throw new Error(`count appointments failed (${response.status})`);
+    }
+    total += count;
+  }
+  return total;
+}
+
+async function reportsForSessions(options: RestOptions, sessionIds: string[]): Promise<ReportRow[]> {
+  const rows: ReportRow[] = [];
+  for (let start = 0; start < sessionIds.length; start += 100) {
+    const chunk = sessionIds.slice(start, start + 100);
+    const page = await rest<ReportRow[]>(
+      options,
+      `reports?select=id,session_id&session_id=in.(${chunk.join(",")})&limit=1000`,
+    );
+    rows.push(...page);
+  }
+  return rows;
+}
+
+async function referenceCounts(options: RestOptions): Promise<Record<string, number>> {
+  const tables = ["departments", "doctors", "doctor_schedules", "doctor_profiles", "daily_usage_limits"];
+  const out: Record<string, number> = {};
+  for (const table of tables) {
+    const response = await fetch(`${options.base}/rest/v1/${table}?select=*&limit=1`, {
+      method: "HEAD",
+      headers: {
+        apikey: options.key,
+        authorization: `Bearer ${options.key}`,
+        prefer: "count=exact",
+        range: "0-0",
+      },
+    });
+    const range = response.headers.get("content-range") ?? "";
+    const count = Number(range.split("/")[1]);
+    out[table] = Number.isFinite(count) ? count : -1;
+  }
+  return out;
+}
+
+async function retentionPlan(cutoffInput: string, planOut: string | null): Promise<void> {
+  const cutoff = parseCutoff(cutoffInput);
+  const base = Deno.env.get("LOCAL_URL") ?? DEFAULT_LOCAL_URL;
+  const key = Deno.env.get("LOCAL_SERVICE_KEY") ?? "";
+  assertLocal(base);
+  if (!key) throw new Error("LOCAL_SERVICE_KEY is required for the local retention plan");
+  const options = { base, key };
+
+  const sessions = await selectedSessions(options, cutoff);
+  const sessionIds = sessions.map((row) => row.id);
+  const reports = sessionIds.length === 0 ? [] : await reportsForSessions(options, sessionIds);
+  const reportIds = reports.map((row) => row.id);
+  const counts = {
+    sessions: sessions.length,
+    reports: reports.length,
+    messages: await countForSessions(options, "messages", sessionIds),
+    consent_records: await countForSessions(options, "consent_records", sessionIds),
+    appointments: await countForReports(options, reportIds),
+  };
+  const preserved = await referenceCounts(options);
+
+  const plan = {
+    generatedAt: new Date().toISOString(),
+    mode: "retention-plan",
+    readOnly: true,
+    cutoff: cutoff.iso,
+    retentionPolicyDays: RETENTION_POLICY_DAYS,
+    target: new URL(base).hostname,
+    selectedSessionIds: sessionIds,
+    selectedReportIds: reportIds,
+    counts,
+    preservedCounts: preserved,
+    dependencyOrder: ["appointments", "reports", "messages", "consent_records", "sessions"],
+    authUsers: "NOT selected automatically. Anonymous identities are deleted manually through the Auth admin surface after domain rows, and only when every session belongs before the cutoff.",
+    limitation: "No demo_run_id exists. sessions.created_at is the only selector; run only when the project contains synthetic demonstration data exclusively.",
+  };
+
+  console.log("Retention plan (READ ONLY — nothing deleted)");
+  console.log(`  cutoff: ${cutoff.iso}`);
+  console.log(`  selected sessions: ${counts.sessions}`);
+  console.log(`  appointments: ${counts.appointments}`);
+  console.log(`  reports: ${counts.reports}`);
+  console.log(`  messages: ${counts.messages}`);
+  console.log(`  consent_records: ${counts.consent_records}`);
+  console.log(`  preserved: ${Object.entries(preserved).map(([table, count]) => `${table}=${count}`).join(", ")}`);
+  console.log("\nAuth identities: manual review only; never delete a user with a session after the cutoff.");
+  if (planOut) {
+    await Deno.writeTextFile(planOut, JSON.stringify(plan, null, 2) + "\n");
+    console.log(`\nWrote manifest ${planOut}. Store privately; do not commit.`);
+  }
+  console.log("\nGenerated SQL for owner review:");
+  console.log(buildRetentionSql(cutoff));
+}
+
+async function verifyRetention(manifestPath: string): Promise<void> {
+  const base = Deno.env.get("LOCAL_URL") ?? DEFAULT_LOCAL_URL;
+  const key = Deno.env.get("LOCAL_SERVICE_KEY") ?? "";
+  assertLocal(base);
+  if (!key) throw new Error("LOCAL_SERVICE_KEY is required for post-deletion verification");
+  const options = { base, key };
+  const manifest = JSON.parse(await Deno.readTextFile(manifestPath)) as {
+    cutoff: string;
+    selectedSessionIds: string[];
+    selectedReportIds: string[];
+    counts: Record<string, number>;
+    preservedCounts: Record<string, number>;
+  };
+  if (!manifest.cutoff || !Array.isArray(manifest.selectedSessionIds)) {
+    throw new Error("manifest is missing cutoff/session ids");
+  }
+
+  const remaining = {
+    sessions: await countById(options, "sessions", "id", manifest.selectedSessionIds),
+    reports: await countForSessions(options, "reports", manifest.selectedSessionIds),
+    messages: await countForSessions(options, "messages", manifest.selectedSessionIds),
+    consent_records: await countForSessions(options, "consent_records", manifest.selectedSessionIds),
+    appointments: await countForReports(options, manifest.selectedReportIds),
+  };
+  const preserved = await referenceCounts(options);
+  const failed = Object.values(remaining).some((count) => count !== 0) ||
+    Object.entries(manifest.preservedCounts).some(([table, expected]) => preserved[table] !== expected);
+
+  console.log("Retention post-deletion verification");
+  for (const [table, count] of Object.entries(remaining)) console.log(`  ${table}: ${count}`);
+  console.log(`  preservation: ${failed ? "FAILED" : "unchanged"}`);
+  if (failed) {
+    console.error("FAIL: expected selected rows and reference counts to be unchanged/zero.");
+    Deno.exit(1);
+  }
+  console.log("PASS: selected rows are gone and preserved counts are unchanged.");
+}
+
+function parseDoctorsArgs(args: string[]): { target: "local" | "hosted"; execute: boolean; confirm: string | null } {
+  let target: "local" | "hosted" = "local";
+  let execute = false;
+  let confirm: string | null = null;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--target") {
+      const value = args[++index];
+      if (value !== "local" && value !== "hosted") throw new Error("--target must be local or hosted");
+      target = value;
+    } else if (arg === "--execute") {
+      execute = true;
+    } else if (arg === "--confirm") {
+      confirm = args[++index] ?? null;
+    } else {
+      throw new Error(`unknown doctors argument: ${arg}`);
+    }
+  }
+  if (execute && confirm !== DISABLE_CONFIRMATION) {
+    throw new Error(`--execute requires --confirm "${DISABLE_CONFIRMATION}"`);
+  }
+  return { target, execute, confirm };
+}
+
+async function doctorShutdown(args: string[]): Promise<void> {
+  const options = parseDoctorsArgs(args);
+  const gmUid = Deno.env.get("DOCTOR_GM_UID") ?? "";
+  const emUid = Deno.env.get("DOCTOR_EM_UID") ?? "";
+  const base = options.target === "local"
+    ? (Deno.env.get("LOCAL_URL") ?? DEFAULT_LOCAL_URL)
+    : (Deno.env.get("SUPABASE_URL") ?? "");
+  const key = options.target === "local"
+    ? (Deno.env.get("LOCAL_SERVICE_KEY") ?? "")
+    : (Deno.env.get("SUPABASE_SECRET_KEY") ?? "");
+  if (!base) throw new Error("SUPABASE_URL is required for hosted mode");
+  if (options.target === "local") assertLocal(base);
+  if (options.target === "hosted" && !base.startsWith("https://")) throw new Error("hosted target must be https");
+  if (!key) throw new Error("administrative service key is required");
+  if (!gmUid || !emUid) throw new Error("DOCTOR_GM_UID and DOCTOR_EM_UID are required");
+
+  const profiles = await rest<DoctorProfileRow[]>({ base, key }, "doctor_profiles?select=user_id,doctor_id");
+  const doctors = await rest<DoctorRow[]>({ base, key }, "doctors?select=id,display_name,department_key");
+  const allowlist = validateDoctorAllowlist(profiles, doctors, gmUid, emUid);
+  for (const account of allowlist.accounts) {
+    console.log(`  ${account.displayName} (${account.department}) ${maskUid(account.uid)}`);
+  }
+  if (!allowlist.ok) {
+    for (const problem of allowlist.problems) console.error(`REFUSED: ${problem}`);
+    Deno.exit(2);
+  }
+
+  console.log(`\nMode: ${options.execute ? "EXECUTE (ban)" : "DRY RUN"} · target=${options.target}`);
+  if (!options.execute) {
+    console.log("No account changed. Re-run with --execute and the exact confirmation to ban both accounts.");
+    return;
+  }
+
+  const headers = { apikey: key, authorization: `Bearer ${key}`, "content-type": "application/json" };
+  for (const account of allowlist.accounts) {
+    const response = await fetch(`${base}/auth/v1/admin/users/${account.uid}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({ ban_duration: "876000h" }),
+    });
+    if (!response.ok) {
+      console.error(`FAILED: could not ban ${account.displayName} (status=${response.status})`);
+      Deno.exit(1);
+    }
+    const user = await (await fetch(`${base}/auth/v1/admin/users/${account.uid}`, { headers })).json();
+    if (!user?.banned_until) {
+      console.error(`FAILED: ${account.displayName} does not report banned_until after the update`);
+      Deno.exit(1);
+    }
+    console.log(`Banned ${account.displayName} (until ${user.banned_until}); profile mapping unchanged.`);
+  }
+  const afterProfiles = await rest<DoctorProfileRow[]>({ base, key }, "doctor_profiles?select=user_id,doctor_id");
+  if (afterProfiles.length !== profiles.length) {
+    console.error("FAILED: doctor_profiles count changed during shutdown");
+    Deno.exit(1);
+  }
+  console.log("Both allowlisted accounts banned; no profile or unrelated account was changed.");
+}
+
+function backupChecklist(): void {
+  console.log(`Backup checklist
+  1. Before migrations: supabase db dump schema + data using the naming convention.
+  2. During the demo: take a manual backup before any reset or schema change.
+  3. Verify: non-empty schema/data files, CREATE TABLE/INSERT markers, sha256 manifest.
+  4. Restore rehearsal: scripts/verify-backup-restore.ts against a disposable local DB.
+  5. Store encrypted, access-list-of-one, outside the repository and Supabase Storage.
+  6. Never commit a dump or manifest.
+  7. Delete every backup by the ${RETENTION_POLICY_DAYS}-day post-demo deadline and record it.`);
+}
+
+async function main(): Promise<void> {
+  const [command, ...args] = Deno.args;
+  try {
+    if (command === "retention") {
+      const cutoff = args[args.indexOf("--cutoff") + 1];
+      if (!cutoff || cutoff.startsWith("--")) throw new Error("retention requires --cutoff <YYYY-MM-DD>");
+      const planOut = args.includes("--plan-out") ? args[args.indexOf("--plan-out") + 1] : null;
+      await retentionPlan(cutoff, planOut);
+    } else if (command === "verify-retention") {
+      const manifest = args[args.indexOf("--manifest") + 1];
+      if (!manifest || manifest.startsWith("--")) throw new Error("verify-retention requires --manifest <path>");
+      await verifyRetention(manifest);
+    } else if (command === "doctors") {
+      await doctorShutdown(args);
+    } else if (command === "backup-checklist") {
+      backupChecklist();
+    } else {
+      console.log("Usage: scripts/demo-lifecycle.ts retention --cutoff <date> [--plan-out <path>]");
+      console.log("       scripts/demo-lifecycle.ts verify-retention --manifest <path>");
+      console.log("       scripts/demo-lifecycle.ts doctors [--target local|hosted] [--execute --confirm \"DISABLE DEMO DOCTORS\"]");
+      console.log("       scripts/demo-lifecycle.ts backup-checklist");
+      Deno.exit(command ? 2 : 0);
+    }
+  } catch (error) {
+    console.error(`REFUSED: ${(error as Error).message}`);
+    Deno.exit(2);
+  }
+}
+
+if (import.meta.main) {
+  await main();
+}

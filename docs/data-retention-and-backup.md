@@ -13,9 +13,12 @@ Status of the engineering work:
 
 | Item | State |
 |---|---|
-| Read-only dry run | `scripts/retention-dry-run.ts` — no delete path, local target only |
-| Dry-run evidence | `retention-dry-run-result.json` (counts only) |
-| Deletion automation | **None, by design** |
+| Read-only whole-project dry run | `scripts/retention-dry-run.ts` — legacy counter, no delete path, local only |
+| Cutoff-aware retention plan | `scripts/demo-lifecycle.ts retention --cutoff <date>` — read-only plan, manifest and owner SQL |
+| Post-deletion verification | `scripts/demo-lifecycle.ts verify-retention --manifest <path>` |
+| Doctor shutdown | `scripts/demo-lifecycle.ts doctors` — dry-run + exact allowlist + opt-in ban |
+| Backup restore validation | `scripts/verify-backup-restore.ts` — dry-run + isolated scratch DB |
+| Deletion automation | **None, by design** — owner reviews generated SQL and executes |
 | Hosted data touched by engineering | **None** |
 | Doctor accounts disabled by engineering | **None** — owner action |
 
@@ -50,23 +53,40 @@ mapping away.
 
 **Preconditions**
 
-1. Written owner approval naming the project and the exact scope.
+1. Written owner approval naming the project, the cutoff and the exact scope.
 2. A verified pre-deletion backup exists off-platform (§5).
 3. The demonstration is over and no evaluator still holds a link.
-4. The dry run has been executed and its counts recorded.
+4. The cutoff plan has been generated and its counts recorded.
+5. The project contains synthetic demonstration data only (see the limitation below).
+
+### 3.1 Cutoff plan and generated SQL
 
 ```bash
-# Local stack only; refuses any non-local URL. Read-only.
-export LOCAL_URL=http://127.0.0.1:54321
-export LOCAL_SERVICE_KEY=<local service key from `npx supabase status -o env`>
-deno run --allow-net --allow-env --allow-read --allow-write scripts/retention-dry-run.ts
+eval "$(npx supabase status -o env | sed 's/^/export /')"
+export LOCAL_URL="$API_URL"
+export LOCAL_SERVICE_KEY="$SECRET_KEY"   # local only
+
+deno run --allow-net --allow-env --allow-read --allow-write \
+  scripts/demo-lifecycle.ts retention \
+  --cutoff 2026-12-10 \
+  --plan-out demo-lifecycle-plan.json
 ```
 
-The dry run prints per-table counts and writes `retention-dry-run-result.json`. It cannot
-delete and it refuses a hosted URL.
+`--cutoff` is `YYYY-MM-DD` (UTC midnight) or a full ISO timestamp with `Z`/offset. It may be
+a future planning date; the planner never deletes. It selects sessions with
+`created_at < cutoff`, derives reports/appointments through the FK chain, counts the child
+tables, records preserved reference counts and prints a SQL transaction for owner review.
+The manifest is private (session/report ids and counts, no patient text); do not commit it.
 
-**Order is mandatory** (children first; the explicit order lets the operator verify each
-step):
+**Dataset limitation:** there is no `demo_run_id` or dataset tag. `sessions.created_at` is
+the only selector. Do not run the SQL if the project could contain non-demo or real records.
+Auth identities are never selected automatically because an anonymous user may own sessions
+on both sides of the cutoff.
+
+### 3.2 Execute the reviewed SQL (owner)
+
+The generated SQL is the authoritative cutoff-scoped transaction. It deletes only the
+selected sessions and their dependants in this order:
 
 ```
 1. appointments      (report_id → reports, user_id → auth.users)
@@ -74,62 +94,33 @@ step):
 3. messages          (session_id → sessions)
 4. consent_records   (session_id → sessions, user_id → auth.users)
 5. sessions          (user_id → auth.users)
-6. auth.users        (anonymous patient identities only)
+6. auth.users        (anonymous patient identities only — manual, separate step)
 ```
 
-In the Supabase SQL Editor, in one transaction, using the production project:
+It never deletes `doctors`, `doctor_profiles`, `departments`, `doctor_schedules`,
+`daily_usage_limits`, counters or the migration ledger. Review the pre/post counts in the
+transaction, then uncomment `commit` (or `rollback`). If the selected set is not exactly the
+intended demonstration data, roll back.
 
-```sql
-begin;
-
-delete from public.appointments
- where report_id in (select id from public.reports);
-delete from public.reports
- where session_id in (select id from public.sessions);
-delete from public.messages
- where session_id in (select id from public.sessions);
-delete from public.consent_records
- where session_id in (select id from public.sessions);
-delete from public.sessions;
-
--- Verify before touching Auth identities.
-select
-  (select count(*) from public.appointments)     as appointments,
-  (select count(*) from public.reports)          as reports,
-  (select count(*) from public.messages)         as messages,
-  (select count(*) from public.consent_records)  as consent_records,
-  (select count(*) from public.sessions)         as sessions;
--- expected: 0 for every column
-
-commit;
-```
+If a whole-project final cleanup is required after the 30-day deadline, the older
+`retention-dry-run.ts` plus the same FK order can be used, but the cutoff plan is preferred.
 
 Then delete the anonymous patient identities through the Auth admin surface (Dashboard →
-Authentication → Users, or the server-side Admin API `auth.admin.deleteUser(uid)`), **one
-identity at a time or in a reviewed batch**, never by deleting the two doctor accounts.
-Do not delete rows from `auth.users` with ad-hoc SQL: that bypasses GoTrue and leaves
-refresh-token handling inconsistent. The patient-domain rows above are already gone, so an
-Auth identity left behind for a few minutes cannot read any health data.
+Authentication → Users, or `auth.admin.deleteUser(uid)` one at a time or in a reviewed
+batch), **never the two doctor accounts**. Do not delete rows from `auth.users` with ad-hoc
+SQL: that bypasses GoTrue and leaves refresh-token handling inconsistent. The patient-domain
+rows are already gone, so an identity left for a few minutes cannot read health data.
 
-**Verification after cleanup**
+### 3.3 Post-deletion verification
 
-```sql
-select count(*) from public.appointments;      -- 0
-select count(*) from public.reports;           -- 0
-select count(*) from public.messages;          -- 0
-select count(*) from public.consent_records;   -- 0
-select count(*) from public.sessions;          -- 0
-
-select count(*) from public.departments;       -- 6, unchanged
-select count(*) from public.doctors;           -- 6, unchanged
-select count(*) from public.doctor_schedules;  -- 25, unchanged
-select count(*) from public.doctor_profiles;   -- 2 in production, unchanged
-select count(*) from public.daily_usage_limits;-- 4, unchanged
+```bash
+deno run --allow-net --allow-env --allow-read \
+  scripts/demo-lifecycle.ts verify-retention --manifest demo-lifecycle-plan.json
 ```
 
-Record the operator, UTC time, scope, before/after counts and backup filename in the
-retention sign-off block in §7. If any count is non-zero, stop and investigate; do not
-re-run blindly.
+PASS requires every selected session/report id to return 0 rows and every preserved reference
+count to match the manifest. If a reference count changed, stop and restore the
+pre-deletion backup.
 
 ## 4. Disabling the two demo doctor accounts after the demonstration
 
@@ -142,7 +133,30 @@ trail.
 | General Medicine | Dr. Aditi Rao |
 | Emergency | Dr. Neha Verma |
 
-**Procedure (owner, Dashboard)**
+### 4.1 Tooling (dry-run default)
+
+```bash
+export DOCTOR_GM_UID='<aditi-auth-uid>'
+export DOCTOR_EM_UID='<neha-auth-uid>'
+export LOCAL_URL="$API_URL"
+export LOCAL_SERVICE_KEY="$SECRET_KEY"
+
+# Read-only: verifies the exact allowlist and prints masked UIDs.
+deno run --allow-net --allow-env scripts/demo-lifecycle.ts doctors --target local
+
+# Owner-only execution (bans both; no deletion, no profile change).
+deno run --allow-net --allow-env \
+  scripts/demo-lifecycle.ts doctors --target local --execute \
+  --confirm "DISABLE DEMO DOCTORS"
+```
+
+For hosted execution set `SUPABASE_URL` and `SUPABASE_SECRET_KEY` and use
+`--target hosted`. The script aborts if `doctor_profiles` does not contain exactly two rows,
+if a UID does not map to the named doctor/department, if the UIDs are equal, or if any extra
+profile exists. It changes only the two allowlisted Auth accounts and verifies
+`banned_until` plus an unchanged profile count. It never deletes a user or profile.
+
+### 4.2 Manual Dashboard path
 
 1. Record the two Auth UIDs and the current mapping:
 
@@ -258,6 +272,24 @@ dumps.
 
 Restore rehearsal and failed-migration recovery are in `docs/backup-and-recovery.md`.
 Restore only into a disposable local database, never into the active application database.
+
+### Restore validation script
+
+```bash
+# Dry run: validate structure and print the isolated plan; no docker
+deno run --allow-read scripts/verify-backup-restore.ts \
+  --schema backup-schema.sql --data backup-data.sql
+
+# Restore into a uniquely named scratch database and drop it
+deno run --allow-read --allow-run scripts/verify-backup-restore.ts \
+  --schema backup-schema.sql --data backup-data.sql --execute
+```
+
+The script accepts only a local `supabase_db_*` container, creates
+`samvad_restore_verify_<UTC>_<random>`, refuses an existing name, verifies the current
+reference counts and five SQL functions, and drops only that scratch database. It never
+targets the active application database or a hosted project. An `--execute` run is a real
+local database restore; the default is a dry run.
 
 ## 6. What must never be done
 
