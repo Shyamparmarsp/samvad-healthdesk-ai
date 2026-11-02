@@ -61,15 +61,17 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
                 </svg>
               )}
               {idx === 1 && (
-                /* Pencil Icon (Figma 81:20) */
-                <svg className="w-6 h-6 text-[#1f2a44]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                /* Pencil Icon (Figma 81:20: welcome-pencil.svg) */
+                <svg className="w-6 h-6 text-[#1f2a44]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 17.5V20H6.5L18 8.5L15.5 6L4 17.5Z" stroke="#1F2A44" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M14.5 7L17 9.5" stroke="#1F2A44" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               )}
               {idx === 2 && (
-                /* Calendar Icon (Figma 81:25) */
-                <svg className="w-6 h-6 text-[#1f2a44]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                /* Calendar Icon (Figma 81:25: welcome-calendar.svg) */
+                <svg className="w-6 h-6 text-[#1f2a44]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M19 5H5C3.89543 5 3 5.89543 3 7V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V7C21 5.89543 20.1046 5 19 5Z" stroke="#1F2A44" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M16 3V7M8 3V7M3 10H21" stroke="#1F2A44" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               )}
             </div>
@@ -115,7 +117,7 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
         <span>{isStarting ? t.common.loading : t.welcome.startTalking}</span>
       </button>
 
-      {/* Type Instead Button (Figma 81:35: w=350, h=54 at x=20, y=694) */}
+      {/* Type Instead Button (Figma 81:35: keyboard.svg vector) */}
       <button
         type="button"
         onClick={onTypeInstead}
@@ -123,8 +125,9 @@ export const WelcomeView: React.FC<WelcomeViewProps> = ({
         aria-label={t.welcome.typeInstead}
         className="absolute left-[20px] top-[694px] w-[350px] h-[54px] rounded-[27px] backdrop-blur-[9px] bg-[rgba(255,255,255,0.74)] border border-white text-[#1f2a44] font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.1)] hover:bg-white active:scale-[0.99] transition-all flex items-center justify-center gap-2.5 z-20 focus:outline-none focus:ring-2 focus:ring-[#1f2a44] disabled:opacity-60"
       >
-        <svg className="w-5 h-5 text-[#1f2a44]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 10h18M3 14h18m-9-4v8m-4-8v8m8-8v8M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2z" />
+        <svg className="w-5 h-5 text-[#1f2a44]" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22.1667 7H5.83333C4.54467 7 3.5 8.04467 3.5 9.33333V18.6667C3.5 19.9553 4.54467 21 5.83333 21H22.1667C23.4553 21 24.5 19.9553 24.5 18.6667V9.33333C24.5 8.04467 23.4553 7 22.1667 7Z" stroke="#1F2A44" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M7 10.5H8.16667M11.6667 10.5H12.8333M16.3333 10.5H17.5M21 10.5H22.1667M7 14H8.16667M11.6667 14H12.8333M16.3333 14H17.5M21 14H22.1667M9.33333 17.5H18.6667" stroke="#1F2A44" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
         <span>{t.welcome.typeInstead}</span>
       </button>

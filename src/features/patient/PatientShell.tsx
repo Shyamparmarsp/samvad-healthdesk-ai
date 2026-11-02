@@ -16,7 +16,7 @@ import { Appointment } from '../../types/doctor';
 import { CONSENT_VERSION } from '../../types/consent';
 import { captureVoiceAnswer, type VoiceAnswer } from '../../lib/audio/voice';
 import {
-  cachedPromptUrl,
+  cachedPromptSources,
   createPromptAudioCache,
   promptIdForQuestion,
 } from '../../lib/audio/prompt-audio';
@@ -355,6 +355,26 @@ export const PatientShell: React.FC = () => {
     }
   };
 
+  /** Try static candidates in order and play the first one that decodes. */
+  const playFirstAvailable = async (urls: string[]): Promise<boolean> => {
+    for (const url of urls) {
+      stopActiveAudio();
+      const audio = new Audio(url);
+      activeAudioRef.current = audio;
+      audio.onended = () => {
+        if (activeAudioRef.current === audio) activeAudioRef.current = null;
+      };
+      try {
+        await audio.play();
+        return true;
+      } catch {
+        // Try the next candidate.
+      }
+    }
+    stopActiveAudio();
+    return false;
+  };
+
   const playUrl = async (url: string, onFailure: () => void) => {
     stopActiveAudio();
     const audio = new Audio(url);
@@ -385,9 +405,8 @@ export const PatientShell: React.FC = () => {
     const promptId = promptIdForQuestion(questionId);
 
     if (promptId) {
-      await playUrl(cachedPromptUrl(language, promptId), () => {
-        setErrorMessage(t.chat.audioUnavailable);
-      });
+      const played = await playFirstAvailable(cachedPromptSources(language, promptId));
+      if (!played) setErrorMessage(t.chat.audioUnavailable);
       return;
     }
 

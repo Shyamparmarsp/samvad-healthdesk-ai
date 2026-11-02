@@ -141,8 +141,42 @@ export const DoctorShell: React.FC = () => {
                     : 'text-[#4a5470] font-medium text-[13px] hover:text-[#1d2433] hover:bg-white/40'
                 }`}
               >
-                <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 23 23"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-5 h-5 flex-shrink-0"
+                >
+                  <path
+                    d="M8.62504 3.8335H4.79171C4.26243 3.8335 3.83337 4.26256 3.83337 4.79183V8.62516C3.83337 9.15444 4.26243 9.5835 4.79171 9.5835H8.62504C9.15431 9.5835 9.58337 9.15444 9.58337 8.62516V4.79183C9.58337 4.26256 9.15431 3.8335 8.62504 3.8335Z"
+                    stroke="#1F2A44"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M18.2083 3.8335H14.375C13.8457 3.8335 13.4166 4.26256 13.4166 4.79183V8.62516C13.4166 9.15444 13.8457 9.5835 14.375 9.5835H18.2083C18.7376 9.5835 19.1666 9.15444 19.1666 8.62516V4.79183C19.1666 4.26256 18.7376 3.8335 18.2083 3.8335Z"
+                    stroke="#1F2A44"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M8.62504 13.4165H4.79171C4.26243 13.4165 3.83337 13.8456 3.83337 14.3748V18.2082C3.83337 18.7374 4.26243 19.1665 4.79171 19.1665H8.62504C9.15431 19.1665 9.58337 18.7374 9.58337 18.2082V14.3748C9.58337 13.8456 9.15431 13.4165 8.62504 13.4165Z"
+                    stroke="#1F2A44"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M18.2083 13.4165H14.375C13.8457 13.4165 13.4166 13.8456 13.4166 14.3748V18.2082C13.4166 18.7374 13.8457 19.1665 14.375 19.1665H18.2083C18.7376 19.1665 19.1666 18.7374 19.1666 18.2082V14.3748C19.1666 13.8456 18.7376 13.4165 18.2083 13.4165Z"
+                    stroke="#1F2A44"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
                 <span>Dashboard</span>
               </button>
@@ -157,8 +191,28 @@ export const DoctorShell: React.FC = () => {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 23 23"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-5 h-5 flex-shrink-0"
+                  >
+                    <path
+                      d="M5.75 2.875H13.4167L17.25 6.70833V20.125H5.75V2.875Z"
+                      stroke="#1F2A44"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M13.4167 2.875V7.66667H17.25M8.625 11.5H14.375M8.625 15.3333H14.375"
+                      stroke="#1F2A44"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                   <span>Reports</span>
                 </div>
@@ -177,8 +231,28 @@ export const DoctorShell: React.FC = () => {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 23 23"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-5 h-5 flex-shrink-0"
+                  >
+                    <path
+                      d="M18.2083 4.7915H4.79167C3.73312 4.7915 2.875 5.64962 2.875 6.70817V18.2082C2.875 19.2667 3.73312 20.1248 4.79167 20.1248H18.2083C19.2669 20.1248 20.125 19.2667 20.125 18.2082V6.70817C20.125 5.64962 19.2669 4.7915 18.2083 4.7915Z"
+                      stroke="#1F2A44"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M7.66667 2.875V6.70833M15.3333 2.875V6.70833M2.875 9.58333H20.125"
+                      stroke="#1F2A44"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                   <span>Appointments</span>
                 </div>
@@ -197,8 +271,28 @@ export const DoctorShell: React.FC = () => {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <svg className="w-5 h-5 flex-shrink-0 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 23 23"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-5 h-5 flex-shrink-0 text-red-600"
+                  >
+                    <path
+                      d="M11.5 2.875L21.0833 20.125H1.91663L11.5 2.875Z"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M11.5 8.625V13.4167M11.5 16.2917V16.3875"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                   <span>Urgent</span>
                 </div>

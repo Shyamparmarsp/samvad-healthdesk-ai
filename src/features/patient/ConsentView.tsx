@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { CONSENT_TEXT } from '../../types/consent';
-import { cachedPromptUrl } from '../../lib/audio/prompt-audio';
+import { cachedPromptSources } from '../../lib/audio/prompt-audio';
 import { PatientHeader } from './PatientHeader';
 import { BackButton } from '../common/BackButton';
 
@@ -38,16 +38,20 @@ export const ConsentView: React.FC<ConsentViewProps> = ({
       audioRef.current = null;
     }
     setAudioStatus('playing');
-    try {
-      const audio = new Audio(cachedPromptUrl(language, 'greeting'));
-      audioRef.current = audio;
-      audio.onended = () => setAudioStatus('idle');
-      audio.onerror = () => setAudioStatus('unavailable');
-      await audio.play();
-    } catch {
-      // Browser autoplay policy or a decode failure. Offer an explicit replay.
-      setAudioStatus('blocked');
+    // Try the approved static locations in order; never a paid fallback for a fixed prompt.
+    for (const source of cachedPromptSources(language, 'greeting')) {
+      try {
+        const audio = new Audio(source);
+        audioRef.current = audio;
+        audio.onended = () => setAudioStatus('idle');
+        audio.onerror = () => setAudioStatus('unavailable');
+        await audio.play();
+        return;
+      } catch {
+        audioRef.current = null;
+      }
     }
+    setAudioStatus('unavailable');
   }, [language]);
 
   useEffect(() => {
@@ -88,13 +92,33 @@ export const ConsentView: React.FC<ConsentViewProps> = ({
         {/* Assistant Consent Bubble (Figma 72:42) */}
         <div className="my-auto space-y-3">
           <div className="flex items-start gap-2.5">
-            {/* Assistant Avatar */}
-            <div className="w-[30px] h-[30px] rounded-full bg-[#1f2a44] border border-white text-white flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <rect x="4" y="8" width="16" height="12" rx="4" strokeWidth={1.8} />
-                <circle cx="9" cy="14" r="1.5" fill="currentColor" />
-                <circle cx="15" cy="14" r="1.5" fill="currentColor" />
-                <path d="M12 4v4m-3-4h6" strokeWidth={1.8} strokeLinecap="round" />
+            {/* Assistant Avatar (Figma 81:47: 30x30 rounded-full) */}
+            <div
+              className="w-[30px] h-[30px] rounded-full bg-white/80 border border-white text-[#1f2a44] flex items-center justify-center flex-shrink-0 mt-1 shadow-sm"
+              aria-hidden="true"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 30 30"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-5 h-5 block"
+              >
+                <path
+                  d="M20 8.75H10C7.92893 8.75 6.25 10.4289 6.25 12.5V20C6.25 22.0711 7.92893 23.75 10 23.75H20C22.0711 23.75 23.75 22.0711 23.75 20V12.5C23.75 10.4289 22.0711 8.75 20 8.75Z"
+                  stroke="#1F2A44"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M15 3.75V8.75M11.25 15H11.2625M18.75 15H18.7625M11.25 20H18.75M3.75 13.75V18.75M26.25 13.75V18.75"
+                  stroke="#1F2A44"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </div>
 

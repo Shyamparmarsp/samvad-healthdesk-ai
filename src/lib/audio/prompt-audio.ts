@@ -50,6 +50,17 @@ export function cachedPromptUrl(language: Language, promptId: PromptId): string 
   return `/audio/${language}/${promptId}.mp3`;
 }
 
+/**
+ * Candidate static locations, most authoritative first.
+ *
+ * The approved production layout is `/audio/{lang}/{prompt}.mp3`. The demo bundle also
+ * ships `/audio/{prompt}_{lang}.wav`, so the player tries both before reporting the
+ * prompt as unavailable. No provider call is made for either candidate.
+ */
+export function cachedPromptSources(language: Language, promptId: PromptId): string[] {
+  return [cachedPromptUrl(language, promptId), `/audio/${promptId}_${language}.wav`];
+}
+
 export type PromptAudioStatus = 'idle' | 'loading' | 'playing' | 'missing' | 'blocked' | 'error';
 
 export interface PromptAudioResult {

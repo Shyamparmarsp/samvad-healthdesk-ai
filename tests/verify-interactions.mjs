@@ -1,4 +1,6 @@
 import { spawn } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 
 const CHROME_PATH = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -49,6 +51,12 @@ class CdpClient {
       this.pending.set(id, { resolve, reject });
       this.ws.send(JSON.stringify({ id, method, params }));
     });
+  }
+
+  async captureScreenshot(name) {
+    const { data } = await this.send('Page.captureScreenshot', { format: 'png' });
+    writeFileSync(resolve('docs/screenshots', name), Buffer.from(data, 'base64'));
+    console.log(`  ✓ Captured ${name}`);
   }
 
   async eval(expr) {
@@ -161,6 +169,17 @@ async function runVerification() {
   try {
     // 3. Test Patient Journey on /
     console.log('[3/7] Testing Patient Shell on /');
+    // D-06: record every Audio construction so cached-prompt playback is observable.
+    await cdp.send('Page.addScriptToEvaluateOnNewDocument', {
+      source: `
+        window.__audioPlayAttempts = [];
+        const NativeAudio = window.Audio;
+        window.Audio = function (src) {
+          window.__audioPlayAttempts.push(String(src));
+          return new NativeAudio(src);
+        };
+      `,
+    });
     await cdp.navigate(`http://127.0.0.1:${PORT}/`);
 
     // Wait for React app to mount in #root
@@ -196,6 +215,11 @@ async function runVerification() {
     assert.ok(consentText.includes('Yes, I agree'), 'Consent Yes button must render');
     assert.ok(consentText.includes('No, do not proceed'), 'Consent No button must render');
     console.log('  ✓ Transitioned to Consent screen with exact consent text');
+    // D-06: the greeting must come from a cached static asset, never the TTS provider.
+    const audioAttempts = await cdp.eval('JSON.stringify(window.__audioPlayAttempts || [])');
+    assert.ok(/greeting/.test(audioAttempts), 'Consent must attempt cached greeting playback (D-06)');
+    assert.ok(!/functions\/v1\/speak|timbre/i.test(audioAttempts), 'Cached greeting must not call the TTS provider');
+    console.log('  ✓ Cached greeting playback attempted: ' + audioAttempts);
     verificationResults.push({ step: 'Transition to Consent screen', status: 'PASS' });
 
     // Click "Yes, I agree"
@@ -550,7 +574,12 @@ async function runVerification() {
     // Confirmation Screen
     const confirmText = await cdp.waitForText(/Appointment Confirmed|Report Submitted/i);
     assert.ok(confirmText.includes('APT-') || confirmText.includes('Reference'), 'Reference code must render');
-    console.log('  ✓ Full patient flow completed with confirmed booking');
+    // D-03: the booked slot must render as a real Asia/Kolkata date and time.
+    assert.ok(!/Invalid Date/i.test(confirmText), 'Confirmation must never show "Invalid Date"');
+    assert.ok(/\d{4}/.test(confirmText), 'Confirmation must show the appointment year');
+    assert.ok(/\d{1,2}:\d{2}\s?(AM|PM)/i.test(confirmText), 'Confirmation must show the appointment time');
+    console.log('  ✓ Full patient flow completed with a valid IST booking date and time');
+    await cdp.captureScreenshot('booking-confirmation-390x844.png');
 
     // Doctor Portal via Client-Side SPA link
     await cdp.eval(`
@@ -772,7 +801,11 @@ async function runVerification() {
     assert.ok(urgentDetailText.includes('Routine Intake Terminated Immediately'), 'Urgent detail emphasizes routine intake termination');
     assert.ok(urgentDetailText.includes('Summary is explicitly null for urgent_partial'), 'Summary null invariant acknowledged');
     assert.ok(urgentDetailText.includes('Read-only cross-visibility') || urgentDetailText.includes('Acknowledge'), 'Cross-visibility authority check matches OD-03');
+    // P0 D-01: warning flags come from the report row, never a hardcoded "None".
+    assert.ok(urgentDetailText.includes('Emergency rule:'), 'Warning flag chip must be data-driven');
+    assert.ok(!/Warning flags?\s*None/i.test(urgentDetailText), 'Flagged report must never say "Warning flags: None"');
     console.log('  ✓ General medicine read-only cross-visibility for emergency triage confirmed');
+    await cdp.captureScreenshot('doctor-urgent-warning-flags-1280x820.png');
     verificationResults.push({ step: 'Emergency flow, 112 guidance & doctor urgent triage cross-visibility', status: 'PASS' });
 
     // 13. Keyboard Activation (Enter/Space on stat cards and table rows)

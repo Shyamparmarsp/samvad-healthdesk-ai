@@ -45,6 +45,13 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
 
   const isReadOnly = mode === 'submitted';
 
+  const EditIcon = () => (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-4 h-4">
+      <path d="M2.66663 10.6666L2.1333 13.8666L5.3333 13.3333L12.6666 5.99996C13.0203 5.64634 13.2189 5.16672 13.2189 4.66662C13.2189 4.16653 13.0203 3.68691 12.6666 3.33329C12.313 2.97967 11.8334 2.78101 11.3333 2.78101C10.8332 2.78101 10.3536 2.97967 9.99997 3.33329L2.66663 10.6666Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M9 4.33337L11.6667 7.00004" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+
   const startEdit = (field: CorrectableField, currentVal: any) => {
     setEditingField(field);
     setEditValue(Array.isArray(currentVal) ? currentVal.join(', ') : String(currentVal || ''));
@@ -191,9 +198,11 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
                     type="button"
                     onClick={() => startEdit(row.field, row.value)}
                     disabled={isSubmitting}
-                    className="text-xs font-semibold text-[#1f2a44] hover:underline px-2 py-1 disabled:opacity-50"
+                    aria-label={`Edit ${row.label}`}
+                    className="group p-1.5 rounded-lg text-[#4a5470] hover:text-[#1f2a44] hover:bg-slate-200/50 transition-colors disabled:opacity-50 focus:outline-none"
                   >
-                    {t.common.edit}
+                    <EditIcon />
+                    <span className="sr-only">{t.common.edit}</span>
                   </button>
                 )}
               </div>
