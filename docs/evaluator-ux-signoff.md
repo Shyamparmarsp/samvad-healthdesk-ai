@@ -5,7 +5,7 @@
 **Evaluated Branch:** `feat/frontend` in `../samvad-frontend`  
 **Integration Branch Reference:** `release/samvad-rc1` in `../samvad-integration`  
 **Backend Branch Reference:** `feat/backend` in `../samvad-backend`  
-**Committed Frontend HEAD:** `ade2ef7`  
+**Committed Frontend HEAD:** `a5b9715`  
 **Product Name in UI:** **Samvad HealthDesk AI**  
 **Formal Release Verdict:** **PASS WITH DOCUMENTED LIMITATIONS**
 
