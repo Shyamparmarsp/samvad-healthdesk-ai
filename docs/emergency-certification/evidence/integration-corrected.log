@@ -1,0 +1,77 @@
+PASS [HTTP+DB] start_session returns a session and the first question — status=200 question=name
+PASS [HTTP+DB] resume_session returns the same session
+PASS [HTTP+DB] consent with a stale version is rejected — status=400
+PASS [HTTP+DB] consent with the current version is accepted — status=200
+PASS [HTTP+DB] ten answers complete the intake — turns=10 complete=true
+PASS [HTTP+DB] gender 'Prefer not to say' is stored as declined with no value — {"value":null,"status":"declined"}
+PASS [STUB] draft routing used the stubbed Groq suggestion and mapped a doctor — {"doctor_id":"999a7021-ce4f-4098-b8ba-629fddb48f6c","doctor_name":"Dr. Kabir Mehta","is_fallback":false,"preliminary":true,"department_key":"orthopedics","department_name":"Orthopedics"}
+PASS [HTTP+DB] summary is present and restates only patient facts
+PASS [HTTP+DB] correction of an allowlisted field is applied
+PASS [HTTP+DB] correction of a protected field is rejected — status=400 error=field_not_editable
+PASS [HTTP+DB] submit_report returns the submitted row — status=200
+PASS [HTTP+DB] another patient cannot resume the session (404) — status=404
+PASS [HTTP+DB] another patient cannot read the report through REST — rows=0
+PASS [HTTP+DB] consent No ends the session
+PASS [HTTP+DB] no health answer is accepted after consent No — status=409 error=invalid_state
+PASS [HTTP+DB] a deterministic emergency stops intake and flags the turn — status=emergency
+PASS [HTTP+DB] the urgent report has no generated summary
+PASS [HTTP+DB] an ambiguous statement asks the fixed clarification — question=emergency_clarification
+PASS [HTTP+DB] an unclear clarification keeps the question and never claims safety — error=none
+PASS [HTTP+DB] ‘No’ continues intake without claiming safety — question=duration
+PASS [STUB] audio returns transcript_preview and does not advance the turn — turn_count=0
+PASS [HTTP+DB] the preview field name is unique
+PASS [HTTP+DB] confirming the preview accepts exactly one turn — turn_count=1
+PASS [HTTP+DB] webm audio is rejected before any provider call — status=400
+PASS [HTTP+DB] speak never synthesises a cached scripted prompt — status=200
+PASS [HTTP+DB] speak rejects a question that is not current — status=409
+PASS [HTTP+DB] speak rejects a session owned by another patient (404) — status=404
+PASS [STUB] speak returns audio for an adaptive current question — status=200 bytes=8
+PASS [STUB] a provider failure returns the approved question as text — status=200
+PASS [STUB] malformed model output falls back to General Medicine — {"doctor_id":"229fcd40-8d12-48a2-b313-513240b4e217","doctor_name":"Dr. Aditi Rao","is_fallback":true,"preliminary":true,"department_key":"general_medicine","department_name":"General Medicine"}
+PASS [HTTP+DB] a submitted report is hidden from a doctor it is not assigned to — rows=0
+PASS [HTTP+DB] the assigned doctor can read the submitted report — rows=1
+PASS [HTTP+DB] draft reports are never visible — ["urgent_partial","urgent_partial"]
+PASS [HTTP+DB] General Medicine doctor sees the urgent partial report — ["urgent_partial","urgent_partial"]
+PASS [HTTP+DB] Emergency doctor sees only the documented emergency reports — ["urgent_partial","urgent_partial"]
+PASS [HTTP+DB] the assigned Orthopedics doctor sees the routed report — ["submitted"]
+PASS [HTTP+DB] no doctor sees a draft or an unassigned report — ["submitted"]
+PASS [HTTP+DB] an unrelated doctor sees no reports — rows=0
+PASS [HTTP+DB] the Emergency doctor cannot read another department's conversation — rows=0
+PASS [HTTP+DB] the Emergency doctor can read the urgent conversation — rows=3
+PASS [Not tested / blocked] Mark Reviewed is not implemented in this milestone — mark_report_reviewed is an M4 RPC; no endpoint exists to exercise
+PASS [HTTP+DB] the assigned doctor marks a submitted report reviewed — status=200
+PASS [HTTP+DB] a repeated review is idempotent and keeps the first timestamp — first=2026-11-02T13:39:43.762633+00:00 second=2026-11-02T13:39:43.762633+00:00
+PASS [HTTP+DB] review changes only the two review fields
+PASS [HTTP+DB] reviewed_by records the authenticated doctor identity — reviewed_by=set
+PASS [HTTP+DB] an unassigned doctor is rejected — status=403
+PASS [HTTP+DB] a patient is rejected — status=403
+PASS [HTTP+DB] a draft report is rejected — status=400
+PASS [HTTP+DB] a General Medicine doctor is denied on an emergency report (OD-03 interim) — status=403
+PASS [HTTP+DB] the Emergency doctor reviews the eligible emergency report — status=200
+PASS [HTTP+DB] emergency review changes neither status nor booking eligibility — "urgent_partial"
+
+Stub call counts: groq=813 prisma=49 timbre=55
+{
+  "facts": {
+    "sessionA": "ba7d8bc4-e6dc-4cae-babd-81c6a1c4cc8d",
+    "reportA": "f0d9c3e2-6a73-4674-9309-ac10b7bf3301",
+    "sessionC": "15b15243-0222-4bea-a8eb-cb3d2b4b36e9",
+    "sessionD": "e792b6ba-8a1a-472e-8001-73180da12d87",
+    "sessionE": "2bf5a639-b0c6-4f0e-8cf5-6077cfb5ef5d",
+    "sessionF": "c5163ac6-391d-4473-93ee-5a091e6380d4",
+    "sessionG": "52cd1486-722c-4e10-a6d1-d527905401a2",
+    "stub": {
+      "groq": "ok",
+      "prisma": "ok",
+      "timbre": "ok",
+      "prismaTranscript": "मुझे घुटने में दर्द है",
+      "ttsCalls": 55,
+      "groqCalls": 813,
+      "prismaCalls": 49
+    }
+  }
+}
+PASS [STUB] the local stub served every provider-dependent path — groq=813 prisma=49 timbre=55
+
+52/52 scenarios passed
+exit=0

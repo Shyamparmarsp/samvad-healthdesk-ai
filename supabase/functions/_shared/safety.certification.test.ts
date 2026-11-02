@@ -236,3 +236,62 @@ Deno.test("cert: clarification resolution never converts an unclear answer into 
   assertEqual(resolveClarification(""), "unresolved", "empty");
   assertEqual(resolveClarification("   "), "unresolved", "whitespace");
 });
+
+Deno.test("cert: a negation outside the mention's clause segment does not cancel it", () => {
+  const cases: Array<[string, "clear" | "ambiguous"]> = [
+    ["I cannot breathe but I have no fever", "clear"],
+    ["No fever but I cannot breathe", "clear"],
+    ["I have chest pain but no fever", "ambiguous"],
+    ["I have chest pain and no fever", "ambiguous"],
+    ["I have chest pain with no fever", "ambiguous"],
+    ["I have severe chest pain and no fever", "clear"],
+    ["मुझे बुखार नहीं है और सांस नहीं आ रही", "clear"],
+  ];
+  for (const [text, expected] of cases) {
+    const match = classifyAnswer(text);
+    assertEqual(match.kind, expected, `scoped negation: ${text}`);
+  }
+
+  const stillNegated = [
+    "I have no chest pain and no fever",
+    "I do not think I have chest pain",
+    "I have never in my life had chest pain",
+    "मुझे सांस लेने में दिक्कत नहीं है",
+    "मुझे सीने में दर्द नहीं है",
+  ];
+  for (const text of stillNegated) {
+    assertEqual(classifyAnswer(text).kind, "none", `governing negation: ${text}`);
+  }
+
+  // A contrast before the mention must not import its negation either.
+  assertEqual(classifyAnswer("I am not sure but I have chest pain").kind, "ambiguous", "contrast segment");
+});
+
+Deno.test("cert: every occurrence is considered, not only the first", () => {
+  for (const text of [
+    "no chest pain, but chest pain now",
+    "no chest pain. chest pain now",
+  ]) {
+    const match = classifyAnswer(text);
+    assertEqual(match.kind, "ambiguous", `later positive occurrence: ${text}`);
+    if (match.kind === "ambiguous") {
+      assert(match.ruleIds.includes("severe_chest_pain"), "chest rule present");
+    }
+  }
+});
+
+Deno.test("cert: single-quoted examples are inert and apostrophes still work", () => {
+  for (const text of [
+    "The form says 'having a seizure now'",
+    "My friend told me to say 'I cannot breathe'",
+    "I said 'no chest pain'",
+  ]) {
+    assertEqual(classifyAnswer(text).kind, "none", `quoted example: ${text}`);
+  }
+  assertEqual(classifyAnswer("I can't breathe").kind, "clear", "contraction still triggers");
+  assertEqual(classifyAnswer("I don't have chest pain").kind, "none", "contraction negation");
+  assertEqual(classifyAnswer("the patient's chest pain").kind, "ambiguous", "possessive apostrophe");
+
+  assert(!stripQuoted("a 'b c' d").includes("b c"), "quoted span removed");
+  assertEqual(stripQuoted("don't stop"), "don't stop", "contraction preserved");
+});

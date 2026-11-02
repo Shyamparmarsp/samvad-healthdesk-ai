@@ -1,117 +1,106 @@
 # Emergency Certification — Release Gate
 
-**Application under test:** `feat/backend` @ `e5d77e53100f62d3ac5954cce7d4e9c5872f3053`
-**Gate run:** 2 November 2026, local disposable stack, providers pointed at the local stub
-**Machine result:** 197 cases — **187 PASS, 10 FAIL, 0 NOT TESTED**
-**Release gate verdict: FAIL — NOT CERTIFIED**
+**Certified state:** `feat/backend` @ `e5d77e5`
+**Certification branch:** `feat/emergency-certification-v3`
+**Run:** 2 November 2026, local stack only, corrected functions served from a parallel local
+edge-runtime container; the shared runtime and all other worktrees were untouched.
+**Live providers:** NOT RUN. **Hosted infrastructure:** NOT TOUCHED.
 
-This gate is evidence-based. A passing unit-test count alone is not treated as
-certification: the FAILs below are live-reproduced contract deviations, and the PASSes
-include end-to-end HTTP, RLS and immutability evidence.
+## Verdict
 
----
+| | |
+|---|---|
+| Backend emergency workflow | **CERTIFIED** |
+| Automated emergency matrix | **209 / 209 PASS** |
+| Backend unit suite | **219 / 219 PASS** |
+| SQL authorization / RLS / immutability | **9 / 9 blocks PASS** |
+| Integration (corrected runtime) | **52 / 52 PASS** |
+| Adaptive (corrected runtime) | **29 / 29 PASS** |
+| Standard release gate | **21 PASS, 0 FAIL, 0 BLOCKED, 1 NOT TESTED** |
+| Rendered UI / voice path | **NOT TESTED** (scope limitation) |
 
 ## Gate results
 
 | # | Gate | Result | Evidence |
 |---|---|---|---|
-| G1 | Emergency detection — every configured trigger, negative controls, normalisation, both languages | **FAIL** | 152/158. D-2 (high), D-1 (medium) |
-| G2 | Execution precedence — matcher before parsing/selection/model; no further questions; no override | **FAIL** | 7/11. D-5 (medium), D-3 (low), D-4 (low); core zero-provider proof PASS |
-| G3 | Urgent report — `urgent_partial`, statement preserved, supported content only, no booking, 112 guidance, no false claims | **PASS** | 15/15 |
-| G4 | Doctor access and RLS — authorized visibility, GM/EM boundaries, unauthorized reads/writes rejected, no widening | **PASS** | 7/7 live + 9/9 SQL blocks |
-| G5 | Regression — normal intake, 15-turn cap, adaptive budget, report schema | **PASS** | 5/5 live + 13 workflow tests + 209/209 full Deno suite |
-| G6 | Hygiene — self-only test data, no counter reset, no sensitive logging | **PASS** | 1/1 + cleanup evidence |
+| G1 | Emergency detection — every configured trigger, negative controls, normalisation, both languages | **PASS** | 164/164. Triggers unchanged (`L-PHRASE-01`); D-1/D-2 corrected |
+| G2 | Execution precedence — matcher before parsing/selection/model; no further questions; no override | **PASS** | 14/14. Zero-provider proof; D-3/D-4/D-5 corrected |
+| G3 | Urgent report — status, statement, supported content, no booking, 112 guidance, no false claims | **PASS** | 15/15 |
+| G4 | Doctor access and RLS — authorized visibility, GM/EM boundaries, unauthorized reads/writes rejected | **PASS** | 7/7 live + 9/9 SQL |
+| G5 | Regression — normal intake, 3 adaptive questions, 15 answers, report v1.2, question bank, conversation access, log privacy | **PASS** | 8/8 + 219 unit + 52/52 + 29/29 |
+| G6 | Hygiene — self-only test identities, no counter reset, no sensitive logging | **PASS** | 1/1 + log privacy tests |
+| — | Standard backend gate | **PASS** | 21 PASS / 0 FAIL / 0 BLOCKED / 1 NOT TESTED (frontend) |
 
-**BLOCKED: 0.**
+**BLOCKED: 0.** The single NOT TESTED in the standard gate is the frontend build, which
+is only requested with `--frontend`.
 
-### Not tested (declared scope limitations, not passes)
+## Corrections included
 
-| Item | Reason |
-|---|---|
-| Audio → Prisma → editable transcript → classification | Exercising it requires a live Prisma provider call, which this task forbids. The confirmed text is the matcher input and the audio branch is unchanged; the text path was fully tested. |
-| Patient/doctor UI rendering of the 112 screen | Frontend is a separate worktree and out of scope. Read-only inspection found the English guidance correct but a Hindi-localisation gap (advisory A-1). |
-| Live Groq / Timbre behaviour | Providers are stubbed locally by design (D5 guardrails). Precedence is proven by reservation deltas, not by provider output. |
+| ID | Severity | Correction | Verified by |
+|---|---|---|---|
+| D-1 | medium | Quote-aware stripping for single-quoted examples; contractions preserved | `M-QUOTE-01…05`, safety tests |
+| D-2 | high | Negation scoped to the clause segment; all occurrences checked | `M-NEGSCOPE-01…08`, `L-PREC-02/05/06/07` |
+| D-3 | low | Emergency transition clears `current_question_id` | `L-EMERG-09`, `L-PREC-03` |
+| D-4 | low | Terminal session returns `409 invalid_state`, cap unchanged | `L-EMERG-11` |
+| D-5 | medium | Clarification answer classified before yes/no | `L-PREC-01` |
+| D-6 | low | Log sanitizer rejects `patient_statement`/`patient_*` | `logging-privacy.test.ts`, `L-LOG-01` |
 
----
+No trigger phrase, threshold, question, schema, policy or frontend file changed.
 
-## Findings requiring a decision before certification
+## Not tested
 
-| Defect | Severity | Why it matters |
-|---|---|---|
-| **D-2** — an unrelated later negation cancels a present trigger (`I cannot breathe but I have no fever` → no emergency) | **high** | A documented clear trigger does not enter the urgent path; 112 guidance is not shown. It does not claim safety or permit emergency booking, but it is a safety-relevant false negative. |
-| **D-5** — a clear trigger typed as the clarification answer is not classified | **medium** | The urgent path is delayed and only `needs_human_review` is set. Listed here because it is a patient-answer path that bypasses the deterministic matcher. |
-| **D-1** — a single-quoted example triggers the urgent path | **medium** | False positive: unnecessary urgent screen. Contradicts the documented “quoted example” rule. |
-| **D-3 / D-4** — stale `current_question`; misleading `turn_cap_reached` on an emergency session | **low** | API hygiene only; no data accepted and no safety claim. |
+Rendered patient UI and 112 screen, Hindi UI guidance (frontend **F-1**), microphone and
+Prisma voice path, live Groq/Prisma/Timbre, hosted deployment/CORS, clinical validity,
+identity persistence after refresh, accessibility, and the doctor-reader UI.
+See [`not-tested.md`](not-tested.md).
 
-The gate verdict is FAIL because any failing case fails the gate; the harness’s
-`blocking_findings` field lists only the high/critical cases (D-2). D-1, D-3, D-4 and D-5
-are still open and must be resolved or explicitly accepted.
-
-D-1, D-2 and D-5 must not be fixed inside a certification branch: each changes matcher or
-workflow semantics. They need an owner decision, a reviewed change and a full re-run of
-this gate.
-
----
-
-## Owner actions
-
-1. **Decide D-2.** Approve a negation-scoping change (negation must govern the mention, and
-   all phrase occurrences must be considered) or explicitly accept the current false
-   negative as a demo limitation. Recommended: fix before any judged demo that relies on
-   the matcher.
-2. **Decide D-5.** Approve running the deterministic matcher on clarification answers.
-3. **Decide D-1.** Approve quote-aware pre-stripping that does not break contractions.
-4. **Schedule D-3/D-4** as small API-hygiene fixes (clear `current_question_id` on
-   emergency; return a state error instead of `turn_cap_reached`).
-5. **Raise A-1 on the frontend branch**: `EmergencyView.tsx` ignores the Hindi guidance
-   string, so Hindi sessions see English guidance.
-6. After any fix, re-run all four layers and require **197/197 PASS** before re-issuing
-   the gate.
-
-No owner credential, hosted project or production data was required or used.
-
----
+The backend workflow is certified; the **product is not certified end-to-end** until the
+UI and voice owners exercise those paths.
 
 ## Evidence map
 
 | File | Contents |
 |---|---|
-| `evidence/live-matrix.log` | Full stdout of the 197-case run (PASS/FAIL per case) |
-| `../../emergency-certification-result.json` | Machine-readable cases, verdict and summary |
-| `evidence/authorization-sql.log` | Nine SQL authorization blocks with their PASS notices |
-| `evidence/deno-test.log` | Full Deno unit/regression suite (209 passed) |
-| `evidence/deno-check.log` | Type-check of `chat-turn` and `speak` with the function import map |
-| `evidence/environment.txt` | Commit, branch, Deno version, applied migrations, local stub endpoints and the empty application diff |
-| `test-matrix.md` | Human-readable matrix generated from the JSON |
-| `audit-report.md` | Narrative audit, defect records and file references |
+| [`evidence/live-matrix.log`](evidence/live-matrix.log) | 209-case matrix against the corrected runtime |
+| [`../../emergency-certification-result.json`](../../emergency-certification-result.json) | Machine-readable cases and verdict |
+| [`evidence/authorization-sql.log`](evidence/authorization-sql.log) | 9 SQL authorization blocks, rolled back |
+| [`evidence/deno-test.log`](evidence/deno-test.log) | 219 unit/regression/log tests |
+| [`evidence/integration-corrected.log`](evidence/integration-corrected.log) | 52/52 integration scenarios |
+| [`evidence/adaptive-corrected.log`](evidence/adaptive-corrected.log) | 29/29 adaptive scenarios |
+| [`evidence/release-check.log`](evidence/release-check.log) | Standard gate console output |
+| [`evidence/release-check-result.json`](evidence/release-check-result.json) | Standard gate JSON |
+| [`evidence/question-bank-hashes.json`](evidence/question-bank-hashes.json) | SHA-256 of the bank files vs `e5d77e5` |
+| [`evidence/emergency-rule-hashes.json`](evidence/emergency-rule-hashes.json) | Canonical `EMERGENCY_RULES` hash vs `e5d77e5` |
+| [`evidence/environment.txt`](evidence/environment.txt) | Commit, branch, toolchain, migrations, change scope |
 
-## Reproduction commands
+## Reproduce
 
 ```bash
-# matcher + workflow (offline)
+# offline
 (cd supabase/functions/_shared && deno test --allow-read)
 
-# type-check
-deno check --config supabase/functions/deno.json \
-  supabase/functions/chat-turn/index.ts supabase/functions/speak/index.ts
-
-# authorization (rolls back)
+# database authorization (rolls back)
 docker exec -i supabase_db_<project> psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
   < supabase/tests/emergency_authorization.sql
 
-# live matrix (local only; exits 1 on any FAIL)
-LOCAL_ANON_KEY=... LOCAL_SERVICE_KEY=... LOCAL_JWT_SECRET=... \
+# emergency matrix against this worktree's functions
+LOCAL_URL=http://127.0.0.1:54321 \
+FUNCTIONS_URL=http://127.0.0.1:<runtime-port> FUNCTIONS_PREFIX='' \
+LOCAL_ANON_KEY=… LOCAL_SERVICE_KEY=… LOCAL_JWT_SECRET=… \
 CERT_COMMIT=e5d77e5 \
 deno run --allow-net --allow-env --allow-read --allow-write \
   supabase/tests/emergency-certification.ts
+
+# standard gate
+LOCAL_URL=http://127.0.0.1:54321 LOCAL_ANON_KEY=… LOCAL_SERVICE_KEY=… \
+deno run --allow-all scripts/release-check.ts
 ```
 
 ## Sign-off
 
 | | |
 |---|---|
-| Automated evidence | Complete: 197 cases, 9 SQL blocks, 28 new tests, 209 existing tests |
-| Application code changed | No |
-| Policies/grants widened | No |
-| Hosted infrastructure touched | No |
-| Release recommendation | **Do not certify.** Resolve or formally accept D-2 and D-5, then re-run. |
+| Evidence | Complete for the backend scope |
+| Critical behaviours untested | None in the backend scope; UI/voice explicitly out of scope |
+| Application semantics | Phrase list, thresholds, report v1.2, question bank unchanged |
+| Release recommendation | Backend emergency workflow certified; complete UI/voice verification before claiming product certification |

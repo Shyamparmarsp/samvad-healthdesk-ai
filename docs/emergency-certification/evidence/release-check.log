@@ -1,0 +1,34 @@
+Release check — prerequisites
+  local API      up (http://127.0.0.1:54321)
+  edge functions up
+  provider stub  up (http://127.0.0.1:8787)
+  database       up (supabase_db_samvad-backend)
+
+PASS       deno check chat-turn + speak — type check clean (572 ms)
+PASS       deno unit tests — 219 passed, 0 failed (1368 ms)
+PASS       question bank validation (150, bilingual) — 150 questions valid (21 ms)
+PASS       question bank reviewer dashboard — CSV ids match the bank (26 ms)
+PASS       contract fixtures (17 canonical) — 17 fixtures valid (39 ms)
+PASS       secret scan (tracked files) — no key-shaped strings in tracked files (40 ms)
+PASS       provider harness default mode makes no request — no --allow-net; report mode=non-live requests=0 (21 ms)
+PASS       provider harness live mode fails closed without keys — refused before any request (exit 2) (19 ms)
+PASS       database release verification (read-only) — 29/29 pass, 0 fail, 0 blocked (1341 ms)
+PASS       sql suite: rls — 5 assertions passed (135 ms)
+PASS       sql suite: constraints — 4 assertions passed (116 ms)
+PASS       sql suite: mark_reviewed — 10 assertions passed (178 ms)
+PASS       sql suite: booking — 4 assertions passed (124 ms)
+PASS       sql suite: ist_boundary — 4 assertions passed (116 ms)
+PASS       sql suite: doctor_appointments — 5 assertions passed (125 ms)
+PASS       sql suite: report_immutability — 5 assertions passed (124 ms)
+PASS       clean-room migration rehearsal — 29/29 rehearsal checks; 11 migrations applied (3123 ms)
+PASS       deployment configuration preflight — 17/22 pass, 0 fail, 5 owner-blocked (201 ms)
+PASS       demo preflight — 16/16 checks (247 ms)
+PASS       reset safety self-test — 5 refusal cases passed (19 ms)
+PASS       demo smoke (integration + adaptive) — integration 52/52, adaptive 29/29; identities created=20 deleted=20 (6047 ms)
+NOT TESTED typescript + tests + build — not requested; run with --frontend (0 ms)
+
+Summary: 21 PASS, 0 FAIL, 0 BLOCKED, 1 NOT TESTED
+Required checks failing: 0
+Live providers: NOT TESTED (no live call is made).
+Wrote release-check-result.json
+exit=0

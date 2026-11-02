@@ -145,12 +145,17 @@ PASS M-NORM-07 — Case/whitespace/punctuation/orthography variant still matches
 PASS M-NORM-08 — Case/whitespace/punctuation/orthography variant still matches
 PASS M-QUOTE-01 — Double-quoted example does not trigger
 PASS M-QUOTE-02 — Double-quoted example does not trigger
-FAIL M-QUOTE-03 — Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1)
-FAIL M-QUOTE-04 — Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1)
-FAIL M-NEGSCOPE-01 — A negation of an unrelated symptom does not cancel the trigger mention
-FAIL M-NEGSCOPE-02 — A negation of an unrelated symptom does not cancel the trigger mention
-FAIL M-NEGSCOPE-03 — A negation of an unrelated symptom does not cancel the trigger mention
-FAIL M-NEGSCOPE-04 — A negation of an unrelated symptom does not cancel the trigger mention
+PASS M-QUOTE-03 — Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1)
+PASS M-QUOTE-04 — Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1)
+PASS M-QUOTE-05 — Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1)
+PASS M-NEGSCOPE-01 — A negation of an unrelated symptom does not cancel the trigger mention
+PASS M-NEGSCOPE-02 — A negation of an unrelated symptom does not cancel the trigger mention
+PASS M-NEGSCOPE-03 — A negation of an unrelated symptom does not cancel the trigger mention
+PASS M-NEGSCOPE-04 — A negation of an unrelated symptom does not cancel the trigger mention
+PASS M-NEGSCOPE-05 — A negation of an unrelated symptom does not cancel the trigger mention
+PASS M-NEGSCOPE-06 — A negation of an unrelated symptom does not cancel the trigger mention
+PASS M-NEGSCOPE-07 — A negation of an unrelated symptom does not cancel the trigger mention
+PASS M-NEGSCOPE-08 — A negation of an unrelated symptom does not cancel the trigger mention
 PASS M-EMPTY-01 — Empty/whitespace answer is not a match
 PASS M-ORDER-01 — Declared rule order decides the rule id when two rules match
 PASS M-DET-01 — Classification is deterministic across repeated calls
@@ -169,9 +174,9 @@ PASS L-EMERG-05 — Emergency routing uses the seeded Emergency doctor and stays
 PASS L-EMERG-06 — Only reported information is present; unreached fields stay explicit
 PASS L-EMERG-07 — No provider call is made on the trigger turn
 PASS L-EMERG-08 — The trigger turn is not accepted as a normal answer and no further question is selected
-FAIL L-EMERG-09 — After an emergency, the response advertises no further question
+PASS L-EMERG-09 — After an emergency, the response advertises no further question
 PASS L-EMERG-10 — A further answer after the emergency is refused
-FAIL L-EMERG-11 — The refusal uses a state error, not a turn-cap error
+PASS L-EMERG-11 — The refusal uses a state error, not a turn-cap error
 PASS L-EMERG-12 — submit_report rejects an emergency session
 PASS L-EMERG-13 — Routine slots and booking are suppressed for an urgent report
 PASS L-EMERG-14 — Resume restores the emergency state and report without re-offering Submit
@@ -183,8 +188,11 @@ PASS L-AMB-03 — No report is created while the clarification is unresolved
 PASS L-AMB-04 — An unclear clarification is never treated as safe
 PASS L-AMB-05 — 'No' negates only that candidate and never clears the review flag
 PASS L-AMB-06 — 'Yes' confirms the candidate and creates the urgent report
-FAIL L-PREC-01 — A clear trigger in a clarification answer still enters the urgent path
-FAIL L-PREC-02 — A present clear trigger is not cancelled by an unrelated negation
+PASS L-PREC-01 — A clear trigger in a clarification answer still enters the urgent path
+PASS L-PREC-02 — A present clear trigger is not cancelled by an unrelated negation
+PASS L-PREC-05 — A negation in an earlier clause segment does not cancel a later trigger
+PASS L-PREC-06 — An unrelated later negation no longer suppresses the clarification
+PASS L-PREC-07 — A later positive occurrence is evaluated after an earlier negated one
 PASS L-OWN-01 — Another patient cannot resume or read the urgent session
 PASS L-OWN-02 — The patient cannot read server-owned reports or messages directly
 PASS L-CLAIM-01 — The response does not claim any emergency service was contacted or dispatched
@@ -192,6 +200,10 @@ PASS L-CLAIM-02 — Approved plain-text 112 guidance is present in both language
 PASS L-SPEAK-01 — No paid TTS call is made for an emergency session
 PASS L-LIMIT-01 — Answer-turn and adaptive-question limits are unchanged
 PASS L-SCHEMA-01 — Report schema version is unchanged
+PASS L-VERSION-01 — Report contract v1.2 remains the documented version
+PASS L-PHRASE-01 — No emergency trigger phrase was added, removed or rewritten
+PASS L-BANK-01 — Question bank files are byte-for-byte unchanged from e5d77e5
+PASS L-LOG-01 — Diagnostic log calls never carry patient statements or transcripts
 PASS L-CLEANUP-01 — The harness deletes only the identities it created
 PASS L-DOC-01 — General Medicine and Emergency doctors can read the urgent report; another department cannot
 PASS L-DOC-02 — Conversation access follows report access
@@ -199,7 +211,6 @@ PASS L-DOC-03 — Unauthorized writes are rejected
 PASS L-DOC-04 — Mark Reviewed authorisation (OD-03 interim)
 PASS L-DOC-05 — Review never unlocks an emergency report
 
-Summary: {"total":197,"pass":187,"fail":10,"notTested":0}
-Verdict: FAIL
-Blocking findings: M-NEGSCOPE-01, M-NEGSCOPE-02, M-NEGSCOPE-03, M-NEGSCOPE-04, L-PREC-02
+Summary: {"total":209,"pass":209,"fail":0,"notTested":0}
+Verdict: PASS
 Evidence written to emergency-certification-result.json

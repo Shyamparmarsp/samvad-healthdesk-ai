@@ -1,6 +1,6 @@
 # Emergency Flow Certification — Samvad HealthDesk AI
 
-Independent audit and automated certification of the deterministic demo emergency path.
+Independent, evidence-backed certification of the deterministic demo emergency workflow.
 
 > **Not clinically validated.** The matcher is a demonstration fixture, not triage. A
 > phrase list can miss emergencies and can produce false positives. A lack of a match
@@ -8,109 +8,110 @@ Independent audit and automated certification of the deterministic demo emergenc
 
 ## Verdict
 
-**NOT CERTIFIED — 187 PASS / 10 FAIL / 0 NOT TESTED in the automated matrix.**
+**Backend emergency workflow: CERTIFIED — 209 / 209 automated cases PASS.**
+Six documented deviations were reproduced and corrected (D-1 … D-6); no trigger phrase,
+clinical threshold, question-bank entry, schema, provider contract or frontend file was
+changed.
 
-Five defects were demonstrated. Two are safety-relevant matcher-sensitivity gaps
-(**D-2 high**, **D-5 medium**); one is a quoted-example false positive (**D-1 medium**);
-two are API-hygiene issues (**D-3 low**, **D-4 low**). No authorization defect, no
-booking bypass, no false notification claim and no data exposure was found.
+**Scope:** backend safety workflow (`chat-turn`, matcher, report, booking eligibility,
+RLS). The rendered UI and voice path are **NOT TESTED** here — see
+[`not-tested.md`](not-tested.md). The product is not certified end-to-end.
 
-Read in this order:
-
-| Document | Purpose |
-|---|---|
-| [`audit-report.md`](audit-report.md) | What was inspected, how, what was found, defect records |
-| [`test-matrix.md`](test-matrix.md) | All 197 automated cases: expected, actual, PASS/FAIL |
-| [`release-gate.md`](release-gate.md) | Gate-by-gate result, blocking findings and owner actions |
-| [`evidence/`](evidence/) | Raw run logs and the machine-readable result |
-
-## What was certified
+## Certified state
 
 | | |
 |---|---|
-| Repository | Samvad HealthDesk AI (one private repository) |
-| Base branch / commit | `feat/backend` @ `e5d77e53100f62d3ac5954cce7d4e9c5872f3053` |
-| Certification worktree | `../samvad-emergency-certification` |
-| Certification branch | `feat/emergency-certification-v2` |
-| Application code changed | **None.** Tests and documentation only. |
-| Database schema changed | **None.** No migration, grant or policy was edited. |
-| Frontend changed | **None.** |
-| Hosted infrastructure touched | **None.** Local disposable stack only. |
-| Live provider calls | **None.** `GROQ_BASE_URL`, `PRISMA_BASE_URL` and `TIMBRE_ENDPOINT` on the local stack point at the local provider stub. |
+| Base branch | `feat/backend` |
+| Base commit | `e5d77e53100f62d3ac5954cce7d4e9c5872f3053` |
+| Certification branch | `feat/emergency-certification-v3` |
+| Worktree | `../samvad-emergency-certification-v3` |
+| Application changes | corrected emergency handler/matcher/logging only |
+| Database schema / migrations / RLS | unchanged |
+| Question bank | byte-for-byte unchanged (SHA-256 manifest) |
+| Report contract | v1.2 / `schema_version` 1, unchanged |
+| Frontend | not modified (read-only inspection) |
+| Hosted infrastructure | not touched |
+| Live provider calls | none (local stub only) |
 
-### Branch-name note
+### Branch isolation note
 
-The requested branch name `feat/emergency-certification` already existed (checked out in
-the sibling worktree `../samvad-emergency-cert` at `e5717dd`). Because existing worktrees
-and branches must not be modified, the requested worktree path
-`../samvad-emergency-certification` was created from `e5d77e5` on the new branch
-`feat/emergency-certification-v2`. No commit was added to the existing branch and no
-existing worktree was touched.
+The requested worktree `../samvad-emergency-certification` and branch
+`feat/emergency-certification` already existed from earlier work, and the instructions
+require existing worktrees/branches to stay untouched. A new worktree and branch
+(`-v3`) were created at `e5d77e5`; the previous certification artefacts were carried
+forward at commit `86f7d5e` (tests/docs only, no application change). No existing branch
+or worktree was modified.
 
-## Test layers
+## Results
 
-1. **Matcher unit tests** — every configured English and Hindi clear phrase, every
-   ambiguous phrase, every opt-in Romanised phrase, negative controls, case/whitespace/
-   punctuation variants, determinism and clarification resolution.
-   `supabase/functions/_shared/safety.certification.test.ts` (15 tests).
-2. **Workflow/state-machine tests** — source-order proof that the matcher runs before
-   parsing, question selection, bank retrieval, Groq routing and draft generation, plus
-   the 15-turn cap, adaptive budget, completion criteria and report schema.
-   `supabase/functions/_shared/emergency-workflow.test.ts` (13 tests).
-3. **Live end-to-end matrix** — real `chat-turn` HTTP calls against the local stack:
-   normal intake, English and Hindi triggers, ambiguous → Yes/No/unclear, persistence,
-   slots/booking refusal, resume, ownership isolation, no-provider-on-trigger, doctor
-   reads through RLS, Mark Reviewed matrix.
-   `supabase/tests/emergency-certification.ts` (197 cases, writes
-   `emergency-certification-result.json`).
-4. **Database authorization suite** — RLS, grants, policy shape, immutability, RPC
-   authorization, permanent emergency ineligibility, structural invariants.
-   `supabase/tests/emergency_authorization.sql` (9 assertion blocks).
+| Suite | Result |
+|---|---|
+| Emergency certification matrix (mocked + live local HTTP) | **209 / 209 PASS** |
+| Backend Deno unit suite | **219 / 219 PASS** |
+| SQL authorization / RLS / immutability (9 blocks) | **PASS** |
+| Integration suite (52 scenarios, corrected runtime) | **52 / 52 PASS** |
+| Adaptive suite (29 scenarios, corrected runtime) | **29 / 29 PASS** |
+| Release gate | **21 PASS, 0 FAIL, 0 BLOCKED, 1 NOT TESTED** (frontend not requested) |
+
+## Documents
+
+| File | Purpose |
+|---|---|
+| [`architecture.md`](architecture.md) | Components and execution order |
+| [`trigger-matrix.md`](trigger-matrix.md) | Every English and Hindi trigger |
+| [`negative-controls.md`](negative-controls.md) | Ordinary statements, negation, quoting |
+| [`audit-report.md`](audit-report.md) | Requirement-by-requirement findings |
+| [`defects-and-corrections.md`](defects-and-corrections.md) | D-1 … D-6 with impact and tests |
+| [`test-matrix.md`](test-matrix.md) | All 209 automated cases |
+| [`not-tested.md`](not-tested.md) | Explicit exclusions and advisory F-1 |
+| [`release-gate.md`](release-gate.md) | Gate results and evidence |
+| `evidence/` | Raw logs, hashes, matrix JSON |
+
+## Request path in one line
+
+`chat-turn` verifies the JWT, loads the owned session, classifies the confirmed answer
+**before** parsing, question selection, adaptive retrieval or Groq, and returns an
+`urgent_partial` report with `current_question_id = null` when a rule fires.
 
 ## Reproduce
 
-Prerequisites: Docker, Deno, a **local** Supabase stack (`npx supabase@latest start`),
-and the five local test identities documented in `supabase/tests/README.md`
-(`patient-a@rls.test`, `patient-b@rls.test`, `doctor-gm@rls.test`, `doctor-em@rls.test`,
-`doctor-or@rls.test`) with doctor profile mappings.
+The local stack supplies Auth/PostgREST/DB. To exercise the corrected functions without
+disturbing the shared runtime, the certification used a parallel edge-runtime container
+with this worktree mounted:
 
 ```bash
-# 1. Offline matcher + workflow suites (no network, no database)
-cd supabase/functions/_shared
-deno test --allow-read                       # expect 209 passed
+# 1. offline matcher/workflow/logging tests
+(cd supabase/functions/_shared && deno test --allow-read)
 
-# 2. Type-check the two Edge Functions with the function import map
-cd ../../..
-deno check --config supabase/functions/deno.json \
-  supabase/functions/chat-turn/index.ts supabase/functions/speak/index.ts
-
-# 3. Database authorization suite (transaction rolls back)
+# 2. SQL authorization suite (rolls back)
 docker exec -i supabase_db_<project> psql -U postgres -d postgres -v ON_ERROR_STOP=1 \
   < supabase/tests/emergency_authorization.sql
 
-# 4. Live certification matrix (local targets only; refuses anything else)
+# 3. live matrix (functions served from this worktree; local targets only)
 LOCAL_URL=http://127.0.0.1:54321 \
-LOCAL_ANON_KEY=... LOCAL_SERVICE_KEY=... LOCAL_JWT_SECRET=... \
-CERT_COMMIT=$(git rev-parse e5d77e5) \
+FUNCTIONS_URL=http://127.0.0.1:<parallel-runtime-port> FUNCTIONS_PREFIX='' \
+LOCAL_ANON_KEY=… LOCAL_SERVICE_KEY=… LOCAL_JWT_SECRET=… \
+CERT_COMMIT=e5d77e5 \
 deno run --allow-net --allow-env --allow-read --allow-write \
   supabase/tests/emergency-certification.ts
 ```
 
-The harness creates its own throwaway anonymous identities, deletes only those, never
-resets a usage counter and never edits reference data. It exits `1` when any case fails,
-so it can be wired into a release gate as-is.
+`FUNCTIONS_URL` is optional; it defaults to `LOCAL_URL`. `FUNCTIONS_PREFIX` defaults to
+`/functions/v1`, which is correct for Kong; the direct runtime uses `''`.
 
-`LOCAL_JWT_SECRET` is required only for the caller-scoped doctor checks; without it those
-cases are reported `NOT TESTED`, never `PASS`.
+The harness creates its own anonymous identities and deletes only those. It never resets a
+usage counter, never edits reference data and never logs patient text.
 
-## Scope boundaries honoured
+## Corrections at a glance
 
-- No emergency phrase, threshold or rule ordering was invented, removed or rewritten.
-- No clinical threshold, diagnosis, treatment or recommendation was added.
-- The reviewed question bank was not modified.
-- The frontend was not modified.
-- No live provider request was made.
-- No patient statement or transcript is logged by the harness; only fixed demo phrases
-  and synthetic fixture text appear in the matrix.
-- Implementation code was left untouched. D-1 to D-5 are recorded for an owner decision
-  rather than silently changed, because each would alter matcher or workflow semantics.
+| ID | Severity | Correction |
+|---|---|---|
+| D-1 | medium | Single-quoted examples no longer trigger; contractions still work |
+| D-2 | high | An unrelated negation no longer cancels a present trigger; all occurrences evaluated |
+| D-3 | low | Emergency transition clears the stale `current_question_id` |
+| D-4 | low | Terminal sessions return `409 invalid_state`, not `turn_cap_reached` |
+| D-5 | medium | A clear trigger in the clarification answer enters the urgent path |
+| D-6 | low | Log sanitizer also rejects `patient_statement` / `patient_*` keys |
+
+No phrase was added, removed or rewritten: the canonical `EMERGENCY_RULES` hash equals the
+base commit (`L-PHRASE-01`).

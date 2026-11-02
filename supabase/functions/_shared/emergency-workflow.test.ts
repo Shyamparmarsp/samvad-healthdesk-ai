@@ -70,13 +70,41 @@ Deno.test("workflow: a clear match returns before any normal-answer path", () =>
   const branchEnd = indexOfOrFail(CHAT_TURN.slice(branchStart), "if (match.kind === \"ambiguous\") {");
   const branch = CHAT_TURN.slice(branchStart, branchStart + branchEnd);
 
-  assert(branch.includes("createEmergencyReport("), "urgent report is created inside the branch");
-  assert(branch.includes("response.emergency_triggered = true;"), "response marks the emergency");
-  assert(branch.includes("response.can_submit = false;"), "submit is disabled");
-  assert(branch.includes("return json(response);"), "branch returns immediately");
+  assert(branch.includes("respondWithEmergency("), "urgent response is produced inside the branch");
+  assert(branch.includes("return await respondWithEmergency("), "branch returns immediately");
   for (const forbidden of ["parseAnswer(", "nextQuestion(", "maybeAdaptiveQuestion(", "suggestDepartment(", "ensureDraftReport("]) {
     assert(!branch.includes(forbidden), `clear branch must not reach ${forbidden}`);
   }
+});
+
+Deno.test("workflow: a clear trigger in the clarification answer is classified before yes/no", () => {
+  const start = indexOfOrFail(CHAT_TURN, 'if (request.question_id === "emergency_clarification"');
+  const end = indexOfOrFail(CHAT_TURN.slice(start), "// Deterministic emergency evaluation");
+  const branch = CHAT_TURN.slice(start, start + end);
+
+  const classify = indexOfOrFail(branch, "const clearInClarification = classifyAnswer(text);");
+  const resolve = indexOfOrFail(branch, "const resolution = resolveClarification(text);");
+  assert(classify < resolve, "clear classification must precede the yes/no parser");
+  assert(branch.includes("clearInClarification.ruleId"), "the clear rule id is used");
+  assert(branch.includes("return await respondWithEmergency("), "a clear trigger enters the urgent path");
+});
+
+Deno.test("workflow: the emergency transition clears the stale current question", () => {
+  const start = indexOfOrFail(CHAT_TURN, "async function createEmergencyReport(");
+  const end = indexOfOrFail(CHAT_TURN.slice(start), "async function respondWithEmergency(");
+  const body = CHAT_TURN.slice(start, start + end);
+  assert(body.includes("current_question_id: null"), "current_question_id must be cleared");
+});
+
+Deno.test("workflow: cap and terminal-state refusals are distinct", () => {
+  const start = indexOfOrFail(CHAT_TURN, "async function handleSubmitTurn(");
+  const end = indexOfOrFail(CHAT_TURN.slice(start), "async function handleCorrectDraft(");
+  const body = CHAT_TURN.slice(start, start + end);
+  const guard = indexOfOrFail(body, "if (!canAcceptAnswer(session.answer_turn_count, session.status)) {");
+  const cap = indexOfOrFail(body, 'error: "turn_cap_reached"');
+  const state = indexOfOrFail(body, 'error: "invalid_state"');
+  assert(cap > guard, "cap refusal stays inside the guard");
+  assert(state > guard, "terminal-state refusal stays inside the guard");
 });
 
 Deno.test("workflow: adaptive selection refuses emergency and submitted sessions", () => {
@@ -92,7 +120,7 @@ Deno.test("workflow: adaptive selection refuses emergency and submitted sessions
 
 Deno.test("workflow: urgent report creation is emergency-scoped and never submitted", () => {
   const start = indexOfOrFail(CHAT_TURN, "async function createEmergencyReport(");
-  const end = indexOfOrFail(CHAT_TURN.slice(start), "async function handleStartSession(");
+  const end = indexOfOrFail(CHAT_TURN.slice(start), "async function respondWithEmergency(");
   const body = CHAT_TURN.slice(start, start + end);
 
   assert(body.includes("await emergencyRouting(admin)"), "uses the dedicated emergency routing helper");

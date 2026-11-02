@@ -1,0 +1,32 @@
+PASS knee concern routes to an Orthopedics question — ORTH-012
+PASS scripted questions ran before the bank question — turns=10
+PASS English session receives English text — Does the pain wake you at night?
+PASS unanswered adaptive question survives resume — ORTH-012
+PASS asked adaptive id is not repeated — ORTH-018
+PASS adaptive answer counts toward the turn limit — turns=11
+PASS rash concern routes to a Dermatology question — DERM-001
+PASS Hindi session receives stored Devanagari text — त्वचा की समस्या कब शुरू हुई?
+PASS emergency bypasses adaptive selection — emergency
+PASS General Medicine: concern routes to an appropriate bank — GM-001
+PASS General Medicine: department survives resume — GM-001
+PASS Abdominal pain (Medicine or Surgery): concern routes to an appropriate bank — GM-016
+PASS Abdominal pain (Medicine or Surgery): department survives resume — GM-016
+PASS Cardiology: concern routes to an appropriate bank — CARD-001
+PASS Cardiology: department survives resume — CARD-001
+PASS browser cannot inject a department — status=400
+PASS at most three adaptive answers are accepted — adaptive_answered=3
+PASS a fourth adaptive question is never selected — none
+PASS general_medicine draft: draft routing matches the persisted preliminary department — draft=general_medicine stored=general_medicine
+PASS general_medicine draft: report reached draft with a summary — can_submit=true
+PASS orthopedics draft: draft routing matches the persisted preliminary department — draft=orthopedics stored=orthopedics
+PASS orthopedics draft: report reached draft with a summary — can_submit=true
+PASS general_medicine or general_surgery draft: draft routing matches the persisted preliminary department — draft=general_medicine stored=general_medicine
+PASS general_medicine or general_surgery draft: report reached draft with a summary — can_submit=true
+PASS dermatology draft: draft routing matches the persisted preliminary department — draft=dermatology stored=dermatology
+PASS dermatology draft: report reached draft with a summary — can_submit=true
+PASS cardiology draft: draft routing matches the persisted preliminary department — draft=cardiology stored=cardiology
+PASS cardiology draft: report reached draft with a summary — can_submit=true
+PASS routing failure falls back to General Medicine — {"doctor_id":"229fcd40-8d12-48a2-b313-513240b4e217","doctor_name":"Dr. Aditi Rao","is_fallback":true,"preliminary":true,"department_key":"general_medicine","department_name":"General Medicine"}
+
+29/29 adaptive scenarios passed
+exit=0

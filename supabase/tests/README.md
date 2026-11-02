@@ -13,7 +13,7 @@
 | Booking over HTTP (PostgREST RPC) + concurrency | manual run | PASS — 1 booking, idempotent repeat, 1 winner in a 2-way race |
 | Doctor appointment reads (M4-S16-B) | `doctor_appointments.sql` | PASS — 5 blocks; table stays closed, RPC is doctor-scoped and returns past rows |
 | Emergency authorization and RLS certification | `emergency_authorization.sql` | PASS — 9 blocks; urgent-report visibility, GM/EM/other-department boundaries, no browser write path, Mark Reviewed matrix, terminal immutability, permanent unbookability |
-| Emergency flow certification matrix (live HTTP) | `emergency-certification.ts` | 187 PASS / 10 FAIL / 0 NOT TESTED — see `docs/emergency-certification/` |
+| Emergency flow certification matrix (live HTTP) | `emergency-certification.ts` | 209 PASS / 0 FAIL — corrected functions; see `docs/emergency-certification/` |
 | Atomic reservation, limit 5 | pgbench, 20 clients | 5 allowed / 15 denied, `used = 5` |
 | Atomic reservation, limit 14 | pgbench, 20 clients | 14 allowed / 6 denied, `used = 14` |
 
@@ -156,8 +156,8 @@ docker exec -i supabase_db_samvad-backend psql -U postgres -d postgres -v ON_ERR
 # B. Matcher + workflow contract (offline; included in the normal Deno suite)
 (cd supabase/functions/_shared && deno test --allow-read)
 
-# C. Live 197-case matrix (local target only; refuses non-local URLs; exits 1 on FAIL)
-LOCAL_URL=http://127.0.0.1:54321 \
+# C. Live 209-case matrix (local target only; refuses non-local URLs; exits 1 on FAIL)
+LOCAL_URL=http://127.0.0.1:54321 FUNCTIONS_URL=http://127.0.0.1:<runtime-port> FUNCTIONS_PREFIX='' \
 LOCAL_ANON_KEY="$ANON_KEY" LOCAL_SERVICE_KEY="$SERVICE_ROLE_KEY" \
 LOCAL_JWT_SECRET=... \
 deno run --allow-net --allow-env --allow-read --allow-write \

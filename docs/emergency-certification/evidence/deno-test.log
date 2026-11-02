@@ -1,230 +1,242 @@
 [0m[38;5;245mrunning 7 tests from ./contract.test.ts[0m
-contract: every published action fixture is accepted ... [0m[32mok[0m [0m[38;5;245m(642µs)[0m
-contract: transcript_preview is the only audio preview shape ... [0m[32mok[0m [0m[38;5;245m(108µs)[0m
-contract: consent version and wording are fixed ... [0m[32mok[0m [0m[38;5;245m(82µs)[0m
-contract: error codes are a closed set ... [0m[32mok[0m [0m[38;5;245m(39µs)[0m
-contract: correction allowlist and protected list are disjoint and complete ... [0m[32mok[0m [0m[38;5;245m(64µs)[0m
-contract: gender never carries a 'declined' value ... [0m[32mok[0m [0m[38;5;245m(50µs)[0m
-contract: a mismatched consent version is rejected end to end ... [0m[32mok[0m [0m[38;5;245m(78µs)[0m
+contract: every published action fixture is accepted ... [0m[32mok[0m [0m[38;5;245m(2ms)[0m
+contract: transcript_preview is the only audio preview shape ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
+contract: consent version and wording are fixed ... [0m[32mok[0m [0m[38;5;245m(360µs)[0m
+contract: error codes are a closed set ... [0m[32mok[0m [0m[38;5;245m(43µs)[0m
+contract: correction allowlist and protected list are disjoint and complete ... [0m[32mok[0m [0m[38;5;245m(59µs)[0m
+contract: gender never carries a 'declined' value ... [0m[32mok[0m [0m[38;5;245m(47µs)[0m
+contract: a mismatched consent version is rejected end to end ... [0m[32mok[0m [0m[38;5;245m(225µs)[0m
 [0m[38;5;245mrunning 13 tests from ./conversation.test.ts[0m
-conversation: fixed order cannot be skipped ... [0m[32mok[0m [0m[38;5;245m(261µs)[0m
-conversation: adaptive questions follow the declared order ... [0m[32mok[0m [0m[38;5;245m(78µs)[0m
-conversation: a model preference is honoured only for an unasked approved field ... [0m[32mok[0m [0m[38;5;245m(90µs)[0m
+conversation: fixed order cannot be skipped ... [0m[32mok[0m [0m[38;5;245m(226µs)[0m
+conversation: adaptive questions follow the declared order ... [0m[32mok[0m [0m[38;5;245m(70µs)[0m
+conversation: a model preference is honoured only for an unasked approved field ... [0m[32mok[0m [0m[38;5;245m(82µs)[0m
 conversation: parsing recognises declined, unknown and none ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
-conversation: gender 'Prefer not to say' is a handled refusal ... [0m[32mok[0m [0m[38;5;245m(84µs)[0m
-conversation: age must be a whole number ... [0m[32mok[0m [0m[38;5;245m(348µs)[0m
-conversation: list answers split on commas ... [0m[32mok[0m [0m[38;5;245m(9ms)[0m
-conversation: answers are written with the value/status invariant ... [0m[32mok[0m [0m[38;5;245m(115µs)[0m
-conversation: progress before completion ... [0m[32mok[0m [0m[38;5;245m(96µs)[0m
-conversation: progress at the cap with a complete intake still allows submission ... [0m[32mok[0m [0m[38;5;245m(83µs)[0m
-conversation: progress at the cap with an incomplete intake is End-only ... [0m[32mok[0m [0m[38;5;245m(38µs)[0m
-conversation: an emergency session can never submit ... [0m[32mok[0m [0m[38;5;245m(45µs)[0m
-conversation: the 15-answer cap is enforced ... [0m[32mok[0m [0m[38;5;245m(40µs)[0m
+conversation: gender 'Prefer not to say' is a handled refusal ... [0m[32mok[0m [0m[38;5;245m(76µs)[0m
+conversation: age must be a whole number ... [0m[32mok[0m [0m[38;5;245m(314µs)[0m
+conversation: list answers split on commas ... [0m[32mok[0m [0m[38;5;245m(8ms)[0m
+conversation: answers are written with the value/status invariant ... [0m[32mok[0m [0m[38;5;245m(113µs)[0m
+conversation: progress before completion ... [0m[32mok[0m [0m[38;5;245m(91µs)[0m
+conversation: progress at the cap with a complete intake still allows submission ... [0m[32mok[0m [0m[38;5;245m(72µs)[0m
+conversation: progress at the cap with an incomplete intake is End-only ... [0m[32mok[0m [0m[38;5;245m(33µs)[0m
+conversation: an emergency session can never submit ... [0m[32mok[0m [0m[38;5;245m(44µs)[0m
+conversation: the 15-answer cap is enforced ... [0m[32mok[0m [0m[38;5;245m(34µs)[0m
 [0m[38;5;245mrunning 6 tests from ./cors.test.ts[0m
-cors: allowed local origin is echoed ... [0m[32mok[0m [0m[38;5;245m(299µs)[0m
-cors: configured production origin is allowed, wildcard is ignored ... [0m[32mok[0m [0m[38;5;245m(63µs)[0m
-cors: unknown origin gets no permissive header ... [0m[32mok[0m [0m[38;5;245m(32µs)[0m
-cors: missing configuration fails closed for non-local origins ... [0m[32mok[0m [0m[38;5;245m(45µs)[0m
-cors: preflight responses ... [0m[32mok[0m [0m[38;5;245m(15ms)[0m
-cors: error responses keep the same CORS decision ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
-[0m[38;5;245mrunning 13 tests from ./emergency-workflow.test.ts[0m
-workflow: the matcher runs before parsing, question selection and providers ... [0m[32mok[0m [0m[38;5;245m(309µs)[0m
-workflow: a clear match returns before any normal-answer path ... [0m[32mok[0m [0m[38;5;245m(86µs)[0m
-workflow: adaptive selection refuses emergency and submitted sessions ... [0m[32mok[0m [0m[38;5;245m(61µs)[0m
-workflow: urgent report creation is emergency-scoped and never submitted ... [0m[32mok[0m [0m[38;5;245m(89µs)[0m
-workflow: submit_report rejects an emergency session ... [0m[32mok[0m [0m[38;5;245m(58µs)[0m
-workflow: no notification, dispatch or treatment claim exists in the backend paths ... [0m[32mok[0m [0m[38;5;245m(269µs)[0m
+cors: allowed local origin is echoed ... [0m[32mok[0m [0m[38;5;245m(281µs)[0m
+cors: configured production origin is allowed, wildcard is ignored ... [0m[32mok[0m [0m[38;5;245m(55µs)[0m
+cors: unknown origin gets no permissive header ... [0m[32mok[0m [0m[38;5;245m(29µs)[0m
+cors: missing configuration fails closed for non-local origins ... [0m[32mok[0m [0m[38;5;245m(30µs)[0m
+cors: preflight responses ... [0m[32mok[0m [0m[38;5;245m(22ms)[0m
+cors: error responses keep the same CORS decision ... [0m[32mok[0m [0m[38;5;245m(3ms)[0m
+[0m[38;5;245mrunning 16 tests from ./emergency-workflow.test.ts[0m
+workflow: the matcher runs before parsing, question selection and providers ... [0m[32mok[0m [0m[38;5;245m(291µs)[0m
+workflow: a clear match returns before any normal-answer path ... [0m[32mok[0m [0m[38;5;245m(61µs)[0m
+workflow: a clear trigger in the clarification answer is classified before yes/no ... [0m[32mok[0m [0m[38;5;245m(45µs)[0m
+workflow: the emergency transition clears the stale current question ... [0m[32mok[0m [0m[38;5;245m(53µs)[0m
+workflow: cap and terminal-state refusals are distinct ... [0m[32mok[0m [0m[38;5;245m(57µs)[0m
+workflow: adaptive selection refuses emergency and submitted sessions ... [0m[32mok[0m [0m[38;5;245m(54µs)[0m
+workflow: urgent report creation is emergency-scoped and never submitted ... [0m[32mok[0m [0m[38;5;245m(68µs)[0m
+workflow: submit_report rejects an emergency session ... [0m[32mok[0m [0m[38;5;245m(47µs)[0m
+workflow: no notification, dispatch or treatment claim exists in the backend paths ... [0m[32mok[0m [0m[38;5;245m(247µs)[0m
 workflow: can_submit is false for an emergency session even when complete ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
-workflow: the 15-answer cap and its End-only preview are unchanged ... [0m[32mok[0m [0m[38;5;245m(222µs)[0m
-workflow: completion criteria are unchanged ... [0m[32mok[0m [0m[38;5;245m(151µs)[0m
-workflow: fixed order then scripted adaptive order is unchanged ... [0m[32mok[0m [0m[38;5;245m(60µs)[0m
-workflow: urgent_partial document carries no summary and keeps schema version 1 ... [0m[32mok[0m [0m[38;5;245m(509µs)[0m
-workflow: a normal draft still has a non-clinical template summary ... [0m[32mok[0m [0m[38;5;245m(94µs)[0m
-workflow: conversation module has no emergency-specific completion shortcut ... [0m[32mok[0m [0m[38;5;245m(35µs)[0m
+workflow: the 15-answer cap and its End-only preview are unchanged ... [0m[32mok[0m [0m[38;5;245m(306µs)[0m
+workflow: completion criteria are unchanged ... [0m[32mok[0m [0m[38;5;245m(158µs)[0m
+workflow: fixed order then scripted adaptive order is unchanged ... [0m[32mok[0m [0m[38;5;245m(121µs)[0m
+workflow: urgent_partial document carries no summary and keeps schema version 1 ... [0m[32mok[0m [0m[38;5;245m(354µs)[0m
+workflow: a normal draft still has a non-clinical template summary ... [0m[32mok[0m [0m[38;5;245m(113µs)[0m
+workflow: conversation module has no emergency-specific completion shortcut ... [0m[32mok[0m [0m[38;5;245m(39µs)[0m
 [0m[38;5;245mrunning 12 tests from ./groq.test.ts[0m
-groq: valid schema-conforming JSON is returned ... [0m[32mok[0m [0m[38;5;245m(28ms)[0m
-groq: request uses chat/completions, strict schema and bearer auth ... [0m[32mok[0m [0m[38;5;245m(176µs)[0m
-groq: malformed JSON content is rejected ... [0m[32mok[0m [0m[38;5;245m(438µs)[0m
-groq: schema-invalid payload is rejected by the validator ... [0m[32mok[0m [0m[38;5;245m(121µs)[0m
+groq: valid schema-conforming JSON is returned ... [0m[32mok[0m [0m[38;5;245m(34ms)[0m
+groq: request uses chat/completions, strict schema and bearer auth ... [0m[32mok[0m [0m[38;5;245m(190µs)[0m
+groq: malformed JSON content is rejected ... [0m[32mok[0m [0m[38;5;245m(240µs)[0m
+groq: schema-invalid payload is rejected by the validator ... [0m[32mok[0m [0m[38;5;245m(120µs)[0m
 groq: unknown field is rejected ... [0m[32mok[0m [0m[38;5;245m(97µs)[0m
-groq: 401 maps to auth ... [0m[32mok[0m [0m[38;5;245m(646µs)[0m
-groq: 429 maps to rate_limited ... [0m[32mok[0m [0m[38;5;245m(427µs)[0m
-groq: 500 maps to server ... [0m[32mok[0m [0m[38;5;245m(225µs)[0m
-groq: abort maps to timeout ... [0m[32mok[0m [0m[38;5;245m(288µs)[0m
-groq: transport error maps to network ... [0m[32mok[0m [0m[38;5;245m(151µs)[0m
-groq: missing key fails without a request ... [0m[32mok[0m [0m[38;5;245m(49µs)[0m
-groq: provider body is never echoed in the failure ... [0m[32mok[0m [0m[38;5;245m(117µs)[0m
+groq: 401 maps to auth ... [0m[32mok[0m [0m[38;5;245m(874µs)[0m
+groq: 429 maps to rate_limited ... [0m[32mok[0m [0m[38;5;245m(91µs)[0m
+groq: 500 maps to server ... [0m[32mok[0m [0m[38;5;245m(80µs)[0m
+groq: abort maps to timeout ... [0m[32mok[0m [0m[38;5;245m(272µs)[0m
+groq: transport error maps to network ... [0m[32mok[0m [0m[38;5;245m(256µs)[0m
+groq: missing key fails without a request ... [0m[32mok[0m [0m[38;5;245m(122µs)[0m
+groq: provider body is never echoed in the failure ... [0m[32mok[0m [0m[38;5;245m(147µs)[0m
 [0m[38;5;245mrunning 13 tests from ./infrastructure.test.ts[0m
-validation: all six actions parse ... [0m[32mok[0m [0m[38;5;245m(992µs)[0m
-validation: unknown actions and extra keys are rejected ... [0m[32mok[0m [0m[38;5;245m(255µs)[0m
-validation: submit_turn requires exactly one input ... [0m[32mok[0m [0m[38;5;245m(235µs)[0m
-validation: webm audio is rejected before any provider call ... [0m[32mok[0m [0m[38;5;245m(120µs)[0m
-validation: oversized audio is rejected ... [0m[32mok[0m [0m[38;5;245m(66µs)[0m
-validation: unknown question ids are rejected ... [0m[32mok[0m [0m[38;5;245m(72µs)[0m
-validation: correction updates must be an object with at least one entry ... [0m[32mok[0m [0m[38;5;245m(51µs)[0m
-usage: an allowed reservation reports remaining capacity ... [0m[32mok[0m [0m[38;5;245m(125µs)[0m
-usage: a capped reservation is reported as not allowed ... [0m[32mok[0m [0m[38;5;245m(73µs)[0m
-usage: RPC or transport failure is never treated as permission ... [0m[32mok[0m [0m[38;5;245m(192µs)[0m
-logging: forbidden keys and long values never reach the log line ... [0m[32mok[0m [0m[38;5;245m(237µs)[0m
-auth: ownership checks reject foreign and missing rows ... [0m[32mok[0m [0m[38;5;245m(78µs)[0m
-auth: foreign rows and bad identities throw not_found ... [0m[32mok[0m [0m[38;5;245m(234µs)[0m
+validation: all six actions parse ... [0m[32mok[0m [0m[38;5;245m(489µs)[0m
+validation: unknown actions and extra keys are rejected ... [0m[32mok[0m [0m[38;5;245m(74µs)[0m
+validation: submit_turn requires exactly one input ... [0m[32mok[0m [0m[38;5;245m(56µs)[0m
+validation: webm audio is rejected before any provider call ... [0m[32mok[0m [0m[38;5;245m(58µs)[0m
+validation: oversized audio is rejected ... [0m[32mok[0m [0m[38;5;245m(51µs)[0m
+validation: unknown question ids are rejected ... [0m[32mok[0m [0m[38;5;245m(42µs)[0m
+validation: correction updates must be an object with at least one entry ... [0m[32mok[0m [0m[38;5;245m(46µs)[0m
+usage: an allowed reservation reports remaining capacity ... [0m[32mok[0m [0m[38;5;245m(102µs)[0m
+usage: a capped reservation is reported as not allowed ... [0m[32mok[0m [0m[38;5;245m(66µs)[0m
+usage: RPC or transport failure is never treated as permission ... [0m[32mok[0m [0m[38;5;245m(140µs)[0m
+logging: forbidden keys and long values never reach the log line ... [0m[32mok[0m [0m[38;5;245m(176µs)[0m
+auth: ownership checks reject foreign and missing rows ... [0m[32mok[0m [0m[38;5;245m(58µs)[0m
+auth: foreign rows and bad identities throw not_found ... [0m[32mok[0m [0m[38;5;245m(186µs)[0m
 [0m[38;5;245mrunning 15 tests from ./intake/question-bank.test.ts[0m
-bank: exactly 150 unique questions, 30 per department ... [0m[32mok[0m [0m[38;5;245m(400µs)[0m
-bank: 150 questions carry 300 language variants ... [0m[32mok[0m [0m[38;5;245m(202µs)[0m
-bank: structural validation passes ... [0m[32mok[0m [0m[38;5;245m(484µs)[0m
-bank: validation rejects a broken entry ... [0m[32mok[0m [0m[38;5;245m(299µs)[0m
-bank: same id yields paired texts and stable identity ... [0m[32mok[0m [0m[38;5;245m(85µs)[0m
-bank: localized options exist for choice questions ... [0m[32mok[0m [0m[38;5;245m(142µs)[0m
-retrieval: by department and symptom tags ... [0m[32mok[0m [0m[38;5;245m(96µs)[0m
-retrieval: missing report fields boost relevance ... [0m[32mok[0m [0m[38;5;245m(58µs)[0m
-retrieval: previously asked questions are excluded ... [0m[32mok[0m [0m[38;5;245m(99µs)[0m
-retrieval: respects the 8-candidate ceiling and 0 matches ... [0m[32mok[0m [0m[38;5;245m(67µs)[0m
+bank: exactly 150 unique questions, 30 per department ... [0m[32mok[0m [0m[38;5;245m(353µs)[0m
+bank: 150 questions carry 300 language variants ... [0m[32mok[0m [0m[38;5;245m(885µs)[0m
+bank: structural validation passes ... [0m[32mok[0m [0m[38;5;245m(438µs)[0m
+bank: validation rejects a broken entry ... [0m[32mok[0m [0m[38;5;245m(237µs)[0m
+bank: same id yields paired texts and stable identity ... [0m[32mok[0m [0m[38;5;245m(71µs)[0m
+bank: localized options exist for choice questions ... [0m[32mok[0m [0m[38;5;245m(384µs)[0m
+retrieval: by department and symptom tags ... [0m[32mok[0m [0m[38;5;245m(177µs)[0m
+retrieval: missing report fields boost relevance ... [0m[32mok[0m [0m[38;5;245m(124µs)[0m
+retrieval: previously asked questions are excluded ... [0m[32mok[0m [0m[38;5;245m(213µs)[0m
+retrieval: respects the 8-candidate ceiling and 0 matches ... [0m[32mok[0m [0m[38;5;245m(181µs)[0m
 selection: accepts an id inside the candidate set ... [0m[32mok[0m [0m[38;5;245m(11ms)[0m
-selection: rejects an id outside the candidate set and malformed output ... [0m[32mok[0m [0m[38;5;245m(821µs)[0m
-selection: provider failure, timeout and missing key fall back deterministically ... [0m[32mok[0m [0m[38;5;245m(822µs)[0m
-selection: the model can never supply question text ... [0m[32mok[0m [0m[38;5;245m(107µs)[0m
-safety: the bank never carries diagnosis or advice wording ... [0m[32mok[0m [0m[38;5;245m(195µs)[0m
+selection: rejects an id outside the candidate set and malformed output ... [0m[32mok[0m [0m[38;5;245m(401µs)[0m
+selection: provider failure, timeout and missing key fall back deterministically ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
+selection: the model can never supply question text ... [0m[32mok[0m [0m[38;5;245m(81µs)[0m
+safety: the bank never carries diagnosis or advice wording ... [0m[32mok[0m [0m[38;5;245m(196µs)[0m
+[0m[38;5;245mrunning 4 tests from ./logging-privacy.test.ts[0m
+logging: forbidden keys are removed ... [0m[32mok[0m [0m[38;5;245m(452µs)[0m
+logging: scalar metadata survives; long strings truncate; objects drop ... [0m[32mok[0m [0m[38;5;245m(65µs)[0m
+logging: a synthetic statement never reaches the emitted line ... [0m[32mok[0m [0m[38;5;245m(109µs)[0m
+logging: no call site passes a patient-content identifier ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
 [0m[38;5;245mrunning 6 tests from ./network-isolation.test.ts[0m
-network isolation: groq contacts only the supplied base URL ... [0m[32mok[0m [0m[38;5;245m(21ms)[0m
-network isolation: prisma contacts only the supplied base URL ... [0m[32mok[0m [0m[38;5;245m(2ms)[0m
-network isolation: timbre contacts only the supplied endpoint ... [0m[32mok[0m [0m[38;5;245m(661µs)[0m
-network isolation: a guarded transport blocks a non-stub destination ... [0m[32mok[0m [0m[38;5;245m(414µs)[0m
-network isolation: function sources never hardcode a provider domain ... [0m[32mok[0m [0m[38;5;245m(622µs)[0m
+network isolation: groq contacts only the supplied base URL ... [0m[32mok[0m [0m[38;5;245m(22ms)[0m
+network isolation: prisma contacts only the supplied base URL ... [0m[32mok[0m [0m[38;5;245m(3ms)[0m
+network isolation: timbre contacts only the supplied endpoint ... [0m[32mok[0m [0m[38;5;245m(663µs)[0m
+network isolation: a guarded transport blocks a non-stub destination ... [0m[32mok[0m [0m[38;5;245m(365µs)[0m
+network isolation: function sources never hardcode a provider domain ... [0m[32mok[0m [0m[38;5;245m(604µs)[0m
 network isolation: destinations come from environment overrides ... [0m[32mok[0m [0m[38;5;245m(211µs)[0m
 [0m[38;5;245mrunning 6 tests from ./policy.test.ts[0m
-policy OD-09: needs_human_review is never cleared or reset ... [0m[32mok[0m [0m[38;5;245m(672µs)[0m
-policy OD-02: clarification evidence is stored without counting a turn ... [0m[32mok[0m [0m[38;5;245m(9ms)[0m
-policy: emergency matching runs before any model routing ... [0m[32mok[0m [0m[38;5;245m(337µs)[0m
-policy: no provider call is possible during resume ... [0m[32mok[0m [0m[38;5;245m(171µs)[0m
-policy: the published contract mentions every adopted contract item ... [0m[32mok[0m [0m[38;5;245m(368µs)[0m
-policy: functions read only allowlisted environment variables ... [0m[32mok[0m [0m[38;5;245m(606µs)[0m
+policy OD-09: needs_human_review is never cleared or reset ... [0m[32mok[0m [0m[38;5;245m(690µs)[0m
+policy OD-02: clarification evidence is stored without counting a turn ... [0m[32mok[0m [0m[38;5;245m(8ms)[0m
+policy: emergency matching runs before any model routing ... [0m[32mok[0m [0m[38;5;245m(351µs)[0m
+policy: no provider call is possible during resume ... [0m[32mok[0m [0m[38;5;245m(196µs)[0m
+policy: the published contract mentions every adopted contract item ... [0m[32mok[0m [0m[38;5;245m(792µs)[0m
+policy: functions read only allowlisted environment variables ... [0m[32mok[0m [0m[38;5;245m(349µs)[0m
 [0m[38;5;245mrunning 13 tests from ./prisma.test.ts[0m
 prisma: english transcript is returned ... [0m[32mok[0m [0m[38;5;245m(23ms)[0m
-prisma: hindi transcript is returned unchanged (Devanagari) ... [0m[32mok[0m [0m[38;5;245m(596µs)[0m
-prisma: empty transcript is a success, not an error ... [0m[32mok[0m [0m[38;5;245m(159µs)[0m
-prisma: webm is rejected locally without a request ... [0m[32mok[0m [0m[38;5;245m(55µs)[0m
-prisma: accepted mime types match the documented container list ... [0m[32mok[0m [0m[38;5;245m(89µs)[0m
-prisma: zero-byte audio is rejected without a request ... [0m[32mok[0m [0m[38;5;245m(71µs)[0m
-prisma: request is multipart to /stt/v3 with the api key header ... [0m[32mok[0m [0m[38;5;245m(238µs)[0m
-prisma: 400 maps to audio_rejected ... [0m[32mok[0m [0m[38;5;245m(768µs)[0m
-prisma: 429 maps to rate_limited ... [0m[32mok[0m [0m[38;5;245m(149µs)[0m
-prisma: 401 maps to auth ... [0m[32mok[0m [0m[38;5;245m(144µs)[0m
-prisma: malformed body maps to invalid_response ... [0m[32mok[0m [0m[38;5;245m(116µs)[0m
-prisma: abort maps to timeout ... [0m[32mok[0m [0m[38;5;245m(305µs)[0m
-prisma: missing key fails without a request ... [0m[32mok[0m [0m[38;5;245m(46µs)[0m
+prisma: hindi transcript is returned unchanged (Devanagari) ... [0m[32mok[0m [0m[38;5;245m(903µs)[0m
+prisma: empty transcript is a success, not an error ... [0m[32mok[0m [0m[38;5;245m(134µs)[0m
+prisma: webm is rejected locally without a request ... [0m[32mok[0m [0m[38;5;245m(49µs)[0m
+prisma: accepted mime types match the documented container list ... [0m[32mok[0m [0m[38;5;245m(75µs)[0m
+prisma: zero-byte audio is rejected without a request ... [0m[32mok[0m [0m[38;5;245m(52µs)[0m
+prisma: request is multipart to /stt/v3 with the api key header ... [0m[32mok[0m [0m[38;5;245m(223µs)[0m
+prisma: 400 maps to audio_rejected ... [0m[32mok[0m [0m[38;5;245m(702µs)[0m
+prisma: 429 maps to rate_limited ... [0m[32mok[0m [0m[38;5;245m(136µs)[0m
+prisma: 401 maps to auth ... [0m[32mok[0m [0m[38;5;245m(126µs)[0m
+prisma: malformed body maps to invalid_response ... [0m[32mok[0m [0m[38;5;245m(102µs)[0m
+prisma: abort maps to timeout ... [0m[32mok[0m [0m[38;5;245m(264µs)[0m
+prisma: missing key fails without a request ... [0m[32mok[0m [0m[38;5;245m(39µs)[0m
 [0m[38;5;245mrunning 7 tests from ./progression.test.ts[0m
 progression: ten accepted answers complete the intake ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
-progression: the fixed block cannot be skipped by answering early ... [0m[32mok[0m [0m[38;5;245m(300µs)[0m
-progression: gender declined completes without a value and never serialises 'declined' ... [0m[32mok[0m [0m[38;5;245m(444µs)[0m
-progression: correction then validation then submission preconditions ... [0m[32mok[0m [0m[38;5;245m(246µs)[0m
-progression: a submitted document cannot be produced from incomplete fields ... [0m[32mok[0m [0m[38;5;245m(123µs)[0m
+progression: the fixed block cannot be skipped by answering early ... [0m[32mok[0m [0m[38;5;245m(272µs)[0m
+progression: gender declined completes without a value and never serialises 'declined' ... [0m[32mok[0m [0m[38;5;245m(379µs)[0m
+progression: correction then validation then submission preconditions ... [0m[32mok[0m [0m[38;5;245m(232µs)[0m
+progression: a submitted document cannot be produced from incomplete fields ... [0m[32mok[0m [0m[38;5;245m(51µs)[0m
 progression: transcript preview shape is stable ... [0m[32mok[0m [0m[38;5;245m(60µs)[0m
-progression: duplicate submit is rejected by request shape only when malformed ... [0m[32mok[0m [0m[38;5;245m(106µs)[0m
+progression: duplicate submit is rejected by request shape only when malformed ... [0m[32mok[0m [0m[38;5;245m(82µs)[0m
 [0m[38;5;245mrunning 9 tests from ./reconciliation.test.ts[0m
 reconciliation: message inserted but session advance interrupted ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
-reconciliation: session already advanced needs no repair ... [0m[32mok[0m [0m[38;5;245m(87µs)[0m
-reconciliation: a duplicate submit does not create a second orphan ... [0m[32mok[0m [0m[38;5;245m(52µs)[0m
-reconciliation: terminal sessions drop transient audio state ... [0m[32mok[0m [0m[38;5;245m(69µs)[0m
-reconciliation: expired pending transcript is cleared ... [0m[32mok[0m [0m[38;5;245m(284µs)[0m
-reconciliation: a live pending transcript is preserved ... [0m[32mok[0m [0m[38;5;245m(54µs)[0m
-reconciliation: audio pending while a text answer arrives is not an orphan ... [0m[32mok[0m [0m[38;5;245m(55µs)[0m
-reconciliation: a late audio result after text acceptance never advances ... [0m[32mok[0m [0m[38;5;245m(40µs)[0m
-reconciliation: an orphan at the turn cap is not advanced past 15 ... [0m[32mok[0m [0m[38;5;245m(9ms)[0m
+reconciliation: session already advanced needs no repair ... [0m[32mok[0m [0m[38;5;245m(63µs)[0m
+reconciliation: a duplicate submit does not create a second orphan ... [0m[32mok[0m [0m[38;5;245m(43µs)[0m
+reconciliation: terminal sessions drop transient audio state ... [0m[32mok[0m [0m[38;5;245m(77µs)[0m
+reconciliation: expired pending transcript is cleared ... [0m[32mok[0m [0m[38;5;245m(84µs)[0m
+reconciliation: a live pending transcript is preserved ... [0m[32mok[0m [0m[38;5;245m(42µs)[0m
+reconciliation: audio pending while a text answer arrives is not an orphan ... [0m[32mok[0m [0m[38;5;245m(63µs)[0m
+reconciliation: a late audio result after text acceptance never advances ... [0m[32mok[0m [0m[38;5;245m(34µs)[0m
+reconciliation: an orphan at the turn cap is not advanced past 15 ... [0m[32mok[0m [0m[38;5;245m(8ms)[0m
 [0m[38;5;245mrunning 16 tests from ./report.test.ts[0m
-report: completion requires the six answered fields plus four asked once ... [0m[32mok[0m [0m[38;5;245m(330µs)[0m
-report: gender declined is a handled answer and never blocks completion ... [0m[32mok[0m [0m[38;5;245m(228µs)[0m
-report: 'declined' is rejected as a gender value, accepted as a status ... [0m[32mok[0m [0m[38;5;245m(136µs)[0m
-report: optional fields count as handled when declined or unknown ... [0m[32mok[0m [0m[38;5;245m(52µs)[0m
-report: value is present only when the status is provided ... [0m[32mok[0m [0m[38;5;245m(91µs)[0m
-report: urgent_partial carries no generated summary ... [0m[32mok[0m [0m[38;5;245m(67µs)[0m
-report: normal report summary restates only provided fields ... [0m[32mok[0m [0m[38;5;245m(71µs)[0m
+report: completion requires the six answered fields plus four asked once ... [0m[32mok[0m [0m[38;5;245m(353µs)[0m
+report: gender declined is a handled answer and never blocks completion ... [0m[32mok[0m [0m[38;5;245m(231µs)[0m
+report: 'declined' is rejected as a gender value, accepted as a status ... [0m[32mok[0m [0m[38;5;245m(138µs)[0m
+report: optional fields count as handled when declined or unknown ... [0m[32mok[0m [0m[38;5;245m(49µs)[0m
+report: value is present only when the status is provided ... [0m[32mok[0m [0m[38;5;245m(87µs)[0m
+report: urgent_partial carries no generated summary ... [0m[32mok[0m [0m[38;5;245m(66µs)[0m
+report: normal report summary restates only provided fields ... [0m[32mok[0m [0m[38;5;245m(82µs)[0m
 report: correction accepts an allowlisted field ... [0m[32mok[0m [0m[38;5;245m(9ms)[0m
-report: correction rejects protected and unknown fields ... [0m[32mok[0m [0m[38;5;245m(154µs)[0m
-report: correction rejects a status other than provided/declined ... [0m[32mok[0m [0m[38;5;245m(45µs)[0m
-report: a required field cannot be declined, gender can ... [0m[32mok[0m [0m[38;5;245m(58µs)[0m
-report: invalid values are rejected ... [0m[32mok[0m [0m[38;5;245m(349µs)[0m
-report: field normalisation bounds ... [0m[32mok[0m [0m[38;5;245m(39µs)[0m
-report: missing_information lists every non-provided field in order ... [0m[32mok[0m [0m[38;5;245m(36µs)[0m
-report: document validation catches invariant violations ... [0m[32mok[0m [0m[38;5;245m(195µs)[0m
-report: intake reference format and IST date ... [0m[32mok[0m [0m[38;5;245m(20ms)[0m
+report: correction rejects protected and unknown fields ... [0m[32mok[0m [0m[38;5;245m(147µs)[0m
+report: correction rejects a status other than provided/declined ... [0m[32mok[0m [0m[38;5;245m(44µs)[0m
+report: a required field cannot be declined, gender can ... [0m[32mok[0m [0m[38;5;245m(47µs)[0m
+report: invalid values are rejected ... [0m[32mok[0m [0m[38;5;245m(133µs)[0m
+report: field normalisation bounds ... [0m[32mok[0m [0m[38;5;245m(37µs)[0m
+report: missing_information lists every non-provided field in order ... [0m[32mok[0m [0m[38;5;245m(35µs)[0m
+report: document validation catches invariant violations ... [0m[32mok[0m [0m[38;5;245m(176µs)[0m
+report: intake reference format and IST date ... [0m[32mok[0m [0m[38;5;245m(27ms)[0m
 [0m[38;5;245mrunning 14 tests from ./routing.test.ts[0m
-routing: a valid seeded department is accepted and mapped ... [0m[32mok[0m [0m[38;5;245m(352µs)[0m
-routing: an unknown department falls back to General Medicine ... [0m[32mok[0m [0m[38;5;245m(62µs)[0m
-routing: emergency is never routable from a model suggestion ... [0m[32mok[0m [0m[38;5;245m(54µs)[0m
-routing: a department without a seeded doctor falls back ... [0m[32mok[0m [0m[38;5;245m(34µs)[0m
-routing: no candidate or empty seeded data never throws silently ... [0m[32mok[0m [0m[38;5;245m(234µs)[0m
-routing: emergency routing uses the seeded Emergency doctor only ... [0m[32mok[0m [0m[38;5;245m(72µs)[0m
-groq routing: a valid suggestion is returned ... [0m[32mok[0m [0m[38;5;245m(20ms)[0m
-groq routing: an unknown enum value is rejected ... [0m[32mok[0m [0m[38;5;245m(144µs)[0m
-groq routing: emergency is rejected by the schema validator ... [0m[32mok[0m [0m[38;5;245m(130µs)[0m
-groq routing: malformed JSON and extra fields are rejected ... [0m[32mok[0m [0m[38;5;245m(270µs)[0m
-groq routing: HTTP failure, timeout and missing key all yield null ... [0m[32mok[0m [0m[38;5;245m(841µs)[0m
-consent: the stored wording is the versioned copy, not a synthetic marker ... [0m[32mok[0m [0m[38;5;245m(60µs)[0m
-consent: a version mismatch is refused ... [0m[32mok[0m [0m[38;5;245m(32µs)[0m
-consent: both languages carry distinct, non-empty wording ... [0m[32mok[0m [0m[38;5;245m(61µs)[0m
-[0m[38;5;245mrunning 15 tests from ./safety.certification.test.ts[0m
-cert: exactly the eight documented rules exist, in declared precedence order ... [0m[32mok[0m [0m[38;5;245m(263µs)[0m
-cert: every configured English clear phrase triggers a clear emergency ... [0m[32mok[0m [0m[38;5;245m(14ms)[0m
-cert: every configured Hindi clear phrase triggers a clear emergency ... [0m[32mok[0m [0m[38;5;245m(977µs)[0m
-cert: the declared precedence order is the one that wins ... [0m[32mok[0m [0m[38;5;245m(82µs)[0m
-cert: every configured ambiguous phrase requests clarification ... [0m[32mok[0m [0m[38;5;245m(4ms)[0m
-cert: ambiguous and clear mentions never resolve to none ... [0m[32mok[0m [0m[38;5;245m(162µs)[0m
+routing: a valid seeded department is accepted and mapped ... [0m[32mok[0m [0m[38;5;245m(424µs)[0m
+routing: an unknown department falls back to General Medicine ... [0m[32mok[0m [0m[38;5;245m(98µs)[0m
+routing: emergency is never routable from a model suggestion ... [0m[32mok[0m [0m[38;5;245m(217µs)[0m
+routing: a department without a seeded doctor falls back ... [0m[32mok[0m [0m[38;5;245m(78µs)[0m
+routing: no candidate or empty seeded data never throws silently ... [0m[32mok[0m [0m[38;5;245m(694µs)[0m
+routing: emergency routing uses the seeded Emergency doctor only ... [0m[32mok[0m [0m[38;5;245m(446µs)[0m
+groq routing: a valid suggestion is returned ... [0m[32mok[0m [0m[38;5;245m(23ms)[0m
+groq routing: an unknown enum value is rejected ... [0m[32mok[0m [0m[38;5;245m(153µs)[0m
+groq routing: emergency is rejected by the schema validator ... [0m[32mok[0m [0m[38;5;245m(83µs)[0m
+groq routing: malformed JSON and extra fields are rejected ... [0m[32mok[0m [0m[38;5;245m(646µs)[0m
+groq routing: HTTP failure, timeout and missing key all yield null ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
+consent: the stored wording is the versioned copy, not a synthetic marker ... [0m[32mok[0m [0m[38;5;245m(110µs)[0m
+consent: a version mismatch is refused ... [0m[32mok[0m [0m[38;5;245m(54µs)[0m
+consent: both languages carry distinct, non-empty wording ... [0m[32mok[0m [0m[38;5;245m(109µs)[0m
+[0m[38;5;245mrunning 18 tests from ./safety.certification.test.ts[0m
+cert: exactly the eight documented rules exist, in declared precedence order ... [0m[32mok[0m [0m[38;5;245m(336µs)[0m
+cert: every configured English clear phrase triggers a clear emergency ... [0m[32mok[0m [0m[38;5;245m(13ms)[0m
+cert: every configured Hindi clear phrase triggers a clear emergency ... [0m[32mok[0m [0m[38;5;245m(2ms)[0m
+cert: the declared precedence order is the one that wins ... [0m[32mok[0m [0m[38;5;245m(120µs)[0m
+cert: every configured ambiguous phrase requests clarification ... [0m[32mok[0m [0m[38;5;245m(10ms)[0m
+cert: ambiguous and clear mentions never resolve to none ... [0m[32mok[0m [0m[38;5;245m(363µs)[0m
 cert: romanised variants are opt-in and none leak into the default matcher ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
-cert: case, whitespace, punctuation and apostrophe variants normalise ... [0m[32mok[0m [0m[38;5;245m(115µs)[0m
-cert: double-quoted examples are removed before matching ... [0m[32mok[0m [0m[38;5;245m(272µs)[0m
-cert: negated mentions of the trigger phrase do not trigger ... [0m[32mok[0m [0m[38;5;245m(643µs)[0m
-cert: ordinary non-emergency answers never trigger ... [0m[32mok[0m [0m[38;5;245m(917µs)[0m
-cert: empty and whitespace-only answers are not matches ... [0m[32mok[0m [0m[38;5;245m(170µs)[0m
-cert: the fixed clarification question text is not itself a trigger ... [0m[32mok[0m [0m[38;5;245m(173µs)[0m
-cert: classification is deterministic ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
-cert: clarification resolution never converts an unclear answer into safety ... [0m[32mok[0m [0m[38;5;245m(108µs)[0m
+cert: case, whitespace, punctuation and apostrophe variants normalise ... [0m[32mok[0m [0m[38;5;245m(158µs)[0m
+cert: double-quoted examples are removed before matching ... [0m[32mok[0m [0m[38;5;245m(591µs)[0m
+cert: negated mentions of the trigger phrase do not trigger ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
+cert: ordinary non-emergency answers never trigger ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
+cert: empty and whitespace-only answers are not matches ... [0m[32mok[0m [0m[38;5;245m(267µs)[0m
+cert: the fixed clarification question text is not itself a trigger ... [0m[32mok[0m [0m[38;5;245m(234µs)[0m
+cert: classification is deterministic ... [0m[32mok[0m [0m[38;5;245m(3ms)[0m
+cert: clarification resolution never converts an unclear answer into safety ... [0m[32mok[0m [0m[38;5;245m(310µs)[0m
+cert: a negation outside the mention's clause segment does not cancel it ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
+cert: every occurrence is considered, not only the first ... [0m[32mok[0m [0m[38;5;245m(632µs)[0m
+cert: single-quoted examples are inert and apostrophes still work ... [0m[32mok[0m [0m[38;5;245m(830µs)[0m
 [0m[38;5;245mrunning 12 tests from ./safety.test.ts[0m
-safety: clear positive phrases trigger each of the eight rules ... [0m[32mok[0m [0m[38;5;245m(13ms)[0m
+safety: clear positive phrases trigger each of the eight rules ... [0m[32mok[0m [0m[38;5;245m(20ms)[0m
 safety: Hindi Devanagari positives trigger the same rules ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
-safety: negated mentions never trigger ... [0m[32mok[0m [0m[38;5;245m(703µs)[0m
-safety: quoted examples are ignored ... [0m[32mok[0m [0m[38;5;245m(233µs)[0m
-safety: weak chest mention asks for clarification ... [0m[32mok[0m [0m[38;5;245m(146µs)[0m
-safety: a negated weak mention is not ambiguous either ... [0m[32mok[0m [0m[38;5;245m(120µs)[0m
-safety: multiple clear candidates resolve deterministically ... [0m[32mok[0m [0m[38;5;245m(76µs)[0m
-safety: ordinary answers never trigger ... [0m[32mok[0m [0m[38;5;245m(271µs)[0m
-safety: empty answer is not a match ... [0m[32mok[0m [0m[38;5;245m(39µs)[0m
-safety: romanized variants are opt-in (Tier C) ... [0m[32mok[0m [0m[38;5;245m(407µs)[0m
-safety: clarification resolution ... [0m[32mok[0m [0m[38;5;245m(109µs)[0m
-safety: helpers normalise without losing Devanagari ... [0m[32mok[0m [0m[38;5;245m(42µs)[0m
+safety: negated mentions never trigger ... [0m[32mok[0m [0m[38;5;245m(671µs)[0m
+safety: quoted examples are ignored ... [0m[32mok[0m [0m[38;5;245m(415µs)[0m
+safety: weak chest mention asks for clarification ... [0m[32mok[0m [0m[38;5;245m(130µs)[0m
+safety: a negated weak mention is not ambiguous either ... [0m[32mok[0m [0m[38;5;245m(100µs)[0m
+safety: multiple clear candidates resolve deterministically ... [0m[32mok[0m [0m[38;5;245m(53µs)[0m
+safety: ordinary answers never trigger ... [0m[32mok[0m [0m[38;5;245m(469µs)[0m
+safety: empty answer is not a match ... [0m[32mok[0m [0m[38;5;245m(36µs)[0m
+safety: romanized variants are opt-in (Tier C) ... [0m[32mok[0m [0m[38;5;245m(127µs)[0m
+safety: clarification resolution ... [0m[32mok[0m [0m[38;5;245m(92µs)[0m
+safety: helpers normalise without losing Devanagari ... [0m[32mok[0m [0m[38;5;245m(33µs)[0m
 [0m[38;5;245mrunning 18 tests from ./schema.test.ts[0m
-schema: migration files exist and are ordered ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
-schema: every table enables row level security ... [0m[32mok[0m [0m[38;5;245m(11ms)[0m
+schema: migration files exist and are ordered ... [0m[32mok[0m [0m[38;5;245m(615µs)[0m
+schema: every table enables row level security ... [0m[32mok[0m [0m[38;5;245m(16ms)[0m
 schema: SECURITY DEFINER is confined to the reviewed RPCs ... [0m[32mok[0m [0m[38;5;245m(2ms)[0m
-schema: booking RPCs keep browser table access closed ... [0m[32mok[0m [0m[38;5;245m(434µs)[0m
-schema: browser roles never receive write privileges ... [0m[32mok[0m [0m[38;5;245m(2ms)[0m
-schema: server-owned tables expose no browser grants ... [0m[32mok[0m [0m[38;5;245m(3ms)[0m
-schema: usage counters are service-role only ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
-schema: reservation function rejects unknown counters ... [0m[32mok[0m [0m[38;5;245m(256µs)[0m
-schema: report status enum has exactly three documented values ... [0m[32mok[0m [0m[38;5;245m(508µs)[0m
+schema: booking RPCs keep browser table access closed ... [0m[32mok[0m [0m[38;5;245m(296µs)[0m
+schema: browser roles never receive write privileges ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
+schema: server-owned tables expose no browser grants ... [0m[32mok[0m [0m[38;5;245m(2ms)[0m
+schema: usage counters are service-role only ... [0m[32mok[0m [0m[38;5;245m(842µs)[0m
+schema: reservation function rejects unknown counters ... [0m[32mok[0m [0m[38;5;245m(92µs)[0m
+schema: report status enum has exactly three documented values ... [0m[32mok[0m [0m[38;5;245m(140µs)[0m
 schema: session status is a separate enum ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
-schema: sessions carries the twelve transient audio columns ... [0m[32mok[0m [0m[38;5;245m(547µs)[0m
-schema: sessions enforces claim and pending coherence ... [0m[32mok[0m [0m[38;5;245m(127µs)[0m
-schema: messages has the patient-turn unique index ... [0m[32mok[0m [0m[38;5;245m(139µs)[0m
-schema: reports matches the approved contract ... [0m[32mok[0m [0m[38;5;245m(127µs)[0m
-schema: doctor policies encode assignment and the emergency exception ... [0m[32mok[0m [0m[38;5;245m(124µs)[0m
-schema: appointments enforces one confirmed slot and one per report ... [0m[32mok[0m [0m[38;5;245m(93µs)[0m
-schema: seed data is fictional, complete and never touches auth ... [0m[32mok[0m [0m[38;5;245m(264µs)[0m
-schema: doctor profile mapping script is placeholder-safe ... [0m[32mok[0m [0m[38;5;245m(245µs)[0m
+schema: sessions carries the twelve transient audio columns ... [0m[32mok[0m [0m[38;5;245m(1ms)[0m
+schema: sessions enforces claim and pending coherence ... [0m[32mok[0m [0m[38;5;245m(303µs)[0m
+schema: messages has the patient-turn unique index ... [0m[32mok[0m [0m[38;5;245m(238µs)[0m
+schema: reports matches the approved contract ... [0m[32mok[0m [0m[38;5;245m(235µs)[0m
+schema: doctor policies encode assignment and the emergency exception ... [0m[32mok[0m [0m[38;5;245m(276µs)[0m
+schema: appointments enforces one confirmed slot and one per report ... [0m[32mok[0m [0m[38;5;245m(191µs)[0m
+schema: seed data is fictional, complete and never touches auth ... [0m[32mok[0m [0m[38;5;245m(412µs)[0m
+schema: doctor profile mapping script is placeholder-safe ... [0m[32mok[0m [0m[38;5;245m(381µs)[0m
 [0m[38;5;245mrunning 14 tests from ./timbre.test.ts[0m
-timbre: hindi audio is returned ... [0m[32mok[0m [0m[38;5;245m(22ms)[0m
-timbre: english audio is returned ... [0m[32mok[0m [0m[38;5;245m(156µs)[0m
-timbre: request sends the explicit v2.5 model, voice and mp3 config ... [0m[32mok[0m [0m[38;5;245m(190µs)[0m
-timbre: hindi default voice is Nalini ... [0m[32mok[0m [0m[38;5;245m(154µs)[0m
-timbre: an explicit voice overrides the default ... [0m[32mok[0m [0m[38;5;245m(171µs)[0m
-timbre: empty text is rejected without a request ... [0m[32mok[0m [0m[38;5;245m(60µs)[0m
-timbre: oversized text is rejected without a request ... [0m[32mok[0m [0m[38;5;245m(58µs)[0m
-timbre: 400 maps to invalid_request (unknown voice) ... [0m[32mok[0m [0m[38;5;245m(602µs)[0m
-timbre: 429 maps to rate_limited ... [0m[32mok[0m [0m[38;5;245m(125µs)[0m
-timbre: 500 maps to provider_error ... [0m[32mok[0m [0m[38;5;245m(111µs)[0m
-timbre: empty audio body maps to invalid_response ... [0m[32mok[0m [0m[38;5;245m(110µs)[0m
-timbre: abort maps to timeout ... [0m[32mok[0m [0m[38;5;245m(365µs)[0m
-timbre: missing key fails without a request ... [0m[32mok[0m [0m[38;5;245m(48µs)[0m
-timbre: provider body is never echoed in the failure ... [0m[32mok[0m [0m[38;5;245m(123µs)[0m
+timbre: hindi audio is returned ... [0m[32mok[0m [0m[38;5;245m(30ms)[0m
+timbre: english audio is returned ... [0m[32mok[0m [0m[38;5;245m(280µs)[0m
+timbre: request sends the explicit v2.5 model, voice and mp3 config ... [0m[32mok[0m [0m[38;5;245m(198µs)[0m
+timbre: hindi default voice is Nalini ... [0m[32mok[0m [0m[38;5;245m(482µs)[0m
+timbre: an explicit voice overrides the default ... [0m[32mok[0m [0m[38;5;245m(159µs)[0m
+timbre: empty text is rejected without a request ... [0m[32mok[0m [0m[38;5;245m(253µs)[0m
+timbre: oversized text is rejected without a request ... [0m[32mok[0m [0m[38;5;245m(222µs)[0m
+timbre: 400 maps to invalid_request (unknown voice) ... [0m[32mok[0m [0m[38;5;245m(795µs)[0m
+timbre: 429 maps to rate_limited ... [0m[32mok[0m [0m[38;5;245m(118µs)[0m
+timbre: 500 maps to provider_error ... [0m[32mok[0m [0m[38;5;245m(82µs)[0m
+timbre: empty audio body maps to invalid_response ... [0m[32mok[0m [0m[38;5;245m(169µs)[0m
+timbre: abort maps to timeout ... [0m[32mok[0m [0m[38;5;245m(290µs)[0m
+timbre: missing key fails without a request ... [0m[32mok[0m [0m[38;5;245m(70µs)[0m
+timbre: provider body is never echoed in the failure ... [0m[32mok[0m [0m[38;5;245m(122µs)[0m
 
-[0m[32mok[0m | 209 passed | 0 failed [0m[38;5;245m(841ms)[0m
+[0m[32mok[0m | 219 passed | 0 failed [0m[38;5;245m(1s)[0m
 
+exit=0

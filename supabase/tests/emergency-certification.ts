@@ -34,6 +34,12 @@ import { MAX_ADAPTIVE_QUESTIONS } from "../functions/_shared/intake/select.ts";
 import { REPORT_SCHEMA_VERSION } from "../functions/_shared/report.ts";
 
 const BASE = Deno.env.get("LOCAL_URL") ?? "http://127.0.0.1:54321";
+/**
+ * The corrected Edge Functions may be served from a parallel local runtime while the
+ * project's shared runtime stays untouched. PostgREST/Auth/DB stay on LOCAL_URL.
+ */
+const FUNCTIONS_BASE = Deno.env.get("FUNCTIONS_URL") ?? BASE;
+const FUNCTIONS_PREFIX = Deno.env.get("FUNCTIONS_PREFIX") ?? "/functions/v1";
 const ANON = Deno.env.get("LOCAL_ANON_KEY") ?? "";
 const SERVICE = Deno.env.get("LOCAL_SERVICE_KEY") ?? "";
 const JWT_SECRET = Deno.env.get("LOCAL_JWT_SECRET") ?? "";
@@ -251,6 +257,7 @@ function matcherMatrix(): void {
   const singleQuoted = [
     ["M-QUOTE-03", "The form says 'having a seizure now'"],
     ["M-QUOTE-04", "My friend told me to say 'I cannot breathe'"],
+    ["M-QUOTE-05", "I said 'no chest pain'"],
   ];
   for (const [id, text] of singleQuoted) {
     const match = classifyAnswer(text);
@@ -264,41 +271,29 @@ function matcherMatrix(): void {
       {
         input: text,
         severity: "medium",
-        note: "normalizeAnswer removes apostrophes before stripQuoted runs, so a single-quoted span is never removed (DEFECT D-1).",
+        note: "Correction D-1: single-quoted spans are stripped before normalisation; contractions still work.",
       },
     );
   }
 
   // Negation scoping: a negation elsewhere in the clause must not cancel a present mention.
-  const negationScoping: Array<[string, string, string]> = [
-    [
-      "M-NEGSCOPE-01",
-      "I cannot breathe but I have no fever",
-      "clear",
-    ],
-    [
-      "M-NEGSCOPE-02",
-      "I have chest pain but no fever",
-      "ambiguous",
-    ],
-    [
-      "M-NEGSCOPE-03",
-      "no chest pain, but chest pain now",
-      "ambiguous or clear",
-    ],
-    [
-      "M-NEGSCOPE-04",
-      "I have severe chest pain and no fever",
-      "clear",
-    ],
+  const negationScoping: Array<[string, string, "clear" | "ambiguous" | "none"]> = [
+    ["M-NEGSCOPE-01", "I cannot breathe but I have no fever", "clear"],
+    ["M-NEGSCOPE-02", "I have chest pain but no fever", "ambiguous"],
+    ["M-NEGSCOPE-03", "no chest pain, but chest pain now", "ambiguous"],
+    ["M-NEGSCOPE-04", "I have severe chest pain and no fever", "clear"],
+    ["M-NEGSCOPE-05", "No fever but I cannot breathe", "clear"],
+    ["M-NEGSCOPE-06", "I have chest pain and no fever", "ambiguous"],
+    ["M-NEGSCOPE-07", "I have chest pain with no fever", "ambiguous"],
+    ["M-NEGSCOPE-08", "I have no chest pain and no fever", "none"],
   ];
   for (const [id, text, expected] of negationScoping) {
     const match = classifyAnswer(text);
-    const ok = expected === "clear"
+    const ok = expected === "none"
+      ? match.kind === "none"
+      : expected === "clear"
       ? match.kind === "clear"
-      : expected === "ambiguous"
-      ? match.kind === "ambiguous" || match.kind === "clear"
-      : match.kind !== "none";
+      : match.kind === "ambiguous";
     record(
       id,
       category,
@@ -309,7 +304,7 @@ function matcherMatrix(): void {
       {
         input: text,
         severity: "high",
-        note: "isNegated scans 25 characters after the phrase inside the same clause, so a later 'no <other symptom>' cancels the trigger (DEFECT D-2).",
+        note: "Correction D-2: negation is scoped to the mention's clause segment; an unrelated later negation no longer cancels it.",
       },
     );
   }
@@ -368,6 +363,13 @@ function matcherMatrix(): void {
   );
 }
 
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const copy = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(copy).set(bytes);
+  const digest = await crypto.subtle.digest("SHA-256", copy);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 /* -------------------------------------------------------------------------- */
 /* HTTP helpers                                                               */
 /* -------------------------------------------------------------------------- */
@@ -384,7 +386,7 @@ async function http(
 ): Promise<HttpResult> {
   const key = init.service ? SERVICE : ANON;
   const bearer = init.service ? SERVICE : init.token;
-  const response = await fetch(`${BASE}${path}`, {
+  const response = await fetch(path.startsWith("http") ? path : `${BASE}${path}`, {
     method: init.method ?? "GET",
     headers: {
       apikey: key,
@@ -423,7 +425,7 @@ async function deletePatient(id: string): Promise<void> {
 }
 
 async function chatTurn(token: string, body: Record<string, unknown>): Promise<HttpResult> {
-  return await http("/functions/v1/chat-turn", { method: "POST", token, body });
+  return await http(`${FUNCTIONS_BASE}${FUNCTIONS_PREFIX}/chat-turn`, { method: "POST", token, body });
 }
 
 interface ChatBody {
@@ -713,6 +715,7 @@ async function liveMatrix(): Promise<void> {
     );
     const groqAfterLate = await groqUsed();
     const lateRow = await reportRow(late.sessionId);
+    const lateTurnBody = body(lateTurn);
     record(
       "L-PREC-03",
       "2. Execution precedence",
@@ -721,7 +724,7 @@ async function liveMatrix(): Promise<void> {
       `triggered=${body(lateTurn).emergency_triggered === true}, status=${body(lateTurn).session_status}, question=${body(lateTurn).current_question?.id ?? "none"}, delta=${groqAfterLate - groqBeforeLate}`,
       body(lateTurn).emergency_triggered === true &&
           body(lateTurn).session_status === "emergency" &&
-          body(lateTurn).current_question?.id === "other_symptoms" &&
+          lateTurnBody.current_question === undefined &&
           groqAfterLate === groqBeforeLate
         ? "PASS"
         : "FAIL",
@@ -883,7 +886,7 @@ async function liveMatrix(): Promise<void> {
       triggerBody.current_question === undefined ? "PASS" : "FAIL",
       {
         severity: "low",
-        note: "createEmergencyReport does not clear sessions.current_question_id, so the answered question is still returned (DEFECT D-3).",
+        note: "Correction D-3: createEmergencyReport clears sessions.current_question_id.",
       },
     );
 
@@ -910,12 +913,12 @@ async function liveMatrix(): Promise<void> {
       "L-EMERG-11",
       "2. Execution precedence",
       "The refusal uses a state error, not a turn-cap error",
-      "error indicates the emergency/ended state",
-      `error=${body(further).error ?? "none"}`,
-      body(further).error !== "turn_cap_reached" ? "PASS" : "FAIL",
+      "409 invalid_state",
+      `status=${further.status}, error=${body(further).error ?? "none"}`,
+      further.status === 409 && body(further).error === "invalid_state" ? "PASS" : "FAIL",
       {
         severity: "low",
-        note: "canAcceptAnswer() collapses 'not in progress' and 'cap reached' into one refusal, so an emergency session reports turn_cap_reached (DEFECT D-4).",
+        note: "Correction D-4: the cap still reports turn_cap_reached; a terminal session now reports invalid_state (409).",
       },
     );
 
@@ -1163,7 +1166,7 @@ async function liveMatrix(): Promise<void> {
       body(clarifyClear).emergency_triggered === true ? "PASS" : "FAIL",
       {
         severity: "medium",
-        note: "The clarification branch runs before classifyAnswer, so a clear emergency phrase typed as the answer is only marked needs_human_review (DEFECT D-5). It is never presented as safe and booking stays held.",
+        note: "Correction D-5: clarification answers are classified before the yes/no parser, so a clear trigger enters the urgent path.",
       },
     );
 
@@ -1188,8 +1191,72 @@ async function liveMatrix(): Promise<void> {
       body(negTurn).emergency_triggered === true ? "PASS" : "FAIL",
       {
         severity: "high",
-        note: "Live confirmation of DEFECT D-2 at the API boundary: the emergency path is not entered.",
+        note: "Correction D-2 verified at the API boundary: the emergency path is entered.",
       },
+    );
+
+    /* S7b — contrast/coordination negation and later occurrences at HTTP level. */
+    const negBefore = await startConsented("en");
+    created.push(negBefore.id);
+    await answer(negBefore.token, negBefore.sessionId, "name", "Certification Patient");
+    await answer(negBefore.token, negBefore.sessionId, "age", "34");
+    await answer(negBefore.token, negBefore.sessionId, "gender", "Female");
+    const negBeforeTurn = await answer(
+      negBefore.token,
+      negBefore.sessionId,
+      "primary_concern",
+      "No fever but I cannot breathe",
+    );
+    record(
+      "L-PREC-05",
+      "2. Execution precedence",
+      "A negation in an earlier clause segment does not cancel a later trigger",
+      "emergency_triggered=true",
+      `triggered=${body(negBeforeTurn).emergency_triggered === true}, status=${body(negBeforeTurn).session_status}`,
+      body(negBeforeTurn).emergency_triggered === true ? "PASS" : "FAIL",
+      { severity: "high" },
+    );
+
+    const butFever = await startConsented("en");
+    created.push(butFever.id);
+    await answer(butFever.token, butFever.sessionId, "name", "Certification Patient");
+    await answer(butFever.token, butFever.sessionId, "age", "34");
+    await answer(butFever.token, butFever.sessionId, "gender", "Female");
+    const butFeverTurn = await answer(
+      butFever.token,
+      butFever.sessionId,
+      "primary_concern",
+      "I have chest pain but no fever",
+    );
+    record(
+      "L-PREC-06",
+      "2. Execution precedence",
+      "An unrelated later negation no longer suppresses the clarification",
+      "current_question=emergency_clarification",
+      `question=${body(butFeverTurn).current_question?.id ?? "none"}, triggered=${body(butFeverTurn).emergency_triggered === true}`,
+      body(butFeverTurn).current_question?.id === "emergency_clarification" ? "PASS" : "FAIL",
+      { severity: "high" },
+    );
+
+    const laterOccurrence = await startConsented("en");
+    created.push(laterOccurrence.id);
+    await answer(laterOccurrence.token, laterOccurrence.sessionId, "name", "Certification Patient");
+    await answer(laterOccurrence.token, laterOccurrence.sessionId, "age", "34");
+    await answer(laterOccurrence.token, laterOccurrence.sessionId, "gender", "Female");
+    const laterTurn = await answer(
+      laterOccurrence.token,
+      laterOccurrence.sessionId,
+      "primary_concern",
+      "no chest pain, but chest pain now",
+    );
+    record(
+      "L-PREC-07",
+      "2. Execution precedence",
+      "A later positive occurrence is evaluated after an earlier negated one",
+      "current_question=emergency_clarification",
+      `question=${body(laterTurn).current_question?.id ?? "none"}, triggered=${body(laterTurn).emergency_triggered === true}`,
+      body(laterTurn).current_question?.id === "emergency_clarification" ? "PASS" : "FAIL",
+      { severity: "high" },
     );
 
     /* S8 — ownership isolation. */
@@ -1259,7 +1326,7 @@ async function liveMatrix(): Promise<void> {
 
     /* S10 — speak makes no paid call after the emergency. */
     const timbreBefore = await timbreUsed();
-    const speak = await http("/functions/v1/speak", {
+    const speak = await http(`${FUNCTIONS_BASE}${FUNCTIONS_PREFIX}/speak`, {
       method: "POST",
       token: emergency.token,
       body: { session_id: emergency.sessionId, question_id: "primary_concern" },
@@ -1299,6 +1366,72 @@ async function liveMatrix(): Promise<void> {
         ? "PASS"
         : "FAIL",
       { severity: "critical" },
+    );
+
+    const reportDoc = await Deno.readTextFile("docs/report-design.md");
+    const versionOk = /\*\*Document version:\*\*\s*1\.2/.test(reportDoc) &&
+      /\*\*Report `schema_version`:\*\*\s*1/.test(reportDoc);
+    record(
+      "L-VERSION-01",
+      "5. Regression testing",
+      "Report contract v1.2 remains the documented version",
+      "docs/report-design.md declares version 1.2 and report schema_version 1",
+      `version_1_2=${versionOk}`,
+      versionOk ? "PASS" : "FAIL",
+      { severity: "high" },
+    );
+
+    const manifest = JSON.parse(
+      await Deno.readTextFile("docs/emergency-certification/evidence/question-bank-hashes.json"),
+    ) as { files: Record<string, { sha256: string }> };
+    const bankProblems: string[] = [];
+    for (const [file, meta] of Object.entries(manifest.files)) {
+      const bytes = await Deno.readFile(file);
+      if (await sha256Hex(bytes) !== meta.sha256) bankProblems.push(file);
+    }
+    const phraseManifest = JSON.parse(
+      await Deno.readTextFile("docs/emergency-certification/evidence/emergency-rule-hashes.json"),
+    ) as { base_sha256: string; current_sha256: string };
+    const phraseBytes = new TextEncoder().encode(JSON.stringify(EMERGENCY_RULES));
+    const phraseHash = await sha256Hex(phraseBytes);
+    record(
+      "L-PHRASE-01",
+      "1. Emergency detection",
+      "No emergency trigger phrase was added, removed or rewritten",
+      "canonical EMERGENCY_RULES hash equals the base-commit hash",
+      `hash=${phraseHash.slice(0, 12)}…, match=${phraseHash === phraseManifest.base_sha256}`,
+      phraseHash === phraseManifest.base_sha256 ? "PASS" : "FAIL",
+      { severity: "critical" },
+    );
+
+    record(
+      "L-BANK-01",
+      "5. Regression testing",
+      "Question bank files are byte-for-byte unchanged from e5d77e5",
+      "all SHA-256 digests match the committed manifest",
+      `files=${Object.keys(manifest.files).length}, mismatches=${bankProblems.length}`,
+      bankProblems.length === 0 ? "PASS" : "FAIL",
+      { severity: "critical", note: bankProblems.length ? bankProblems.join(", ") : undefined },
+    );
+
+    const logProblems: string[] = [];
+    for (const file of ["supabase/functions/chat-turn/index.ts", "supabase/functions/speak/index.ts"]) {
+      const source = await Deno.readTextFile(file);
+      const calls = source.match(/consoleLogger\.(?:info|error)\([\s\S]*?\);/g) ?? [];
+      for (const call of calls) {
+        for (const identifier of ["final_text", "original_text", "patient_statement", "transcript", "audio_base64"]) {
+          if (call.includes(identifier)) logProblems.push(`${file}:${identifier}`);
+        }
+      }
+    }
+    record(
+      "L-LOG-01",
+      "5. Regression testing",
+      "Diagnostic log calls never carry patient statements or transcripts",
+      "no patient-content identifier in any consoleLogger call",
+      `violations=${logProblems.length}`,
+      logProblems.length === 0 ? "PASS" : "FAIL",
+      { severity: "critical", note: logProblems.length ? logProblems.join(", ") : undefined },
     );
   } finally {
     /* Self-only cleanup: deleting the created identities cascades their rows. */

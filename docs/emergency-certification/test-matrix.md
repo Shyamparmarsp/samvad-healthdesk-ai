@@ -1,13 +1,13 @@
 # Emergency Certification — Test Matrix
 
-Generated from `emergency-certification-result.json` (2026-11-02T11:28:55.181Z).
-Application commit under test: `e5d77e53100f62d3ac5954cce7d4e9c5872f3053`. Target: local stack `http://127.0.0.1:54321` only.
+Generated from `emergency-certification-result.json` (2026-11-02T13:39:29.176Z).
+Application commit under test: `e5d77e53100f62d3ac5954cce7d4e9c5872f3053`. Target: local stack only.
 
-**Verdict: FAIL** — 197 cases: 187 PASS, 10 FAIL, 0 NOT TESTED.
+**Verdict: PASS** — 209 cases: 209 PASS, 0 FAIL, 0 NOT TESTED.
 
-Every FAIL is a reproducible deviation from the documented contract; see
-`audit-report.md` for the defect record. `Input / condition` contains only fixed
-demo phrases and synthetic fixture text, never real patient data.
+This matrix runs against the corrected Edge Functions served from a parallel local
+edge-runtime container; the project’s shared runtime and all worktrees were untouched.
+`Input / condition` contains only fixed demo phrases and synthetic fixture text.
 
 ## 1. Emergency detection
 
@@ -157,12 +157,17 @@ demo phrases and synthetic fixture text, never real patient data.
 | `M-NORM-08` | Case/whitespace/punctuation/orthography variant still matches | साँस लेने में बहुत तकलीफ़ | clear | clear | **PASS** |
 | `M-QUOTE-01` | Double-quoted example does not trigger | My friend told me to say "I cannot breathe" | none | none | **PASS** |
 | `M-QUOTE-02` | Double-quoted example does not trigger | The form says "having a seizure now" | none | none | **PASS** |
-| `M-QUOTE-03` | Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1) | The form says 'having a seizure now' | none | clear / seizure_or_convulsion | **FAIL** |
-| `M-QUOTE-04` | Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1) | My friend told me to say 'I cannot breathe' | none | clear / breathing_emergency | **FAIL** |
-| `M-NEGSCOPE-01` | A negation of an unrelated symptom does not cancel the trigger mention | I cannot breathe but I have no fever | clear | none | **FAIL** |
-| `M-NEGSCOPE-02` | A negation of an unrelated symptom does not cancel the trigger mention | I have chest pain but no fever | ambiguous | none | **FAIL** |
-| `M-NEGSCOPE-03` | A negation of an unrelated symptom does not cancel the trigger mention | no chest pain, but chest pain now | ambiguous or clear | none | **FAIL** |
-| `M-NEGSCOPE-04` | A negation of an unrelated symptom does not cancel the trigger mention | I have severe chest pain and no fever | clear | none | **FAIL** |
+| `M-QUOTE-03` | Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1) | The form says 'having a seizure now' | none | none | **PASS** |
+| `M-QUOTE-04` | Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1) | My friend told me to say 'I cannot breathe' | none | none | **PASS** |
+| `M-QUOTE-05` | Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1) | I said 'no chest pain' | none | none | **PASS** |
+| `M-NEGSCOPE-01` | A negation of an unrelated symptom does not cancel the trigger mention | I cannot breathe but I have no fever | clear | clear / breathing_emergency | **PASS** |
+| `M-NEGSCOPE-02` | A negation of an unrelated symptom does not cancel the trigger mention | I have chest pain but no fever | ambiguous | ambiguous | **PASS** |
+| `M-NEGSCOPE-03` | A negation of an unrelated symptom does not cancel the trigger mention | no chest pain, but chest pain now | ambiguous | ambiguous | **PASS** |
+| `M-NEGSCOPE-04` | A negation of an unrelated symptom does not cancel the trigger mention | I have severe chest pain and no fever | clear | clear / severe_chest_pain | **PASS** |
+| `M-NEGSCOPE-05` | A negation of an unrelated symptom does not cancel the trigger mention | No fever but I cannot breathe | clear | clear / breathing_emergency | **PASS** |
+| `M-NEGSCOPE-06` | A negation of an unrelated symptom does not cancel the trigger mention | I have chest pain and no fever | ambiguous | ambiguous | **PASS** |
+| `M-NEGSCOPE-07` | A negation of an unrelated symptom does not cancel the trigger mention | I have chest pain with no fever | ambiguous | ambiguous | **PASS** |
+| `M-NEGSCOPE-08` | A negation of an unrelated symptom does not cancel the trigger mention | I have no chest pain and no fever | none | none | **PASS** |
 | `M-EMPTY-01` | Empty/whitespace answer is not a match | Empty/whitespace answer is not a match | none | none | **PASS** |
 | `M-ORDER-01` | Declared rule order decides the rule id when two rules match | Declared rule order decides the rule id when two rules match | clear / breathing_emergency | clear / breathing_emergency | **PASS** |
 | `M-DET-01` | Classification is deterministic across repeated calls | Classification is deterministic across repeated calls | one distinct result | 1 distinct result(s) | **PASS** |
@@ -171,21 +176,25 @@ demo phrases and synthetic fixture text, never real patient data.
 | `L-AMB-01` | Ambiguous mention asks the fixed Yes/No clarification | Ambiguous mention asks the fixed Yes/No clarification | current_question=emergency_clarification with Yes/No | question=emergency_clarification, options=Yes\|No, flag=true | **PASS** |
 | `L-AMB-04` | An unclear clarification is never treated as safe | An unclear clarification is never treated as safe | needs_human_review=true, question stays, no report, no emergency | review=true, question=emergency_clarification, report=none | **PASS** |
 | `L-AMB-05` | 'No' negates only that candidate and never clears the review flag | 'No' negates only that candidate and never clears the review flag | pending cleared, intake continues, needs_human_review stays true | pending=null, question=duration, review=true | **PASS** |
+| `L-PHRASE-01` | No emergency trigger phrase was added, removed or rewritten | No emergency trigger phrase was added, removed or rewritten | canonical EMERGENCY_RULES hash equals the base-commit hash | hash=8d8f719f45a4…, match=true | **PASS** |
 
 ## 2. Execution precedence
 
 | ID | Test | Input / condition | Expected | Actual | Verdict |
 |---|---|---|---|---|---|
 | `L-NORMAL-04` | The ordinary final adaptive answer reaches the provider stage (same-turn control) | The ordinary final adaptive answer reaches the provider stage (same-turn control) | at least one Groq reservation on the ordinary final turn | delta=1 | **PASS** |
-| `L-PREC-03` | A trigger on the final scripted turn preempts adaptive selection and the provider call | A trigger on the final scripted turn preempts adaptive selection and the provider call | emergency_triggered=true, session_status=emergency, no new question, Groq delta 0 | triggered=true, status=emergency, question=other_symptoms, delta=0 | **PASS** |
+| `L-PREC-03` | A trigger on the final scripted turn preempts adaptive selection and the provider call | A trigger on the final scripted turn preempts adaptive selection and the provider call | emergency_triggered=true, session_status=emergency, no new question, Groq delta 0 | triggered=true, status=emergency, question=none, delta=0 | **PASS** |
 | `L-EMERG-01` | Clear trigger returns the emergency state and no submit path | Clear trigger returns the emergency state and no submit path | emergency_triggered=true, session_status=emergency, can_submit=false | triggered=true, status=emergency, can_submit=false | **PASS** |
 | `L-EMERG-07` | No provider call is made on the trigger turn | No provider call is made on the trigger turn | Groq counter unchanged across the trigger answer | delta=0 | **PASS** |
-| `L-EMERG-08` | The trigger turn is not accepted as a normal answer and no further question is selected | The trigger turn is not accepted as a normal answer and no further question is selected | turn_count unchanged; no new adaptive question id | turn_before=3, turn_after=3, current_question=primary_concern | **PASS** |
-| `L-EMERG-09` | After an emergency, the response advertises no further question | After an emergency, the response advertises no further question | current_question is absent | current_question=primary_concern | **FAIL** |
-| `L-EMERG-10` | A further answer after the emergency is refused | A further answer after the emergency is refused | non-2xx or an error field; no new turn or report | status=200, error=turn_cap_reached, turns=3 | **PASS** |
-| `L-EMERG-11` | The refusal uses a state error, not a turn-cap error | The refusal uses a state error, not a turn-cap error | error indicates the emergency/ended state | error=turn_cap_reached | **FAIL** |
-| `L-PREC-01` | A clear trigger in a clarification answer still enters the urgent path | A clear trigger in a clarification answer still enters the urgent path | emergency_triggered=true | triggered=false, review=true, question=emergency_clarification | **FAIL** |
-| `L-PREC-02` | A present clear trigger is not cancelled by an unrelated negation | A present clear trigger is not cancelled by an unrelated negation | emergency_triggered=true | triggered=false, status=in_progress | **FAIL** |
+| `L-EMERG-08` | The trigger turn is not accepted as a normal answer and no further question is selected | The trigger turn is not accepted as a normal answer and no further question is selected | turn_count unchanged; no new adaptive question id | turn_before=3, turn_after=3, current_question=none | **PASS** |
+| `L-EMERG-09` | After an emergency, the response advertises no further question | After an emergency, the response advertises no further question | current_question is absent | current_question=none | **PASS** |
+| `L-EMERG-10` | A further answer after the emergency is refused | A further answer after the emergency is refused | non-2xx or an error field; no new turn or report | status=409, error=invalid_state, turns=3 | **PASS** |
+| `L-EMERG-11` | The refusal uses a state error, not a turn-cap error | The refusal uses a state error, not a turn-cap error | 409 invalid_state | status=409, error=invalid_state | **PASS** |
+| `L-PREC-01` | A clear trigger in a clarification answer still enters the urgent path | A clear trigger in a clarification answer still enters the urgent path | emergency_triggered=true | triggered=true, review=false, question=none | **PASS** |
+| `L-PREC-02` | A present clear trigger is not cancelled by an unrelated negation | A present clear trigger is not cancelled by an unrelated negation | emergency_triggered=true | triggered=true, status=emergency | **PASS** |
+| `L-PREC-05` | A negation in an earlier clause segment does not cancel a later trigger | A negation in an earlier clause segment does not cancel a later trigger | emergency_triggered=true | triggered=true, status=emergency | **PASS** |
+| `L-PREC-06` | An unrelated later negation no longer suppresses the clarification | An unrelated later negation no longer suppresses the clarification | current_question=emergency_clarification | question=emergency_clarification, triggered=false | **PASS** |
+| `L-PREC-07` | A later positive occurrence is evaluated after an earlier negated one | A later positive occurrence is evaluated after an earlier negated one | current_question=emergency_clarification | question=emergency_clarification, triggered=false | **PASS** |
 | `L-SPEAK-01` | No paid TTS call is made for an emergency session | No paid TTS call is made for an emergency session | text response, Timbre counter unchanged | status=200, audio=false, timbre_delta=0 | **PASS** |
 
 ## 3. Urgent report behaviour
@@ -229,29 +238,18 @@ demo phrases and synthetic fixture text, never real patient data.
 | `L-NORMAL-03` | Normal non-emergency intake completes and produces a normal draft | Normal non-emergency intake completes and produces a normal draft | is_complete=true, can_submit=true, draft present with a summary, no emergency, 10 turns | complete=true, can_submit=true, draft=true, summary=true, emergency=false, turns=10 | **PASS** |
 | `L-LIMIT-01` | Answer-turn and adaptive-question limits are unchanged | Answer-turn and adaptive-question limits are unchanged | MAX_ANSWER_TURNS=15, MAX_ADAPTIVE_QUESTIONS=3 | turns=15, adaptive=3 | **PASS** |
 | `L-SCHEMA-01` | Report schema version is unchanged | Report schema version is unchanged | REPORT_SCHEMA_VERSION=1 and response schema_version=1 | constant=1, document=1, row=1 | **PASS** |
+| `L-VERSION-01` | Report contract v1.2 remains the documented version | Report contract v1.2 remains the documented version | docs/report-design.md declares version 1.2 and report schema_version 1 | version_1_2=true | **PASS** |
+| `L-BANK-01` | Question bank files are byte-for-byte unchanged from e5d77e5 | Question bank files are byte-for-byte unchanged from e5d77e5 | all SHA-256 digests match the committed manifest | files=4, mismatches=0 | **PASS** |
+| `L-LOG-01` | Diagnostic log calls never carry patient statements or transcripts | Diagnostic log calls never carry patient statements or transcripts | no patient-content identifier in any consoleLogger call | violations=0 | **PASS** |
 
 ## 6. Hygiene
 
 | ID | Test | Input / condition | Expected | Actual | Verdict |
 |---|---|---|---|---|---|
-| `L-CLEANUP-01` | The harness deletes only the identities it created | The harness deletes only the identities it created | 0 residual sessions for created users | residual=0, users=9 | **PASS** |
+| `L-CLEANUP-01` | The harness deletes only the identities it created | The harness deletes only the identities it created | 0 residual sessions for created users | residual=0, users=12 | **PASS** |
 
-## FAIL detail
+## NOT TESTED
 
-| ID | Severity | Defect | Note |
-|---|---|---|---|
-| `M-QUOTE-03` | medium | Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1) | normalizeAnswer removes apostrophes before stripQuoted runs, so a single-quoted span is never removed (DEFECT D-1). |
-| `M-QUOTE-04` | medium | Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1) | normalizeAnswer removes apostrophes before stripQuoted runs, so a single-quoted span is never removed (DEFECT D-1). |
-| `M-NEGSCOPE-01` | high | A negation of an unrelated symptom does not cancel the trigger mention | isNegated scans 25 characters after the phrase inside the same clause, so a later 'no <other symptom>' cancels the trigger (DEFECT D-2). |
-| `M-NEGSCOPE-02` | high | A negation of an unrelated symptom does not cancel the trigger mention | isNegated scans 25 characters after the phrase inside the same clause, so a later 'no <other symptom>' cancels the trigger (DEFECT D-2). |
-| `M-NEGSCOPE-03` | high | A negation of an unrelated symptom does not cancel the trigger mention | isNegated scans 25 characters after the phrase inside the same clause, so a later 'no <other symptom>' cancels the trigger (DEFECT D-2). |
-| `M-NEGSCOPE-04` | high | A negation of an unrelated symptom does not cancel the trigger mention | isNegated scans 25 characters after the phrase inside the same clause, so a later 'no <other symptom>' cancels the trigger (DEFECT D-2). |
-| `L-EMERG-09` | low | After an emergency, the response advertises no further question | createEmergencyReport does not clear sessions.current_question_id, so the answered question is still returned (DEFECT D-3). |
-| `L-EMERG-11` | low | The refusal uses a state error, not a turn-cap error | canAcceptAnswer() collapses 'not in progress' and 'cap reached' into one refusal, so an emergency session reports turn_cap_reached (DEFECT D-4). |
-| `L-PREC-01` | medium | A clear trigger in a clarification answer still enters the urgent path | The clarification branch runs before classifyAnswer, so a clear emergency phrase typed as the answer is only marked needs_human_review (DEFECT D-5). It is never presented as safe and booking stays held. |
-| `L-PREC-02` | high | A present clear trigger is not cancelled by an unrelated negation | Live confirmation of DEFECT D-2 at the API boundary: the emergency path is not entered. |
-
-## NOT TESTED detail
-
-None. Every planned case executed.
+None in the automated matrix. Product-level behaviours that are out of scope
+are listed in `not-tested.md`.
 

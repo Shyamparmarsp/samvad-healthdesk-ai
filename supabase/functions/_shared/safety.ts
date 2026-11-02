@@ -169,9 +169,6 @@ const NEGATION_TOKENS = new Set([
   "बिना",
 ]);
 
-const BEFORE_WINDOW = 40;
-const AFTER_WINDOW = 25;
-
 /** Lower-cases, unifies quotes and apostrophes, collapses whitespace. */
 export function normalizeAnswer(input: string): string {
   return input
@@ -187,9 +184,12 @@ export function normalizeAnswer(input: string): string {
 export function stripQuoted(input: string): string {
   let output = input;
   output = output.replace(/"[^"]{0,300}"/g, " ");
-  output = output.replace(/'[^']{1,300}'/g, " ");
+  // A single quote delimits a quotation only at a word boundary. This keeps the
+  // apostrophes in contractions ("don't", "patient's") intact while removing
+  // 'quoted examples' that the patient is repeating rather than reporting.
+  output = output.replace(/(^|[\s([{])'[^']{1,300}'(?=[\s)\]},.!?;:]|$)/g, "$1 ");
   output = output.replace(/“[^”]{0,300}”/g, " ");
-  output = output.replace(/‘[^’]{0,300}’/g, " ");
+  output = output.replace(/(^|[\s([{])‘[^’]{1,300}’(?=[\s)\]},.!?;:]|$)/g, "$1 ");
   return output.replace(/\s+/g, " ").trim();
 }
 
@@ -197,29 +197,47 @@ function tokenize(value: string): string[] {
   return value.split(/[^\p{L}\p{N}\p{M}]+/u).filter((token) => token.length > 0);
 }
 
+/**
+ * Clause and coordination boundaries. A negation on the other side of a contrast or
+ * coordination ("but", "and", "लेकिन") belongs to a different statement and must not
+ * cancel the mention. Sentence punctuation is also a boundary.
+ */
+const BOUNDARY = /[.,;!?।]|\b(?:and|but|however|although|though|yet)\b|(?:और|लेकिन|मगर)/giu;
+
 function clauseAround(text: string, start: number, end: number): { clause: string; offset: number } {
-  const boundaries = /[.,;!?।]/g;
+  BOUNDARY.lastIndex = 0;
   let clauseStart = 0;
   let match: RegExpExecArray | null;
-  while ((match = boundaries.exec(text)) !== null) {
+  while ((match = BOUNDARY.exec(text)) !== null) {
     const position = match.index;
     if (position < start) {
-      clauseStart = position + 1;
+      clauseStart = position + match[0].length;
       continue;
     }
     if (position >= end) {
       return { clause: text.slice(clauseStart, position), offset: clauseStart };
     }
+    // A boundary inside the phrase itself (e.g. the word "and" in an approved
+    // phrase) does not split the phrase; the phrase match is computed on full text.
   }
   return { clause: text.slice(clauseStart), offset: clauseStart };
 }
 
-/** True when a negation token sits near the phrase inside the same clause. */
+/** How many tokens before/after the mention a governing negation may appear. */
+const NEGATION_BEFORE_TOKENS = 6;
+const NEGATION_AFTER_TOKENS = 1;
+
+/**
+ * True when a negation token governs the phrase inside the same clause segment.
+ *
+ * Before: up to six tokens, which covers English auxiliaries ("I do not really have
+ * chest pain") without reaching a negation that belongs to another clause segment.
+ * After: only the immediately following token, which covers Hindi post-verbal negation
+ * ("सीने में दर्द नहीं है") without treating "chest pain but no fever" as negated.
+ */
 export function isNegated(clause: string, phraseStart: number, phraseEnd: number): boolean {
-  const before = clause.slice(Math.max(0, phraseStart - BEFORE_WINDOW), phraseStart);
-  const after = clause.slice(phraseEnd, Math.min(clause.length, phraseEnd + AFTER_WINDOW));
-  const beforeTokens = tokenize(before);
-  const afterTokens = tokenize(after);
+  const beforeTokens = tokenize(clause.slice(0, phraseStart)).slice(-NEGATION_BEFORE_TOKENS);
+  const afterTokens = tokenize(clause.slice(phraseEnd)).slice(0, NEGATION_AFTER_TOKENS);
   return (
     beforeTokens.some((token) => NEGATION_TOKENS.has(token)) ||
     afterTokens.some((token) => NEGATION_TOKENS.has(token))
@@ -232,15 +250,27 @@ interface PhraseHit {
   negated: boolean;
 }
 
-function findPhrase(text: string, phrase: string): PhraseHit | null {
-  const index = text.indexOf(phrase);
-  if (index < 0) return null;
-  const start = index;
-  const end = index + phrase.length;
-  const { clause, offset } = clauseAround(text, start, end);
-  const localStart = start - offset;
-  const localEnd = end - offset;
-  return { start, end, negated: isNegated(clause, localStart, localEnd) };
+/**
+ * Every occurrence of a phrase, each with its own negation context. Checking only the
+ * first occurrence would let an earlier negated mention hide a later positive one
+ * ("no chest pain, but chest pain now").
+ */
+function findPhraseHits(text: string, phrase: string): PhraseHit[] {
+  const hits: PhraseHit[] = [];
+  let from = 0;
+  while (from <= text.length) {
+    const index = text.indexOf(phrase, from);
+    if (index < 0) break;
+    const end = index + phrase.length;
+    const { clause, offset } = clauseAround(text, index, end);
+    hits.push({
+      start: index,
+      end,
+      negated: isNegated(clause, index - offset, end - offset),
+    });
+    from = index + 1;
+  }
+  return hits;
 }
 
 /**
@@ -251,7 +281,7 @@ function findPhrase(text: string, phrase: string): PhraseHit | null {
  * confirmed is a caller defect and cannot be detected here.
  */
 export function classifyAnswer(answer: string, options: MatchOptions = {}): EmergencyMatch {
-  const normalized = stripQuoted(normalizeAnswer(answer));
+  const normalized = stripQuoted(normalizeAnswer(stripQuoted(answer)));
   if (normalized.length === 0) return { kind: "none" };
 
   const ambiguousHits: EmergencyRuleId[] = [];
@@ -263,8 +293,8 @@ export function classifyAnswer(answer: string, options: MatchOptions = {}): Emer
       : [...rule.clear, ...rule.clearHi];
 
     for (const phrase of clearPhrases) {
-      const hit = findPhrase(normalized, normalizeAnswer(phrase));
-      if (hit && !hit.negated) {
+      const hits = findPhraseHits(normalized, normalizeAnswer(phrase));
+      if (hits.some((hit) => !hit.negated)) {
         return { kind: "clear", ruleId: rule.id };
       }
     }
@@ -273,8 +303,8 @@ export function classifyAnswer(answer: string, options: MatchOptions = {}): Emer
   for (const rule of EMERGENCY_RULES) {
     const weakPhrases = [...rule.ambiguous, ...rule.ambiguousHi];
     for (const phrase of weakPhrases) {
-      const hit = findPhrase(normalized, normalizeAnswer(phrase));
-      if (hit && !hit.negated) {
+      const hits = findPhraseHits(normalized, normalizeAnswer(phrase));
+      if (hits.some((hit) => !hit.negated)) {
         sawAmbiguous = true;
         if (!ambiguousHits.includes(rule.id)) ambiguousHits.push(rule.id);
       }

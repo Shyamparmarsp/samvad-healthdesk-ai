@@ -1,22 +1,16 @@
 {
-  "generated_at": "2026-11-02T11:28:55.181Z",
+  "generated_at": "2026-11-02T13:39:29.176Z",
   "commit": "e5d77e53100f62d3ac5954cce7d4e9c5872f3053",
   "target": "http://127.0.0.1:54321",
   "local_only": true,
   "summary": {
-    "total": 197,
-    "pass": 187,
-    "fail": 10,
+    "total": 209,
+    "pass": 209,
+    "fail": 0,
     "notTested": 0
   },
-  "verdict": "FAIL",
-  "blocking_findings": [
-    "M-NEGSCOPE-01",
-    "M-NEGSCOPE-02",
-    "M-NEGSCOPE-03",
-    "M-NEGSCOPE-04",
-    "L-PREC-02"
-  ],
+  "verdict": "PASS",
+  "blocking_findings": [],
   "notes": [
     "Base URL: http://127.0.0.1:54321 (local only).",
     "Commit under test: e5d77e53100f62d3ac5954cce7d4e9c5872f3053.",
@@ -1468,10 +1462,10 @@
       "category": "1. Emergency detection",
       "requirement": "Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1)",
       "expected": "none",
-      "actual": "clear / seizure_or_convulsion",
-      "verdict": "FAIL",
+      "actual": "none",
+      "verdict": "PASS",
       "severity": "medium",
-      "note": "normalizeAnswer removes apostrophes before stripQuoted runs, so a single-quoted span is never removed (DEFECT D-1).",
+      "note": "Correction D-1: single-quoted spans are stripped before normalisation; contractions still work.",
       "input": "The form says 'having a seizure now'"
     },
     {
@@ -1479,21 +1473,32 @@
       "category": "1. Emergency detection",
       "requirement": "Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1)",
       "expected": "none",
-      "actual": "clear / breathing_emergency",
-      "verdict": "FAIL",
+      "actual": "none",
+      "verdict": "PASS",
       "severity": "medium",
-      "note": "normalizeAnswer removes apostrophes before stripQuoted runs, so a single-quoted span is never removed (DEFECT D-1).",
+      "note": "Correction D-1: single-quoted spans are stripped before normalisation; contractions still work.",
       "input": "My friend told me to say 'I cannot breathe'"
+    },
+    {
+      "id": "M-QUOTE-05",
+      "category": "1. Emergency detection",
+      "requirement": "Single-quoted example does not trigger (docs/demo-emergency-rules.md rule 1)",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "medium",
+      "note": "Correction D-1: single-quoted spans are stripped before normalisation; contractions still work.",
+      "input": "I said 'no chest pain'"
     },
     {
       "id": "M-NEGSCOPE-01",
       "category": "1. Emergency detection",
       "requirement": "A negation of an unrelated symptom does not cancel the trigger mention",
       "expected": "clear",
-      "actual": "none",
-      "verdict": "FAIL",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
       "severity": "high",
-      "note": "isNegated scans 25 characters after the phrase inside the same clause, so a later 'no <other symptom>' cancels the trigger (DEFECT D-2).",
+      "note": "Correction D-2: negation is scoped to the mention's clause segment; an unrelated later negation no longer cancels it.",
       "input": "I cannot breathe but I have no fever"
     },
     {
@@ -1501,21 +1506,21 @@
       "category": "1. Emergency detection",
       "requirement": "A negation of an unrelated symptom does not cancel the trigger mention",
       "expected": "ambiguous",
-      "actual": "none",
-      "verdict": "FAIL",
+      "actual": "ambiguous",
+      "verdict": "PASS",
       "severity": "high",
-      "note": "isNegated scans 25 characters after the phrase inside the same clause, so a later 'no <other symptom>' cancels the trigger (DEFECT D-2).",
+      "note": "Correction D-2: negation is scoped to the mention's clause segment; an unrelated later negation no longer cancels it.",
       "input": "I have chest pain but no fever"
     },
     {
       "id": "M-NEGSCOPE-03",
       "category": "1. Emergency detection",
       "requirement": "A negation of an unrelated symptom does not cancel the trigger mention",
-      "expected": "ambiguous or clear",
-      "actual": "none",
-      "verdict": "FAIL",
+      "expected": "ambiguous",
+      "actual": "ambiguous",
+      "verdict": "PASS",
       "severity": "high",
-      "note": "isNegated scans 25 characters after the phrase inside the same clause, so a later 'no <other symptom>' cancels the trigger (DEFECT D-2).",
+      "note": "Correction D-2: negation is scoped to the mention's clause segment; an unrelated later negation no longer cancels it.",
       "input": "no chest pain, but chest pain now"
     },
     {
@@ -1523,11 +1528,55 @@
       "category": "1. Emergency detection",
       "requirement": "A negation of an unrelated symptom does not cancel the trigger mention",
       "expected": "clear",
-      "actual": "none",
-      "verdict": "FAIL",
+      "actual": "clear / severe_chest_pain",
+      "verdict": "PASS",
       "severity": "high",
-      "note": "isNegated scans 25 characters after the phrase inside the same clause, so a later 'no <other symptom>' cancels the trigger (DEFECT D-2).",
+      "note": "Correction D-2: negation is scoped to the mention's clause segment; an unrelated later negation no longer cancels it.",
       "input": "I have severe chest pain and no fever"
+    },
+    {
+      "id": "M-NEGSCOPE-05",
+      "category": "1. Emergency detection",
+      "requirement": "A negation of an unrelated symptom does not cancel the trigger mention",
+      "expected": "clear",
+      "actual": "clear / breathing_emergency",
+      "verdict": "PASS",
+      "severity": "high",
+      "note": "Correction D-2: negation is scoped to the mention's clause segment; an unrelated later negation no longer cancels it.",
+      "input": "No fever but I cannot breathe"
+    },
+    {
+      "id": "M-NEGSCOPE-06",
+      "category": "1. Emergency detection",
+      "requirement": "A negation of an unrelated symptom does not cancel the trigger mention",
+      "expected": "ambiguous",
+      "actual": "ambiguous",
+      "verdict": "PASS",
+      "severity": "high",
+      "note": "Correction D-2: negation is scoped to the mention's clause segment; an unrelated later negation no longer cancels it.",
+      "input": "I have chest pain and no fever"
+    },
+    {
+      "id": "M-NEGSCOPE-07",
+      "category": "1. Emergency detection",
+      "requirement": "A negation of an unrelated symptom does not cancel the trigger mention",
+      "expected": "ambiguous",
+      "actual": "ambiguous",
+      "verdict": "PASS",
+      "severity": "high",
+      "note": "Correction D-2: negation is scoped to the mention's clause segment; an unrelated later negation no longer cancels it.",
+      "input": "I have chest pain with no fever"
+    },
+    {
+      "id": "M-NEGSCOPE-08",
+      "category": "1. Emergency detection",
+      "requirement": "A negation of an unrelated symptom does not cancel the trigger mention",
+      "expected": "none",
+      "actual": "none",
+      "verdict": "PASS",
+      "severity": "high",
+      "note": "Correction D-2: negation is scoped to the mention's clause segment; an unrelated later negation no longer cancels it.",
+      "input": "I have no chest pain and no fever"
     },
     {
       "id": "M-EMPTY-01",
@@ -1607,7 +1656,7 @@
       "category": "2. Execution precedence",
       "requirement": "A trigger on the final scripted turn preempts adaptive selection and the provider call",
       "expected": "emergency_triggered=true, session_status=emergency, no new question, Groq delta 0",
-      "actual": "triggered=true, status=emergency, question=other_symptoms, delta=0",
+      "actual": "triggered=true, status=emergency, question=none, delta=0",
       "verdict": "PASS",
       "severity": "critical"
     },
@@ -1688,7 +1737,7 @@
       "category": "2. Execution precedence",
       "requirement": "The trigger turn is not accepted as a normal answer and no further question is selected",
       "expected": "turn_count unchanged; no new adaptive question id",
-      "actual": "turn_before=3, turn_after=3, current_question=primary_concern",
+      "actual": "turn_before=3, turn_after=3, current_question=none",
       "verdict": "PASS",
       "severity": "high"
     },
@@ -1697,17 +1746,17 @@
       "category": "2. Execution precedence",
       "requirement": "After an emergency, the response advertises no further question",
       "expected": "current_question is absent",
-      "actual": "current_question=primary_concern",
-      "verdict": "FAIL",
+      "actual": "current_question=none",
+      "verdict": "PASS",
       "severity": "low",
-      "note": "createEmergencyReport does not clear sessions.current_question_id, so the answered question is still returned (DEFECT D-3)."
+      "note": "Correction D-3: createEmergencyReport clears sessions.current_question_id."
     },
     {
       "id": "L-EMERG-10",
       "category": "2. Execution precedence",
       "requirement": "A further answer after the emergency is refused",
       "expected": "non-2xx or an error field; no new turn or report",
-      "actual": "status=200, error=turn_cap_reached, turns=3",
+      "actual": "status=409, error=invalid_state, turns=3",
       "verdict": "PASS",
       "severity": "critical"
     },
@@ -1715,11 +1764,11 @@
       "id": "L-EMERG-11",
       "category": "2. Execution precedence",
       "requirement": "The refusal uses a state error, not a turn-cap error",
-      "expected": "error indicates the emergency/ended state",
-      "actual": "error=turn_cap_reached",
-      "verdict": "FAIL",
+      "expected": "409 invalid_state",
+      "actual": "status=409, error=invalid_state",
+      "verdict": "PASS",
       "severity": "low",
-      "note": "canAcceptAnswer() collapses 'not in progress' and 'cap reached' into one refusal, so an emergency session reports turn_cap_reached (DEFECT D-4)."
+      "note": "Correction D-4: the cap still reports turn_cap_reached; a terminal session now reports invalid_state (409)."
     },
     {
       "id": "L-EMERG-12",
@@ -1825,20 +1874,47 @@
       "category": "2. Execution precedence",
       "requirement": "A clear trigger in a clarification answer still enters the urgent path",
       "expected": "emergency_triggered=true",
-      "actual": "triggered=false, review=true, question=emergency_clarification",
-      "verdict": "FAIL",
+      "actual": "triggered=true, review=false, question=none",
+      "verdict": "PASS",
       "severity": "medium",
-      "note": "The clarification branch runs before classifyAnswer, so a clear emergency phrase typed as the answer is only marked needs_human_review (DEFECT D-5). It is never presented as safe and booking stays held."
+      "note": "Correction D-5: clarification answers are classified before the yes/no parser, so a clear trigger enters the urgent path."
     },
     {
       "id": "L-PREC-02",
       "category": "2. Execution precedence",
       "requirement": "A present clear trigger is not cancelled by an unrelated negation",
       "expected": "emergency_triggered=true",
-      "actual": "triggered=false, status=in_progress",
-      "verdict": "FAIL",
+      "actual": "triggered=true, status=emergency",
+      "verdict": "PASS",
       "severity": "high",
-      "note": "Live confirmation of DEFECT D-2 at the API boundary: the emergency path is not entered."
+      "note": "Correction D-2 verified at the API boundary: the emergency path is entered."
+    },
+    {
+      "id": "L-PREC-05",
+      "category": "2. Execution precedence",
+      "requirement": "A negation in an earlier clause segment does not cancel a later trigger",
+      "expected": "emergency_triggered=true",
+      "actual": "triggered=true, status=emergency",
+      "verdict": "PASS",
+      "severity": "high"
+    },
+    {
+      "id": "L-PREC-06",
+      "category": "2. Execution precedence",
+      "requirement": "An unrelated later negation no longer suppresses the clarification",
+      "expected": "current_question=emergency_clarification",
+      "actual": "question=emergency_clarification, triggered=false",
+      "verdict": "PASS",
+      "severity": "high"
+    },
+    {
+      "id": "L-PREC-07",
+      "category": "2. Execution precedence",
+      "requirement": "A later positive occurrence is evaluated after an earlier negated one",
+      "expected": "current_question=emergency_clarification",
+      "actual": "question=emergency_clarification, triggered=false",
+      "verdict": "PASS",
+      "severity": "high"
     },
     {
       "id": "L-OWN-01",
@@ -1905,11 +1981,47 @@
       "severity": "critical"
     },
     {
+      "id": "L-VERSION-01",
+      "category": "5. Regression testing",
+      "requirement": "Report contract v1.2 remains the documented version",
+      "expected": "docs/report-design.md declares version 1.2 and report schema_version 1",
+      "actual": "version_1_2=true",
+      "verdict": "PASS",
+      "severity": "high"
+    },
+    {
+      "id": "L-PHRASE-01",
+      "category": "1. Emergency detection",
+      "requirement": "No emergency trigger phrase was added, removed or rewritten",
+      "expected": "canonical EMERGENCY_RULES hash equals the base-commit hash",
+      "actual": "hash=8d8f719f45a4…, match=true",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-BANK-01",
+      "category": "5. Regression testing",
+      "requirement": "Question bank files are byte-for-byte unchanged from e5d77e5",
+      "expected": "all SHA-256 digests match the committed manifest",
+      "actual": "files=4, mismatches=0",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
+      "id": "L-LOG-01",
+      "category": "5. Regression testing",
+      "requirement": "Diagnostic log calls never carry patient statements or transcripts",
+      "expected": "no patient-content identifier in any consoleLogger call",
+      "actual": "violations=0",
+      "verdict": "PASS",
+      "severity": "critical"
+    },
+    {
       "id": "L-CLEANUP-01",
       "category": "6. Hygiene",
       "requirement": "The harness deletes only the identities it created",
       "expected": "0 residual sessions for created users",
-      "actual": "residual=0, users=9",
+      "actual": "residual=0, users=12",
       "verdict": "PASS",
       "severity": "high"
     },
