@@ -2,7 +2,7 @@
 
 **Document:** `SAMVAD-FINAL-RELEASE-CERTIFICATION-REPORT`
 **Date:** 3 November 2026
-**Release candidate:** `release-candidate/samvad-final` @ `4ee6061`
+**Release candidate:** `release-candidate/samvad-final` @ `b6ee111`
 **Baseline defects:** the 50-finding register from the final UI/logic audit, plus 5 findings raised across the remediation and certification rounds (N-01…N-05)
 
 ---
@@ -40,16 +40,15 @@ was previously unavailable:
    documented behaviour (Emergency-doctor-only acknowledgement) and the versioned consent
    text; neither is changed silently.
 
-Five visual findings remain open with the design owner (processing screen, booking layout,
-reports-list layout, dedicated slot-state screens, brand plus), plus three partial visual
-items. None affects data integrity, safety or authorization.
+Three cosmetic visual findings remain open (avatar containers D-43/D-44, brand plus D-45).
+None affects data integrity, safety or authorization.
 
 **Deployment-readiness by gate:**
 
 | Gate | Verdict |
 |---|---|
 | Internal scripted demo (real local stack) | **PASS** |
-| Owner visual acceptance | **FAIL** — 5 open, 3 partial |
+| Owner visual acceptance | **CONDITIONAL** — 3 cosmetic items open |
 | Security / RLS / authorization | **PASS** (real local stack) |
 | Hosted Supabase readiness | **PASS** — procedure ready, 5 owner-blocked preflight items |
 | Vercel readiness | **PASS** — configuration verified, no secrets in client vars |
@@ -63,7 +62,7 @@ items. None affects data integrity, safety or authorization.
 
 | Role | Ref | Commit | Notes |
 |---|---|---|---|
-| Frontend (design owner) | `feat/frontend-figma-parity` | `aa11a14` | contains `78b68c2` (visual pass) and merged the validated remediation |
+| Frontend (design owner) | `feat/frontend-figma-parity` | `a8a3cf6` | contains `78b68c2` (visual pass) and merged the validated remediation |
 | Backend | `feat/backend` | `e5d77e5` | unchanged baseline |
 | Emergency certification | `feat/emergency-certification-v3` | `b913506` | **integrated** — matcher scoping, logging privacy |
 | Speech round-trip | `feat/speech-roundtrip-verification-v2` | `13e88b2` | **integrated** — includes the provider harness `0cff52a` |
@@ -74,7 +73,7 @@ items. None affects data integrity, safety or authorization.
 | OpenCode remediation | `fix/opencode-audit-frontend` | `c12df34` | **already an ancestor** via the design owner's merge |
 | Prompt audio (new) | `fix/opencode-prompt-audio` | `5ef0086` | merged as `7f9100d` |
 | Backup-restore tooling (new) | `fix/opencode-backup-restore` | `cbf1d0d` | merged as `19ac58d` |
-| **Release candidate** | `release-candidate/samvad-final` | **`4ee6061`** | disposable; not merged into any permanent branch |
+| **Release candidate** | `release-candidate/samvad-final` | **`b6ee111`** | disposable; not merged into any permanent branch |
 
 ---
 
@@ -96,6 +95,11 @@ items. None affects data integrity, safety or authorization.
 8. → corrective commit `01730a8` (see N-05).
 9. → merge `fix/opencode-prompt-audio` (`5ef0086`).
 10. → merge `fix/opencode-backup-restore` (`cbf1d0d`).
+11. → merge the design owner's follow-up `3574e23`/`a8a3cf6` (P3 avatar, P6 processing,
+    P7/P8 booking and review layouts, D3 reports list). Only screenshot binaries and one
+    blank line conflicted; the screenshots were taken from the newer side.
+12. → merge `fix/opencode-hindi-copy` (`88964b0`) closing the last English strings on
+    patient screens.
 
 **Excluded deliberately:** `release/rc-1`, `release/samvad-rc1`, `feat/frontend`,
 `feat/frontend-integration`, `feat/foundation`, `main` (older or superseded lineage);
@@ -121,22 +125,23 @@ per-frame verdicts still apply, with these changes in the candidate:
 | P3 Conversation | partial | mic-denied and dead-end states added; chip selection fixed; avatars' paths adopted |
 | P4 Gender / chips | partial | selection-driven styling fixed (D-50) |
 | P5 What we heard | partial | replay wired, send icon and Hindi labels adopted |
-| P6 Processing | not implemented | **still not implemented** (D-09) |
+| P6 Processing | not implemented | **implemented** — real processing view wired to `isProcessing` (D-09) |
 | P7 Mic denied | not implemented | **implemented** with text fallback + retry |
-| P8 Review | partial | pencil icon, statuses, other-symptoms row; 3-column layout not rebuilt (D-31) |
-| P9 Booking | material mismatch | time in CTA + More dates added; layout not rebuilt (D-16) |
-| P10/P11 Slot states | material mismatch | inline states + retry; dedicated screens not built (D-48) |
+| P8 Review | partial | label column + value + pencil, statuses, other-symptoms row (D-31 fixed) |
+| P9 Booking | material mismatch | rebuilt: 3 date chips + More dates, slot grid, “Book 3:30 PM” with calendar icon, doctor card removed (D-16 fixed) |
+| P10/P11 Slot states | material mismatch | dedicated no-slot card with Try another date / Not now and a retry path (D-48 fixed) |
 | P12/P13 Confirmation | partial | 92 px circle + "Report sent to Dr X" note adopted (D-49) |
 | P14 Emergency | partial | Hindi body fixed, no Back, 112 plain text |
 | D1 Login | partial | password reveal added (D-27) |
 | D2 Dashboard | high fidelity | unchanged |
-| D3 Reports list | material mismatch | still a table (D-47) |
+| D3 Reports list | material mismatch | converted to the Figma list rows (avatar, name·age, concern, status, time, chevron) (D-47 fixed) |
 | D4 Report detail | partial | real warning flags, missing information, source chip, reviewer |
 | D5 Urgent detail | partial | real rule/flags/routing, fail-closed authority |
 | D6 Appointments | material mismatch | headers now match cells (Department / Reference); Figma layout not rebuilt |
 | D7 Urgent list | material mismatch | unchanged |
 
-**Visual acceptance: not met.** Five open findings, three partial.
+**Visual acceptance: substantially met.** Three cosmetic findings remain open (D-43/D-44
+avatar containers, D-45 brand plus). All layout-level findings are closed.
 
 ---
 
@@ -280,9 +285,9 @@ No server secret is exposed to Vite variables.
 |---|---|---|---|---|
 | P0 | 1 | 1 | 0 | 0 |
 | P1 | 13 | 11 | 2 | 0 |
-| P2 | 31 | 21 | 2 | 8 |
+| P2 | 31 | 27 | 2 | 2 |
 | P3 | 10 | 9 | 0 | 1 |
-| **Total (55)** | **55** | **42** | **4** | **9** |
+| **Total (55)** | **55** | **48** | **4** | **3** |
 
 No P0 or P1 defect remains open. The four owner-action items are: prompt audio (D-06 /
 N-02, counted once under each ID), urgent-review authority (D-30) and consent copy (D-34).
@@ -300,14 +305,14 @@ They are owner decisions or owner-only generation, not defects in the delivered 
 | D-06 | P1 | No cached greeting; paid replay per click | Cached-first resolution, provider never called for fixed prompts, per-session TTS cache, blocked-vs-missing states | E2E audio instrumentation; generator; manifest | **OWNER ACTION** |
 | D-07 | P1 | Hindi emergency body English | `t.emergency.guidance` + notice | Hindi E2E | FIXED AND VERIFIED |
 | D-08 | P1 | Production fixtures / credential-free doctor | all `FIGMA_*` bypasses deleted; source-scan test; login always required | source-scan test; bundle scan | FIXED AND VERIFIED |
-| D-09 | P2 | Processing screen not a real state | still only an inline indicator | component audit | **STILL OPEN** |
+| D-09 | P2 | Processing screen not a real state | real processing view wired to `isProcessing`, bilingual | component + E2E | FIXED AND VERIFIED |
 | D-10 | P1 | Back from confirmation re-opens booking | terminal confirmations; read-only submitted summary; duplicate booking refused | navigation tests; booking tests | FIXED AND VERIFIED |
 | D-11 | P1 | Back → consent resets intake | idempotent consent; state restored | mock + real-stack journeys | FIXED AND VERIFIED |
 | D-12 | P1 | `other_symptoms` not correctable | row + multi-value editor | review render test | FIXED AND VERIFIED |
 | D-13 | P2 | “Try another date” does nothing | searches the next date with a free slot | unit test | FIXED AND VERIFIED |
 | D-14 | P2 | All absences shown as “Not provided” | six distinct status labels | unit tests | FIXED AND VERIFIED |
 | D-15 | P2 | Missing information recomputed | reads `report.missing_information` | unit test; doctor detail | FIXED AND VERIFIED |
-| D-16 | P2 | Booking layout differs | time in CTA, More dates; layout not rebuilt | screen audit | **STILL OPEN** |
+| D-16 | P2 | Booking layout differs | rebuilt to 3 date chips + More dates, slot grid, timed CTA with calendar icon, no doctor card | screen audit + capture | FIXED AND VERIFIED |
 | D-17 | P2 | Fixture dashboard/list mismatch | single data source, computed badges | doctor tests | FIXED AND VERIFIED |
 | D-18 | P2 | Appointment headers mismatch cells | relabelled Department / Reference (no invented demographics) | unit test; N-01 | FIXED AND VERIFIED |
 | D-19 | P2 | “Play question again” navigates away | replay handler wired | component + E2E | FIXED AND VERIFIED |
@@ -317,12 +322,12 @@ They are owner decisions or owner-only generation, not defects in the delivered 
 | D-23 | P2 | Silent session loss on refresh | explicit restore-failure message | component + E2E | FIXED AND VERIFIED |
 | D-24 | P2 | Hidden links are first tab stops | removed from tab order | E2E accessibility | FIXED AND VERIFIED |
 | D-25 | P2 | Doctor load errors swallowed | loading/error/retry, last good data kept | component | FIXED AND VERIFIED |
-| D-26 | P2 | Hardcoded English on patient screens | emergency/review/what-we-heard fixed; “Press Send…”, “Draft Preview”, “Session Ended Privately”, “Back to start” remain | source audit | **STILL OPEN** |
+| D-26 | P2 | Hardcoded English on patient screens | all listed strings now come from en/hi translations; E2E requires the localized badge and no English leak | E2E Hindi journey; source audit | FIXED AND VERIFIED |
 | D-27 | P3 | No password reveal | eye toggle | component | FIXED AND VERIFIED |
 | D-28 | P3 | No in-flight disabling | submit/book/edit disabled while pending | component | FIXED AND VERIFIED |
 | D-29 | P2 | Reports filter state lost on Back | tab/search lifted to shell | component | FIXED AND VERIFIED |
 | D-30 | P2 | Urgent review authority ambiguity | fail-closed: Emergency doctor only, in UI **and** RPC | 10 SQL blocks, 9 authorization blocks, 5 live scenarios | **OWNER ACTION** |
-| D-31 | P2 | Review row layout differs | pencil icon adopted; 3-column layout not rebuilt | screen audit | **STILL OPEN** |
+| D-31 | P2 | Review row layout differs | fixed-width label column, value, pencil action | screen audit | FIXED AND VERIFIED |
 | D-32 | P2 | Reviewer name hardcoded | resolved via `reviewed_by` → doctor display name | unit test | FIXED AND VERIFIED |
 | D-33 | P2 | Source chip hardcoded | derived from report language + input modes | unit test | FIXED AND VERIFIED |
 | D-34 | P2 | Consent copy divergence | versioned consent text shown, greeting spoken; decision documented | `OWNER-DECISIONS.md` | **OWNER ACTION** |
@@ -338,8 +343,8 @@ They are owner decisions or owner-only generation, not defects in the delivered 
 | D-44 | P2 | Patient avatar glyph/container | exact vector adopted; container remains | screen audit | **STILL OPEN** |
 | D-45 | P3 | Brand plus metrics | unchanged | screen audit | **STILL OPEN** |
 | D-46 | P3 | Gender prints lower-case | capitalised / mapped | unit test | FIXED AND VERIFIED |
-| D-47 | P2 | Reports list is a table | not rebuilt | screen audit | **STILL OPEN** |
-| D-48 | P2 | No dedicated slot-state screens | inline states only | screen audit | **STILL OPEN** |
+| D-47 | P2 | Reports list is a table | rebuilt as the Figma list rows | screen audit | FIXED AND VERIFIED |
+| D-48 | P2 | No dedicated slot-state screens | dedicated no-slot card with actions; slot-taken banner with refresh | screen audit | FIXED AND VERIFIED |
 | D-49 | P2 | Confirmation layout differs | 92 px circle + report-sent note | capture | FIXED AND VERIFIED |
 | D-50 | P3 | Severity chip always dark | selection-driven | component | FIXED AND VERIFIED |
 | N-01 | P1 | Design branch fabricated demographics and a fallback date | rejected at merge; data-driven behaviour retained | `01730a8`; N-05 | FIXED AND VERIFIED |
@@ -429,8 +434,8 @@ Vercel project to stop public access. Details in both readiness documents.
 The release candidate is **technically ready for owner-supervised deployment** and is the
 first version in which the backend has been verified against a real database, real JWT
 handling, real RLS and real Edge Functions. It is **not yet ready for public evaluator
-access**: prompt audio is silent, two owner decisions are unrecorded, five visual findings
-remain open, and neither the hosted environment nor a live provider has been exercised.
+access**: prompt audio is silent, two owner decisions are unrecorded, three cosmetic visual
+items remain open, and neither the hosted environment nor a live provider has been exercised.
 
 No claim of launch, production readiness or clinical validity is made. Merge, deployment and
 hosted setup remain owner actions.

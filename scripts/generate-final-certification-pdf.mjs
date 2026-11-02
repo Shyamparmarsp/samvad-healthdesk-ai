@@ -14,8 +14,8 @@ const HTTP_PORT = 4198;
 const CDP_PORT = 9248;
 const OUTPUT = resolve(ROOT, 'docs/release-readiness/SAMVAD-FINAL-RELEASE-CERTIFICATION-REPORT.pdf');
 
-const CANDIDATE = '4ee6061';
-const FRONTEND = 'aa11a14';
+const CANDIDATE = 'b6ee111';
+const FRONTEND = 'a8a3cf6';
 const BACKEND = 'e5d77e5';
 const AUDIT = 'ab4ba5b';
 
@@ -30,14 +30,14 @@ const register = [
   ['D-06', 'P1', 'No cached greeting; paid replay per click', 'OWNER ACTION', 'Caching/guard fixed; shipped audio is silence'],
   ['D-07', 'P1', 'Hindi emergency body in English', 'FIXED', 't.emergency.guidance + notice'],
   ['D-08', 'P1', 'Production fixtures / credential-free doctor', 'FIXED', 'Deleted from src; scan test; bundle clean'],
-  ['D-09', 'P2', 'Processing screen not a real state', 'OPEN', 'Inline indicator only'],
+  ['D-09', 'P2', 'Processing screen not a real state', 'FIXED', 'Real processing view wired to isProcessing'],
   ['D-10', 'P1', 'Back from confirmation re-opens booking', 'FIXED', 'Terminal + read-only summary + duplicate refusal'],
   ['D-11', 'P1', 'Back to consent resets intake', 'FIXED', 'Idempotent consent; state restored'],
   ['D-12', 'P1', 'other_symptoms not correctable', 'FIXED', 'Row + multi-value editor'],
   ['D-13', 'P2', 'Try another date does nothing', 'FIXED', 'Next date with a free slot'],
   ['D-14', 'P2', 'All absences shown as Not provided', 'FIXED', 'Six distinct status labels'],
   ['D-15', 'P2', 'Missing information recomputed', 'FIXED', 'Reads report.missing_information'],
-  ['D-16', 'P2', 'Booking layout differs from Figma', 'OPEN', 'Time in CTA + More dates only'],
+  ['D-16', 'P2', 'Booking layout differs from Figma', 'FIXED', '3 date chips + More dates, timed CTA, no doctor card'],
   ['D-17', 'P2', 'Fixture dashboard/list mismatch', 'FIXED', 'Single data source; computed badges'],
   ['D-18', 'P2', 'Appointment headers mismatch cells', 'FIXED', 'Relabelled Department / Reference'],
   ['D-19', 'P2', 'Play question again navigates away', 'FIXED', 'Replay handler wired'],
@@ -47,12 +47,12 @@ const register = [
   ['D-23', 'P2', 'Silent session loss on refresh', 'FIXED', 'Explicit restore-failure message'],
   ['D-24', 'P2', 'Hidden links are the first tab stops', 'FIXED', 'Removed from tab order'],
   ['D-25', 'P2', 'Doctor load errors swallowed', 'FIXED', 'Loading/error/retry, last good data kept'],
-  ['D-26', 'P2', 'Hardcoded English on patient screens', 'OPEN', 'Emergency/review/heard fixed; 4 labels remain'],
+  ['D-26', 'P2', 'Hardcoded English on patient screens', 'FIXED', 'All listed strings localized; E2E enforces it'],
   ['D-27', 'P3', 'No password reveal', 'FIXED', 'Eye toggle'],
   ['D-28', 'P3', 'No in-flight disabling', 'FIXED', 'Submit/Book/Edit disabled while pending'],
   ['D-29', 'P2', 'Reports filter state lost on Back', 'FIXED', 'Tab/search lifted to the shell'],
   ['D-30', 'P2', 'Urgent review authority ambiguity', 'OWNER ACTION', 'Fail-closed: Emergency doctor only (UI + RPC)'],
-  ['D-31', 'P2', 'Review row layout differs', 'OPEN', 'Pencil adopted; 3-column layout not rebuilt'],
+  ['D-31', 'P2', 'Review row layout differs', 'FIXED', 'Label column + value + pencil'],
   ['D-32', 'P2', 'Reviewed-by name hardcoded', 'FIXED', 'Resolved via reviewed_by'],
   ['D-33', 'P2', 'Source chip hardcoded', 'FIXED', 'Derived from report + input modes'],
   ['D-34', 'P2', 'Consent bubble copy divergence', 'OWNER ACTION', 'Decision documented, not changed'],
@@ -68,8 +68,8 @@ const register = [
   ['D-44', 'P2', 'Patient avatar glyph/container', 'OPEN', 'Exact vector adopted; container remains'],
   ['D-45', 'P3', 'Brand plus metrics', 'OPEN', 'Unchanged (cosmetic)'],
   ['D-46', 'P3', 'Gender prints lower-case', 'FIXED', 'Capitalised / mapped'],
-  ['D-47', 'P2', 'Reports list is a table', 'OPEN', 'Not rebuilt'],
-  ['D-48', 'P2', 'No dedicated slot-state screens', 'OPEN', 'Inline states only'],
+  ['D-47', 'P2', 'Reports list is a table', 'FIXED', 'Rebuilt as Figma list rows'],
+  ['D-48', 'P2', 'No dedicated slot-state screens', 'FIXED', 'Dedicated no-slot card + retry'],
   ['D-49', 'P2', 'Confirmation layout differs', 'FIXED', '92 px circle + report-sent note'],
   ['D-50', 'P3', 'Severity chip always dark', 'FIXED', 'Selection-driven styling'],
   ['N-01', 'P1', 'Branch fabricated demographics and a date', 'FIXED', 'Rejected at merge; data-driven retained'],
@@ -187,8 +187,8 @@ function buildHtml() {
     </div>
     <div class="callout danger">
       <b>Two blockers are owner actions, not code defects:</b> the shipped prompt audio is
-      digital silence, and decisions D-30 / D-34 are unrecorded. Hosted Supabase, Vercel and
-      live providers were not exercised.
+      digital silence, and decisions D-30 / D-34 are unrecorded. Three cosmetic visual items
+      remain open. Hosted Supabase, Vercel and live providers were not exercised.
     </div>
   </div>
   <table class="meta">
@@ -216,7 +216,7 @@ hosted smoke test is run and the five open visual findings are accepted or fixed
   <thead><tr><th>Gate</th><th>Verdict</th></tr></thead>
   <tbody>
     <tr><td>Internal scripted demo (real local stack)</td><td><span class="badge ok">PASS</span></td></tr>
-    <tr><td>Owner visual acceptance</td><td><span class="badge open">FAIL</span> 5 open, 3 partial</td></tr>
+    <tr><td>Owner visual acceptance</td><td><span class="badge owner">CONDITIONAL</span> 3 cosmetic items open</td></tr>
     <tr><td>Security / RLS / authorization</td><td><span class="badge ok">PASS</span> real stack</td></tr>
     <tr><td>Hosted Supabase readiness</td><td><span class="badge ok">PASS</span> procedure ready; 5 owner-blocked preflight items</td></tr>
     <tr><td>Vercel readiness</td><td><span class="badge ok">PASS</span> verified, no secrets in client vars</td></tr>
@@ -253,17 +253,21 @@ hosted smoke test is run and the five open visual findings are accepted or fixed
   <li>Merged the design owner's branch. Conflicts: <code>.env.example</code> (kept the superset with both public and server-secret names) and two docs (kept the fuller versions).</li>
   <li>OpenCode remediation was already an ancestor, so it was not merged twice.</li>
   <li>Corrective commit <code>01730a8</code> (N-05), then merged the prompt-audio and backup-restore branches.</li>
+  <li>Merged the design owner's follow-up (<code>3574e23</code>/<code>a8a3cf6</code>) — processing, booking, review, reports-list and slot-state screens; only screenshot binaries conflicted.</li>
+  <li>Merged <code>fix/opencode-hindi-copy</code> (<code>88964b0</code>) closing the remaining English strings.</li>
 </ol>
 <p class="small"><b>Excluded deliberately:</b> <code>release/rc-1</code>, <code>release/samvad-rc1</code>,
 <code>feat/frontend</code>, <code>feat/frontend-integration</code>, <code>feat/foundation</code>,
 <code>main</code> (older or superseded), and the superseded emergency/speech revisions.</p>
 
 <h2>4. Figma visual acceptance</h2>
-<p>22 frames and 16 exported vectors remain the baseline. Improvements in the candidate:
-mic-denied screen, dead-end state, chip selection, pencil icon, 92 px confirmation with a
-report-sent note, password reveal, Hindi labels on the review and transcript screens.
-Unchanged mismatches: processing screen, booking layout, reports list, dedicated slot-state
-screens, brand plus, avatar containers. <b>Visual acceptance is not met.</b></p>
+<p>22 frames and 16 exported vectors remain the baseline. Closed in the candidate: the mic-denied
+and processing screens, the booking layout (3 date chips + More dates, timed CTA, no doctor
+card), the review row layout, the reports list, the dedicated no-slot state, the 92 px
+confirmation with a report-sent note, password reveal, chip selection and the last hardcoded
+English strings on patient screens. <b>Three cosmetic items remain open</b>: the avatar white
+containers (D-43/D-44) and the brand-plus metrics (D-45). Visual acceptance is conditional on
+the owner accepting those three.</p>
 
 <h2>5. Screen, icon and component audit</h2>
 <p>12 patient and 8 doctor components; two Edge Functions; eleven migrations. Only
@@ -382,7 +386,7 @@ ${open} open (all visual). No P0 or P1 defect remains open; the four owner actio
   <tbody>
     <tr><td>P0</td><td>1</td><td>1</td><td>0</td><td>0</td></tr>
     <tr><td>P1</td><td>13</td><td>11</td><td>2</td><td>0</td></tr>
-    <tr><td>P2</td><td>31</td><td>21</td><td>2</td><td>8</td></tr>
+    <tr><td>P2</td><td>31</td><td>27</td><td>2</td><td>2</td></tr>
     <tr><td>P3</td><td>10</td><td>9</td><td>0</td><td>1</td></tr>
     <tr><td><b>Total</b></td><td><b>55</b></td><td><b>${fixed}</b></td><td><b>${owner}</b></td><td><b>${open}</b></td></tr>
   </tbody>
@@ -437,8 +441,8 @@ public access.</p>
 <p>The candidate is <b>technically ready for owner-supervised deployment</b> and is the first
 version whose backend is verified against a real database, real JWTs, real RLS and real Edge
 Functions. It is <b>not yet ready for public evaluator access</b>: the prompt audio is silent,
-two owner decisions are unrecorded, five visual findings remain open, and neither the hosted
-environment nor a live provider has been exercised.</p>
+two owner decisions are unrecorded, three cosmetic visual items remain open, and neither the
+hosted environment nor a live provider has been exercised.</p>
 <p>No claim of launch, production readiness or clinical validity is made. Merge, deployment and
 hosted setup remain owner actions.</p>
 

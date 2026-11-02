@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-02T21:10:49.475Z",
+  "generatedAt": "2026-11-02T21:35:09.830Z",
   "prerequisites": {
     "apiUp": true,
     "functionsUp": true,
@@ -22,7 +22,7 @@
       "status": "PASS",
       "required": true,
       "detail": "type check clean",
-      "ms": 18
+      "ms": 26
     },
     {
       "group": "static",
@@ -30,7 +30,7 @@
       "status": "PASS",
       "required": true,
       "detail": "232 passed, 0 failed",
-      "ms": 1177
+      "ms": 1230
     },
     {
       "group": "static",
@@ -46,7 +46,7 @@
       "status": "PASS",
       "required": true,
       "detail": "150 CSV rows match the active bank",
-      "ms": 24
+      "ms": 25
     },
     {
       "group": "static",
@@ -54,7 +54,7 @@
       "status": "PASS",
       "required": true,
       "detail": "CSV ids match the bank",
-      "ms": 23
+      "ms": 24
     },
     {
       "group": "static",
@@ -62,7 +62,7 @@
       "status": "PASS",
       "required": true,
       "detail": "12 passed, 0 failed",
-      "ms": 386
+      "ms": 397
     },
     {
       "group": "static",
@@ -78,7 +78,7 @@
       "status": "PASS",
       "required": true,
       "detail": "no key-shaped strings in tracked files",
-      "ms": 395
+      "ms": 291
     },
     {
       "group": "providers",
@@ -86,7 +86,7 @@
       "status": "PASS",
       "required": true,
       "detail": "no --allow-net; report mode=non-live requests=0",
-      "ms": 20
+      "ms": 23
     },
     {
       "group": "providers",
@@ -110,7 +110,7 @@
       "status": "PASS",
       "required": true,
       "detail": "17 passed, 0 failed",
-      "ms": 403
+      "ms": 388
     },
     {
       "group": "providers",
@@ -118,7 +118,7 @@
       "status": "PASS",
       "required": true,
       "detail": "non-live, 4-request plan, zero requests",
-      "ms": 20
+      "ms": 18
     },
     {
       "group": "providers",
@@ -126,7 +126,7 @@
       "status": "PASS",
       "required": true,
       "detail": "25 passed, 0 failed",
-      "ms": 454
+      "ms": 425
     },
     {
       "group": "database",
@@ -134,7 +134,7 @@
       "status": "PASS",
       "required": true,
       "detail": "29/29 pass, 0 fail, 0 blocked",
-      "ms": 1296
+      "ms": 1238
     },
     {
       "group": "database",
@@ -150,7 +150,7 @@
       "status": "PASS",
       "required": true,
       "detail": "4 assertions passed",
-      "ms": 110
+      "ms": 116
     },
     {
       "group": "database",
@@ -158,7 +158,7 @@
       "status": "PASS",
       "required": true,
       "detail": "10 assertions passed",
-      "ms": 176
+      "ms": 171
     },
     {
       "group": "database",
@@ -166,7 +166,7 @@
       "status": "PASS",
       "required": true,
       "detail": "4 assertions passed",
-      "ms": 127
+      "ms": 120
     },
     {
       "group": "database",
@@ -174,7 +174,7 @@
       "status": "PASS",
       "required": true,
       "detail": "4 assertions passed",
-      "ms": 106
+      "ms": 105
     },
     {
       "group": "database",
@@ -182,7 +182,7 @@
       "status": "PASS",
       "required": true,
       "detail": "5 assertions passed",
-      "ms": 114
+      "ms": 113
     },
     {
       "group": "database",
@@ -190,7 +190,7 @@
       "status": "PASS",
       "required": true,
       "detail": "5 assertions passed",
-      "ms": 111
+      "ms": 108
     },
     {
       "group": "operations",
@@ -198,7 +198,7 @@
       "status": "PASS",
       "required": true,
       "detail": "29/29 rehearsal checks; 11 migrations applied",
-      "ms": 2477
+      "ms": 2434
     },
     {
       "group": "operations",
@@ -206,7 +206,7 @@
       "status": "PASS",
       "required": true,
       "detail": "17/22 pass, 0 fail, 5 owner-blocked",
-      "ms": 186
+      "ms": 177
     },
     {
       "group": "operations",
@@ -214,7 +214,7 @@
       "status": "PASS",
       "required": true,
       "detail": "16/16 checks",
-      "ms": 284
+      "ms": 209
     },
     {
       "group": "operations",
@@ -230,7 +230,7 @@
       "status": "PASS",
       "required": true,
       "detail": "integration 52/52, adaptive 33/33; identities created=21 deleted=21",
-      "ms": 4491
+      "ms": 4220
     },
     {
       "group": "frontend",
@@ -238,7 +238,7 @@
       "status": "PASS",
       "required": true,
       "detail": "clean",
-      "ms": 2238
+      "ms": 2260
     },
     {
       "group": "frontend",
@@ -246,7 +246,7 @@
       "status": "PASS",
       "required": true,
       "detail": "pass=121+7+55 fail=0+0+0",
-      "ms": 14200
+      "ms": 14243
     },
     {
       "group": "frontend",
@@ -254,7 +254,7 @@
       "status": "PASS",
       "required": true,
       "detail": "build succeeded",
-      "ms": 3159
+      "ms": 3144
     }
   ],
   "ok": true,
