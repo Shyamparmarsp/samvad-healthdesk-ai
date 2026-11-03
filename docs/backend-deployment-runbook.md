@@ -174,9 +174,15 @@ production — they exist only for the local provider stub.
 ## 8. Deploy the two functions
 
 ```bash
-supabase functions deploy chat-turn
-supabase functions deploy speak
+supabase functions deploy chat-turn --import-map supabase/functions/deno.json
+supabase functions deploy speak --import-map supabase/functions/deno.json
 ```
+
+Both functions import the npm package `@supabase/server` through
+`supabase/functions/deno.json`. CLI 2.122 does not pick that import map up automatically and
+fails with `Relative import path "@supabase/server" not prefixed with / or ./ or ../`, so
+pass `--import-map` explicitly. After deploying, confirm `functions list` reports
+`verify_jwt: true` and a new version number for the function you meant to change.
 
 Keep platform JWT verification enabled. Never pass `--no-verify-jwt`.
 

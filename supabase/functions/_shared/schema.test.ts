@@ -96,6 +96,39 @@ Deno.test("schema: server-owned tables expose no browser grants", () => {
   }
 });
 
+Deno.test("schema: the elevated server client holds its table privileges", () => {
+  // Regression guard for the 4 November 2026 production outage: the hosted project grants
+  // the API roles only TRUNCATE/REFERENCES/TRIGGER/MAINTAIN by default, so `service_role`
+  // needs explicit DML on every server-owned table the Edge Functions write.
+  const file = "20261103205132_service_role_server_table_privileges.sql";
+  const sql = readMigration(file).toLowerCase();
+  // Comments explain the incident; only executable lines are scanned.
+  const statements = sql
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("--"))
+    .join("\n");
+
+  const required = [
+    "grant select, insert, update on public.sessions to service_role",
+    "grant select, insert on public.consent_records to service_role",
+    "grant select, insert on public.messages to service_role",
+    "grant select, insert, update on public.reports to service_role",
+    "grant select on public.departments to service_role",
+    "grant select on public.doctors to service_role",
+  ];
+  for (const statement of required) {
+    assert(sql.includes(statement), `missing: ${statement}`);
+  }
+
+  // The hotfix must not re-open browser access, change a policy or disable RLS.
+  assert(!/grant\s+[^;]*\s+to\s+(anon|authenticated|public)\b/.test(statements), "no browser grant");
+  assert(!statements.includes("disable row level security"), "RLS stays on");
+  assert(!statements.includes("create policy"), "no new policy");
+  assert(!statements.includes("drop policy"), "no dropped policy");
+  // appointments stays closed: booking goes through the reviewed elevated-rights RPC.
+  assert(!/grant\s+[^;]*on public\.appointments/.test(statements), "appointments stays closed");
+});
+
 Deno.test("schema: usage counters are service-role only", () => {
   const sql = allSql().toLowerCase();
   assert(sql.includes("grant select on public.daily_usage_limits to service_role"), "limits readable by service_role");

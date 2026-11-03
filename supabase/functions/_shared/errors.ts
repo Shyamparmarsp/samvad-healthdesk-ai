@@ -29,12 +29,17 @@ export function isErrorCode(value: unknown): value is ErrorCode {
   return typeof value === "string" && (ERROR_CODES as readonly string[]).includes(value);
 }
 
-/** Internal failure carrying a safe, non-sensitive code. */
+/**
+ * Internal failure carrying a safe, non-sensitive code.
+ *
+ * `cause` keeps the original failure (for example a PostgREST error object) available to
+ * `describeError` for log-safe diagnostics. It is never serialised into a response.
+ */
 export class AppError extends Error {
   readonly code: ErrorCode;
 
-  constructor(code: ErrorCode) {
-    super(code);
+  constructor(code: ErrorCode, options?: { cause?: unknown }) {
+    super(code, options);
     this.name = "AppError";
     this.code = code;
   }

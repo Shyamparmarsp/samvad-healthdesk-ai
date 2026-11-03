@@ -12,6 +12,7 @@ import {
   chatTurn,
   correctDraftReport,
   submitReport,
+  ApiError,
 } from '../src/lib/api';
 import { setSupabaseClient } from '../src/lib/supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -414,5 +415,71 @@ describe('Supabase Mode & RPC Wiring Tests', () => {
       async () => await markReportReviewed('rep-uuid'),
       /Postgres network timeout/
     );
+  });
+
+  it('7. start_session 5xx keeps the generic backend code and never invents a session', async () => {
+    setAppMode('supabase');
+
+    // Production failure shape: the Edge Function returned HTTP 500 {"error":"internal"}.
+    const invokeError = {
+      message: 'Edge Function returned a non-2xx status code',
+      context: new Response(JSON.stringify({ error: 'internal' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    };
+
+    let invokeCount = 0;
+    let anonSignInCount = 0;
+
+    setSupabaseClient({
+      auth: {
+        getSession: async () => ({ data: { session: null } }),
+        signInAnonymously: async () => {
+          anonSignInCount += 1;
+          return { data: { user: { id: 'anon-usr-1' } }, error: null };
+        },
+      },
+      functions: {
+        invoke: async () => {
+          invokeCount += 1;
+          return { data: null, error: invokeError };
+        },
+      },
+    } as unknown as SupabaseClient);
+
+    // The failure is surfaced, not swallowed and not replaced by a mock session.
+    await assert.rejects(async () => await startSession('en'), (error: any) => {
+      assert.equal(error instanceof ApiError, true, 'typed ApiError');
+      assert.equal(error.code, 'internal', 'backend code preserved');
+      assert.equal(error.status, 500, 'HTTP status preserved');
+      return true;
+    });
+
+    assert.equal(anonSignInCount, 1, 'anonymous identity is created first');
+    assert.equal(invokeCount, 1, 'exactly one chat-turn attempt');
+
+    // A missing/invalid JWT surfaces as unauthorized, still without a session.
+    setSupabaseClient({
+      auth: {
+        getSession: async () => ({ data: { session: { user: { id: 'anon-usr-1' } } } }),
+        signInAnonymously: async () => ({ data: { user: null }, error: null }),
+      },
+      functions: {
+        invoke: async () => ({
+          data: null,
+          error: {
+            message: 'Edge Function returned a non-2xx status code',
+            context: new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 }),
+          },
+        }),
+      },
+    } as unknown as SupabaseClient);
+
+    await assert.rejects(async () => await startSession('hi'), (error: any) => {
+      assert.equal(error.code, 'unauthorized', 'unauthorized preserved');
+      assert.equal(error.status, 401, 'status preserved');
+      return true;
+    });
   });
 });

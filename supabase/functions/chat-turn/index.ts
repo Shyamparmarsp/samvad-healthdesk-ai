@@ -25,6 +25,7 @@ import { AppError, toErrorCode } from "../_shared/errors.ts";
 import { preflight, withCors } from "../_shared/cors.ts";
 import { consoleLogger } from "../_shared/logging.ts";
 import { parseChatTurnRequest, type ChatTurnRequest } from "../_shared/validation.ts";
+import { describeError } from "../_shared/diagnostics.ts";
 import { isUuid, requireOwnedRow } from "../_shared/auth.ts";
 import { reserveUsage } from "../_shared/usage.ts";
 import { getQuestion, isQuestionId, questionForField } from "../_shared/questions.ts";
@@ -493,7 +494,7 @@ async function handleStartSession(admin: Admin, userId: string, language: "en" |
     .select("*")
     .maybeSingle();
 
-  if (error || !data) throw new AppError("internal");
+  if (error || !data) throw new AppError("internal", { cause: error });
   return json(baseResponse(data as SessionRow, []));
 }
 
@@ -1027,7 +1028,14 @@ export default {
       }
     } catch (error) {
       const code = toErrorCode(error);
-      consoleLogger.error("action_rejected", { action: request.action, code });
+      // Metadata only: action, safe code, error class, SQLSTATE and a fixed failure
+      // category. Never the database/provider message, SQL, tokens or request content.
+      consoleLogger.error("action_rejected", {
+        action: request.action,
+        code,
+        correlation_id: correlationId,
+        ...describeError(error),
+      });
       const status = code === "not_found"
         ? 404
         : code === "invalid_state" || code === "invalid_question_state"

@@ -8,6 +8,7 @@
 | Edge Function lifecycle (real HTTP + real DB, stubbed providers) | `integration.ts` | **52 / 52 scenarios PASS** |
 | RLS and ownership | `rls.sql` | PASS — 5 assertion blocks, all NOTICEs |
 | Constraints, grants, IST bucketing | `constraints.sql` | PASS — 4 blocks |
+| Elevated-client table privileges (production hotfix, 4 Nov 2026) | `service_role_grants.sql` | **NOT RUN here** — no Docker on the fix host. The same assertions were executed directly against the hosted project inside a rolled-back transaction: `service_role` could insert a session and read `sessions`/`departments`/`doctors`. Re-run on the next local stack. |
 | Mark Reviewed authorisation matrix | `mark_reviewed.sql` | PASS — 10 blocks |
 | Availability and booking | `booking.sql` | PASS — 4 blocks |
 | Booking over HTTP (PostgREST RPC) + concurrency | manual run | PASS — 1 booking, idempotent repeat, 1 winner in a 2-way race |
