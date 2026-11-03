@@ -59,7 +59,12 @@ import {
   type BankDepartment,
   type BankQuestion,
 } from "../_shared/intake/question-bank.ts";
-import { MAX_ADAPTIVE_QUESTIONS, eligibleCandidates, selectAdaptiveQuestion } from "../_shared/intake/select.ts";
+import {
+  MAX_ADAPTIVE_QUESTIONS,
+  canAskAdaptiveQuestion,
+  eligibleCandidates,
+  selectAdaptiveQuestion,
+} from "../_shared/intake/select.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Admin = any;
@@ -297,7 +302,7 @@ async function maybeAdaptiveQuestion(
   if (isComplete(fields)) return null;
 
   const asked = askedBankIds(messages);
-  if (asked.length >= MAX_ADAPTIVE_QUESTIONS) return null;
+  if (!canAskAdaptiveQuestion(asked.length)) return null;
 
   let department = session.preliminary_department;
   if (!department) {

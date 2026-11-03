@@ -12,6 +12,22 @@ import type { BankQuestion } from "./question-bank.ts";
 export const MAX_ADAPTIVE_QUESTIONS = 3;
 
 /**
+ * The adaptive budget gate.
+ *
+ * `MAX_ADAPTIVE_QUESTIONS` is the approved cap on **bank (v2) adaptive questions** asked
+ * per session — "at most 3 adaptive questions ..., on top of the scripted core"
+ * (docs/integration-contract.md). The six core adaptive report fields (duration, severity,
+ * conditions, medications, allergies, other symptoms) are completion criteria, not part of
+ * this budget, and the 15-answer-turn cap applies to every answer regardless.
+ *
+ * Exported so the release invariant is directly testable instead of living only inside the
+ * Edge Function.
+ */
+export function canAskAdaptiveQuestion(askedBankQuestionCount: number): boolean {
+  return askedBankQuestionCount < MAX_ADAPTIVE_QUESTIONS;
+}
+
+/**
  * Removes questions the session has already covered.
  *
  * `retrieveCandidates` only excludes exact ids that were already asked. That is not enough

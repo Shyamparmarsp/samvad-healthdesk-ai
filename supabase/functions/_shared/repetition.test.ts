@@ -9,7 +9,11 @@
  */
 
 import { QUESTIONS, retrieveCandidates } from "./intake/question-bank.ts";
-import { eligibleCandidates, MAX_ADAPTIVE_QUESTIONS } from "./intake/select.ts";
+import {
+  canAskAdaptiveQuestion,
+  eligibleCandidates,
+  MAX_ADAPTIVE_QUESTIONS,
+} from "./intake/select.ts";
 import { assert, assertEqual } from "./testing.ts";
 
 Deno.test("repetition: a field the session already handled is never offered again", () => {
@@ -92,8 +96,21 @@ Deno.test("repetition: already-asked ids stay excluded after filtering", () => {
   assert(!eligible.some((q) => q.id === "GM-003"), "asked id excluded");
 });
 
-Deno.test("repetition: the adaptive budget is unchanged", () => {
+Deno.test("repetition: the adaptive (bank) budget is unchanged at three", () => {
   assertEqual(MAX_ADAPTIVE_QUESTIONS, 3, "still at most three adaptive questions");
+  assertEqual(canAskAdaptiveQuestion(0), true, "first bank question allowed");
+  assertEqual(canAskAdaptiveQuestion(2), true, "third bank question allowed");
+  assertEqual(canAskAdaptiveQuestion(3), false, "no fourth bank question");
+  assertEqual(canAskAdaptiveQuestion(9), false, "never beyond the budget");
+});
+
+Deno.test("repetition: filtering can only remove candidates, never add one", () => {
+  const candidates = retrieveCandidates({ department: "general_medicine", tags: ["fever"] });
+  assert(eligibleCandidates(candidates).length <= candidates.length, "never grows");
+  assert(
+    eligibleCandidates(candidates, { askedTopics: ["fever"] }).length <= candidates.length,
+    "never grows with filters",
+  );
 });
 
 Deno.test("repetition: no candidate is invented when everything is covered", () => {
