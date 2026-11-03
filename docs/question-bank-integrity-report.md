@@ -21,10 +21,10 @@ That file is **generated** by `scripts/export-question-bank.ts` and hardcodes
 It is a reviewer template, not the owner-reviewed source. Comparing `bank-v2.ts` against it
 would falsely report every review field as changed.
 
-The actual owner source is `/Users/shyamparmar/Downloads/question-bank-v2-reviewed.csv`
-(150 rows, UTF-8 with BOM, supplied 2 November 2026), referenced by
-`supabase/functions/_shared/intake/bank-v2.ts` and
-`docs/question-bank-v2-integration-blockers.md`.
+The owner-supplied source is `question-bank-v2-reviewed.csv` (150 rows, UTF-8 with BOM,
+supplied 2 November 2026), committed at
+`docs/question-bank-review/question-bank-v2-reviewed.csv` and referenced by
+`supabase/functions/_shared/intake/bank-v2.ts`.
 
 It has now been vendored byte-for-byte as:
 

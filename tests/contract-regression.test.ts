@@ -11,7 +11,8 @@
  * - Correction allowlist (CORRECTABLE_FIELDS) and non-declinable required fields
  *
  * Exact comparison procedure for consent copy:
- * Reads `../samvad-backend/supabase/functions/_shared/consent.ts` read-only using `node:fs`.
+ * Reads this repository's own `supabase/functions/_shared/consent.ts` read-only using `node:fs`,
+ * so the suite is self-contained and does not depend on a sibling worktree.
  * Parses string constants using clean AST/string extraction.
  * Asserts strict byte-for-byte character equality against frontend `src/types/consent.ts`.
  */
@@ -192,7 +193,7 @@ describe('Contract Regression Tests', () => {
     // Read backend consent source (read-only verification)
     const backendConsentPath = path.resolve(
       process.cwd(),
-      '../samvad-backend/supabase/functions/_shared/consent.ts'
+      'supabase/functions/_shared/consent.ts'
     );
 
     assert.ok(

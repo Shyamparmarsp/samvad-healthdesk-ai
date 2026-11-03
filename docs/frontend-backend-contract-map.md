@@ -25,9 +25,9 @@ Companion documents:
 | Frontend integration detail | `src/lib/api.ts`, `tests/api/README.md` |
 | Frontend report types | `src/types/api.ts`, `src/types/report.ts`, `src/types/consent.ts`, `src/types/doctor.ts` |
 
-> `docs/frontend-backend-contract-review.md` (v1.2) is older and partly stale: it treats
-> `report_id` as required, lists three RPCs and omits adaptive bank IDs. Where the two
-> disagree, this map and `docs/integration-contract.md` win.
+> An earlier contract review (v1.2) is superseded and no longer shipped: it treated
+> `report_id` as required, listed three RPCs and omitted adaptive bank IDs. Where any older
+> note disagrees, this map and `docs/integration-contract.md` win.
 
 ---
 

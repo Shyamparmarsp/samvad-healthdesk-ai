@@ -16,7 +16,6 @@ function fromSupabaseCli() {
   const candidates = [
     process.env.SUPABASE_DIR,
     resolve(HERE, '../../../..'),
-    resolve(HERE, '../../../../samvad-backend'),
     process.cwd(),
   ].filter(Boolean);
 

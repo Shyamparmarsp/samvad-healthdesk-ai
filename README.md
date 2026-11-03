@@ -1,197 +1,494 @@
-# Samvad HealthDesk AI — Educational Demo
-# Samvad HealthDesk AI — AI-Powered Patient Intake & Smart Referral
+# Samvad HealthDesk AI
 
-AI-powered pre-visit patient intake and smart referral demonstration.
+**AI-assisted pre-visit patient intake and smart referral — educational demonstration.**
+
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-5.x-646cff.svg)](https://vitejs.dev/)
-[![TailwindCSS](https://img.shields.io/badge/Tailwind-3.x-38b2ac.svg)](https://tailwindcss.com/)
+[![Vite](https://img.shields.io/badge/Vite-6-646cff.svg)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-38b2ac.svg)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-Auth%20%7C%20Postgres%20%7C%20Edge%20Functions-3ecf8e.svg)](https://supabase.com/)
 
-## Stack
-**Samvad HealthDesk AI** is an educational demonstration of a bilingual (English / Hindi), voice-first and text-accessible pre-visit hospital intake and clinical referral system.
-
-- React + Vite + TypeScript + Tailwind
-- Supabase Auth, PostgreSQL, RLS and Edge Functions
-- Gnani Prisma for speech-to-text
-- Gnani Timbre for text-to-speech
-- Groq for constrained reasoning and structured extraction
-- Vercel for the frontend
-It bridges the pre-registration gap by gathering structured patient history, adapting follow-up clarifications, synthesizing clinical summaries for physicians, and facilitating atomic appointment booking—while strictly enforcing non-diagnostic boundaries and deterministic emergency triaging.
-
-## Scope
 > [!IMPORTANT]
-> **Educational Demonstration Only.** This software is an educational prototype and technology demonstration. It uses synthetic patient records and fictional doctor profiles only. It **never diagnoses illnesses, calculates disease probabilities, prescribes medications, or suggests treatments**. All emergency presentations route to plain-text 112 guidance with permanent outpatient slot suppression.
+> **Educational demonstration only.** This software is a student prototype and technology
+> demonstration. It uses **synthetic patient records and fictional doctor profiles only**, never
+> diagnoses, estimates disease probability, prescribes, or recommends treatment, and is **not a
+> clinical product**. Do not enter real patient information and do not use it to make care
+> decisions.
 
-Welcome and consent → voice/text intake → structured report → patient review and submit → doctor dashboard → optional patient-confirmed booking. Emergency demo rules use a separate 112 guidance path. The patient interface is Hindi/English; the doctor interface is English. This is not a clinical product; synthetic data only.
 ---
 
-One website: patients use `/`, doctors log in at `/doctor`.
-## Architecture & System Flow
+## Contents
 
-See `AGENTS.md` for workspace rules and `docs/` for report, demo safety, seed data, failure behaviour and design exports.
+- [What this is](#what-this-is)
+- [Application routes](#application-routes)
+- [Patient workflow](#patient-workflow)
+- [Doctor workflow](#doctor-workflow)
+- [Architecture](#architecture)
+- [Departments and routing](#departments-and-routing)
+- [Question bank and review status](#question-bank-and-review-status)
+- [Safety boundaries](#safety-boundaries)
+- [Data and privacy limitations](#data-and-privacy-limitations)
+- [Getting started](#getting-started)
+- [Environment variables](#environment-variables)
+- [Testing](#testing)
+- [Verification status](#verification-status)
+- [Deployment prerequisites](#deployment-prerequisites-not-completed)
+- [Documentation map](#documentation-map)
+- [Evaluator access](#evaluator-access)
+- [Licence](#licence)
+
+---
+
+## What this is
+
+A single-page application with two route groups that demonstrates an end-to-end hospital
+pre-visit intake:
+
+**Welcome → explicit consent → voice or text intake → draft report → patient review and Submit →
+preliminary department and doctor mapping → doctor dashboard → optional patient-confirmed
+appointment.**
+
+The patient interface is bilingual (English / Hindi, Devanagari). The doctor interface is English
+only. Reports are always written in English.
+
+It exists to show how a constrained, auditable intake conversation can produce a truthful
+structured report for a clinician while keeping the patient in control of submission and booking.
+
+**What it demonstrates**
+
+- A voice-first, text-accessible intake with an editable transcript before anything is sent.
+- Backend-owned conversation state, question selection and completion rules.
+- A deterministic demo emergency path that suppresses routine booking.
+- Server-side authorisation, RLS, and atomic booking in PostgreSQL.
+- Row-level report visibility, a single doctor write (Mark Reviewed), and no direct browser writes.
+
+**What it is not**
+
+- Not a medical device, triage system, diagnostic tool or clinical decision support.
+- Not validated clinically, linguistically or for safety.
+- Not deployed against hosted infrastructure in this repository's verified state.
+
+---
+
+## Application routes
+
+| Route | Purpose | Access |
+|---|---|---|
+| `/` | Patient intake: welcome, consent, conversation, report review, booking, confirmation, emergency, consent declined | Public (Supabase anonymous auth in Supabase mode) |
+| `/doctor` | Doctor portal: login, dashboard, reports list, report detail, appointments, urgent list | Supabase Auth (email + password), restricted to mapped doctor profiles |
+| `*` | 404 page with a link back to intake | Public |
+
+There is one static SPA and one deployment. The doctor portal is code-split and loaded lazily.
+
+---
+
+## Patient workflow
+
+1. **Welcome** — choose Hindi or English, then **Start Talking** or **Type Instead**.
+2. **Consent** — an on-screen **Yes / No** decision. Consent is never inferred from speech. If the
+   patient declines, intake stops immediately and no health data or clinical report is created.
+3. **Scripted opening questions** — name, age, gender and primary concern, asked in a fixed order
+   by the backend (not generated by a language model). Gender also offers on-screen choices,
+   including "Prefer not to say", stored as `declined`.
+4. **Voice or text answers** — a voice answer is transcribed and shown as an editable
+   "What we heard" transcript before it is submitted. Text answers bypass speech-to-text. The
+   initial recording cap is 30 seconds.
+5. **Adaptive follow-up** — the backend selects approved questions from the question bank, with
+   optional constrained reasoning to help choose which approved question to ask next.
+6. **Turn limit** — at most **15 accepted answer turns** per session. If intake is incomplete at
+   that point, the patient sees a partial preview with **End session only**: no submit, no doctor
+   visibility, no assignment, no booking, and no further provider calls.
+7. **Draft report review** — the patient may correct only the fields they supplied and may submit
+   or decline. Routing, warning flags, doctor assignment and report status are not patient-editable.
+8. **Submit** — the report is marked submitted and mapped to a department and doctor. Drafts are
+   private; declining submission keeps the draft private.
+9. **Booking** — available slots are offered for the mapped doctor. The patient may book, request
+   more dates, or choose **Not now**, which creates no appointment while leaving the submitted
+   report visible to the doctor. Confirmation shows a reference code, doctor, date and time.
+10. **Emergency path** — a deterministic demo rule stops routine intake, shows plain-text 112
+    guidance, saves an `urgent_partial` report for the Emergency dashboard, and permanently
+    suppresses routine slots.
+
+---
+
+## Doctor workflow
+
+- **Login** with a Supabase Auth account mapped to a doctor profile.
+- **Dashboard** — stat cards and recent reports.
+- **Reports** — tabs for All / Urgent / Booked / Not booked, with search and filters.
+- **Report detail** — structured report sections, warning flags, and the stored patient answers.
+- **Mark Reviewed** — the only doctor write. It records that the assigned doctor reviewed the
+  report. It is not a clinical clearance and does not prove the patient is safe.
+- **Appointments** — Today / Upcoming / Past tabs derived from the slot time; there is no
+  "complete appointment" write.
+- **Urgent list** — emergency and needs-review reports.
+
+A doctor sees submitted reports assigned to them. The General Medicine demo doctor and the
+Emergency doctor can both read Emergency-department reports, so an urgent report is visible to a
+reviewer logged in as the demo doctor. Unsubmitted drafts are never visible to doctors, except
+`urgent_partial` reports created by the emergency path.
+
+Acknowledging an urgent/emergency report **fails closed by design: only the Emergency doctor can
+use Mark Reviewed**, and the General Medicine doctor has read-only cross-visibility. This is the
+**approved owner rule (D-30)**, and the UI, RPC and RLS all implement it. Note that
+`docs/demo-emergency-rules.md` can still read as though the General Medicine doctor may acknowledge;
+that wording is a tracked documentation defect, not an open decision. Mark Reviewed is a workflow
+acknowledgement and never medical clearance.
+
+---
+
+## Architecture
+
 ```
-                                      +------------------------------------+
-                                      |         Patient Interface          |
-                                      |      Route: / (Bilingual EN/HI)     |
-                                      +-----------------+------------------+
-                                                        |
-                                                        v
-                                      +------------------------------------+
-                                      |        Welcome & Explicit          |
-                                      |        On-Screen Consent           |
-                                      +-----------------+------------------+
-                                                        |
-                                     (Consent Accepted) | (Declined -> Immediate Teardown)
-                                                        v
-                                      +------------------------------------+
-                                      |     Scripted Opening Demographics  |
-                                      |      (Name, Age, Gender, Concern)  |
-                                      +-----------------+------------------+
-                                                        |
-                                                        v
-       +-------------------------+    +------------------------------------+
-       |  Gnani Prisma STT REST  |<-->| Voice ("What we heard" edit) or    |
-       |  Gnani Timbre TTS REST  |<-->| Direct Text Entry Fallback         |
-       +-------------------------+    +-----------------+------------------+
-                                                        |
-                                                        v
-       +-------------------------+    +------------------------------------+
-       |  Groq Structured JSON   |<-->| Adaptive Follow-up Engine          |
-       |  Canonical 150-Q Bank   |    | (Max 3 adaptive Qs; 15-turn cap)   |
-       +-------------------------+    +-----------------+------------------+
-                                                        |
-                       +--------------------------------+--------------------------------+
-                       | (Acute Emergency Triggered)                                     | (Normal Complete)
-                       v                                                                 v
-+---------------------------------------------+               +---------------------------------------------+
-|          Deterministic Emergency            |               |             Draft Report Review             |
-|   - Plain-text 112 Advisory                 |               |   - Patient corrects personal details       |
-|   - Permanent slot suppression              |               |   - Clinical fields read-only               |
-|   - urgent_partial report to Emergency      |               |   - "Submit to hospital" vs "Don't submit"  |
-+----------------------+----------------------+               +----------------------+----------------------+
-                       |                                                             |
-                       v                                                             v
-+---------------------------------------------+               +---------------------------------------------+
-|          Emergency Doctor Triage            |               |           Assigned Doctor Queue             |
-|          Dr. Neha Verma (ER)                |               |           Dr. Aditi Rao (General Med)       |
-+---------------------------------------------+               +----------------------+----------------------+
-                                                                                     |
-                                                                                     v
-                                                              +---------------------------------------------+
-                                                              |            Atomic Slot Booking              |
-                                                              |   - Confirmed slot or "Not now"             |
-                                                              |   - Atomic book_appointment() RPC           |
-                                                              +---------------------------------------------+
+Browser (React SPA)
+   │  only src/lib/api.ts may call Supabase
+   ▼
+Supabase Edge Functions            Supabase Auth + PostgreSQL (RLS)
+   ├── chat-turn  ──────────────►  sessions, messages, reports,
+   │      │                        appointments, usage counters
+   │      └──► Groq (constrained selection/extraction)
+   │      └──► Gnani Prisma (speech-to-text)
+   └── speak ───────────────────►  Gnani Timbre (text-to-speech)
 ```
 
-## Local development
----
+| Layer | Choice |
+|---|---|
+| Frontend | React 18, Vite 6, TypeScript 5 (strict), Tailwind CSS 3, React Router 6 |
+| Hosting | Vercel (static SPA, SPA rewrite) |
+| Backend | Supabase Edge Functions (TypeScript / Deno): `chat-turn`, `speak` |
+| Data & auth | Supabase PostgreSQL, RLS, Supabase Auth (anonymous patients, email/password doctors) |
+| Speech-to-text | Gnani Prisma (v2.5) |
+| Text-to-speech | Gnani Timbre (`timbre-v2.5`; explicit model ID, never an SDK default) |
+| Reasoning | Groq API with runtime-validated structured output |
 
-## Key Capabilities & Safety Invariants
+Key structural rules:
 
-1. **Bilingual Accessibility (EN / HI):** Full support for English and Hindi in Devanagari script (`Noto Sans Devanagari`), including dynamic switching without state loss.
-2. **Explicit Consent Gate:** Consent is strictly an on-screen button press; it is never inferred from speech. Declining consent terminates the session instantly with zero data retention.
-3. **Voice-First with Editable Transcript:** Patients can speak via microphone (processed through Gnani Prisma STT); an editable *"What we heard"* transcript chip allows correction before submission.
-4. **Governed Adaptive Intake:** Backend-driven selection of up to 3 follow-up clarifications from a canonical 150-question bank, capped at 15 total answer turns per session.
-5. **Project-Wide Spend Caps:** Server-side atomic counter reservations in Asia/Kolkata timezone protect daily provider usage.
-6. **Deterministic Emergency Triage:** High-risk symptom phrases immediately halt routine intake, present plain-text 112 guidance, generate an `urgent_partial` report, and bar routine slot booking.
-7. **Doctor Clinical Governance:** Single-write `"Mark Reviewed"` audit stamp records physician review and releases booking holds on conditional cases.
-8. **Concurrency-Safe Booking:** Atomic PostgreSQL RPC with `FOR UPDATE` row locking prevents double-booking race conditions.
-
----
-
-## Technology Stack
-
-- **Frontend:** React 18, Vite, TypeScript, Tailwind CSS, Lucide Icons
-- **Backend / Database:** Supabase PostgreSQL, Row-Level Security (RLS), Supabase Auth (Anonymous + Email/Password)
-- **Serverless API:** Supabase Edge Functions (`chat-turn`, `speak`)
-- **Speech Technologies:** Gnani Prisma v2.5 (STT), Gnani Timbre v2.5 (TTS)
-- **Constrained Extraction:** Groq API (Structured JSON output schema)
-- **Hosting:** Vercel (Frontend SPA) + Supabase Cloud (Backend & Functions)
+- `src/lib/api.ts` is the only frontend module allowed to call Supabase Auth, `.from()`, `.rpc()`
+  or `.functions.invoke()`. Components never import the Supabase client.
+- `sessions`, `messages` and `reports` are server-owned. Browser roles have no direct write
+  policies; all patient turns, corrections and submission pass through `chat-turn`.
+- `speak` verifies ownership and reads the server-known current question; it never accepts
+  arbitrary client text for a paid text-to-speech call.
+- `book_appointment()` and `mark_report_reviewed()` are the only narrowly scoped `SECURITY DEFINER`
+  functions, with fixed `search_path`, schema-qualified names and execution granted to
+  `authenticated` only.
 
 ---
 
-## Local Development & Setup
+## Departments and routing
 
-### Prerequisites
-- Node.js 18+ and `npm`
-- Modern browser (Chromium recommended for full Web Audio API support)
-- *(Optional)* Supabase CLI for local database and Edge Functions
+Six fictional departments and doctors, seeded as synthetic data:
 
-### Installation
+| Department | Doctor (fictional) | Booking |
+|---|---|---|
+| General Medicine | Dr. Aditi Rao | Routine slots |
+| Orthopedics | Dr. Kabir Mehta | Routine slots |
+| General Surgery | Dr. Ishaan Patel | Routine slots |
+| Dermatology | Dr. Sara Khan | Routine slots |
+| Cardiology | Dr. Arjun Nair | Routine slots |
+| Emergency | Dr. Neha Verma | **No routine slots** |
+
+Routing is preliminary. The reasoning model may propose only one of the configured non-emergency
+department keys; the backend validates it and performs the doctor mapping. Ambiguous routine cases
+fall back to General Medicine and stay marked as preliminary. A deterministic emergency rule maps
+to `emergency` and suppresses booking. Displayed times use `Asia/Kolkata`; the synthetic clinic runs
+09:00–17:00 on weekdays in 30-minute slots with no slots from 13:00 to 14:00.
+
+---
+
+## Question bank and review status
+
+- The active bank is **v2**, a **150-question** bilingual bank imported from an owner-supplied CSV
+  that is the integrity source of truth
+  (`docs/question-bank-review/question-bank-v2-reviewed.csv`).
+- The 150 questions are distributed **30 per routine department across five departments** —
+  general medicine (`GM`), orthopedics (`ORTH`), general surgery (`SURG`), dermatology (`DERM`)
+  and cardiology (`CARD`). **Emergency has no routine question set**; it is reached only through
+  the deterministic emergency path.
+- Each question carries a stable ID, department, English text, Hindi text, the report field it
+  fills, and an answer type (`free_text`, `yes_no`, `single_choice`).
+- Some answers are conversation-level and intentionally do not become structured report fields.
+  They remain visible to the authorised doctor through the report conversation.
+
+**Review status is tracked on three separate dimensions.** They are not interchangeable, and none
+of them indicates approval:
+
+| Dimension | Source of truth | Current value |
+|---|---|---|
+| Bank-level status (derived per question by `validateBank()`) | `supabase/functions/_shared/intake/question-bank.ts` → `review` | `draft_owner_review` for all 150 |
+| **Clinical** review | v2 CSV `clinical_review_status`; `REVIEW_RECORDS[][1]` | **`pending` for all 150** — no clinician has reviewed any question |
+| **Hindi** review | v2 CSV `hindi_review_status`; `REVIEW_RECORDS[][2]` | **`assistant_reviewed` for all 150** — an assistant pass only; **no human Hindi reviewer has signed off** |
+
+So the accurate summary is: the bank is `draft_owner_review`, clinical review has not started
+(`pending`), and the Hindi text has had an assistant-level pass (`assistant_reviewed`) that is
+**not** human approval. Nothing here is clinically validated, and the question set must not be
+presented to patients as clinically approved.
+
+> Note: `question-bank-review-status.json` is generated from the older **v1** template CSV, whose
+> review columns are blank and therefore report `pending` for both dimensions. It is not the source
+> of truth for the active v2 bank; use the integrity verifier and the v2 CSV instead.
+
+- The integrity verifier fails on any change to IDs, wording, options, report fields or review
+  metadata, and is part of the release gate.
+
+---
+
+## Safety boundaries
+
+| Control | Behaviour |
+|---|---|
+| Consent | Explicit on-screen Yes/No only, with a stored decision, consent text/version, language and server timestamp. Declining collects nothing. |
+| Turn cap | 15 accepted answer turns, enforced server-side. Incomplete at the cap means an End-only private preview. |
+| Emergency rules | Eight deterministic demo phrase categories (breathing, chest pain, stroke signs, unresponsive, bleeding, seizure, severe allergy, poisoning). Negation is handled; ambiguity asks a fixed "Is this happening to you right now?" Yes/No clarification. |
+| Emergency response | Plain-text 112 guidance in English or Hindi. There is **no tap-to-call link**, **no call placed**, **no ambulance dispatched** and **no real-time alert**. |
+| Ambiguity | A "No" negates only that specific candidate; it is never a general safety clearance. Unresolved cases are flagged for human review. |
+| Model urgency flag | The reasoning model's `possible_urgent` flag is supplementary for doctor review only. It is never proof of safety or a diagnosis. |
+| Booking hold | A report with unresolved urgency or human-review flags cannot be booked until a mapped doctor uses Mark Reviewed. Emergency reports are never bookable. |
+| Missing data | Missing values stay explicit (`not_provided`, `unknown`, `declined`, `unclear`, `not_asked`). Nothing is invented. |
+| Spend caps | Server-side daily caps in `Asia/Kolkata` with atomic counters; a provider cap degrades only that provider, with a non-paid fallback. |
+| Non-diagnostic | No diagnosis, disease probability, prescription, treatment recommendation or invented history/vitals. |
+
+**Owner decisions — approved.** Recorded in `docs/release-readiness/OWNER-DECISIONS.md`:
+
+- **D-30 — urgent-report review authority: approved (restrictive rule retained).** Only the
+  Emergency doctor may acknowledge / Mark Reviewed an urgent report. The General Medicine doctor
+  has read-only cross-visibility and no acknowledgement authority. The UI, RPC and RLS already
+  implement this; the approval ratifies the existing rule rather than changing it.
+- **D-34 — consent copy: approved (`2026-11-01.v1` retained verbatim).** The formal versioned
+  consent text stays in the consent bubble, the friendly greeting stays audio-only, and neither
+  the English nor the Hindi wording is paraphrased or version-bumped. The shorter Figma greeting
+  copy is not used as the consent text.
+- **Still pending, and not covered by either approval:** the urgent-queue membership predicate, a
+  human Hindi linguistic sign-off (consent wording and question bank), and defect D-06 (cached
+  prompt audio are silent placeholders). The question bank remains `draft_owner_review` /
+  `pending` / `assistant_reviewed` as described above.
+
+---
+
+## Data and privacy limitations
+
+- **Synthetic data only.** The seed contains fictional doctors, departments and schedules. Never
+  enter real or identifiable patient information.
+- Patients have no signup or password; Supabase anonymous auth is used, and a session resumes only
+  with the same persisted browser identity. There is no recovery by phone number or guessable ID.
+- Raw audio is discarded after processing by default; the transcript is retained separately from
+  any later corrections.
+- Data retention, deletion and backup behaviour are owner-controlled and documented in
+  `docs/data-retention-and-backup.md` and `docs/backup-and-recovery.md`.
+- This project has not undergone a privacy or clinical compliance assessment (for example HIPAA or
+  India's DPDP Act). It must not be used with real patient data.
+
+---
+
+## Getting started
+
+**Prerequisites**
+
+- Node.js 18 or newer (the reported verification used Node 26.12.0) and npm.
+- A Chromium-based browser for the headless browser suites.
+- Optional: Docker and the Supabase CLI, only if you want the live local-stack API suite.
+
+**Install and run**
+
 ```bash
-# Clone repository
-git clone https://github.com/shyamparmar/samvad-healthdesk-ai.git
+git clone <repository-url>
 cd samvad-healthdesk-ai
 
-# Install dependencies
-npm install
-npm run dev      # start the frontend
-npm run build    # production build
-
-# Start local development server (Default: Mock Mode)
-npm run dev
+npm ci
+npm run dev          # http://localhost:5173
 ```
 
-Copy `.env.example` to `.env.local` and fill `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` (the public key only). Server-side provider keys belong in Supabase Function Secrets under the exact variable names verified from the current provider documentation and implementation. Never place provider secrets in `VITE_` variables or commit them.
-### Environment Configuration
-Copy `.env.example` to `.env.local` to configure connection parameters:
-```env
-# Public Supabase Client Keys (Safe for browser)
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_KEY=your-supabase-publishable-or-anon-key
+`npm run dev` starts the patient app at `/` and the doctor portal at `/doctor`.
 
-Backend (Supabase CLI): migrations and Edge Functions are deployed separately from the frontend; `git push` alone does not deploy them. Seed data is applied deliberately, not automatically.
-# Provider secrets (GNANI_API_KEY, GROQ_API_KEY, SERVICE_ROLE_KEY)
-# MUST ONLY be set in Supabase Function Secrets — NEVER in the frontend!
+**Mock mode is the default.** With no Supabase environment variables set, the app runs entirely
+in the browser against a built-in mock: no cloud project, no provider keys and no network calls.
+This is the fastest way to explore the patient and doctor flows.
+
+**Supabase mode** requires `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` (see below). Copy the
+template and fill in the public values:
+
+```bash
+cp .env.example .env.local
 ```
+
+**Production build**
+
+```bash
+npm run build        # tsc type check + Vite production build into dist/
+npm run preview      # serve the built output locally
+```
+
+---
+
+## Environment variables
+
+Names verified against `.env.example` and the application code.
+
+**Browser (Vite, public — baked into the bundle)**
+
+| Name | Purpose | Notes |
+|---|---|---|
+| `VITE_SUPABASE_URL` | Supabase project or local stack URL | Public |
+| `VITE_SUPABASE_KEY` | Supabase **publishable** key or legacy anon key | Public. **Never** the secret/service-role key |
+
+If either is empty or invalid, the app stays in mock mode rather than failing silently at request
+time.
+
+**Supabase Edge Function secrets (server-side only)**
+
+| Name | Purpose |
+|---|---|
+| `GROQ_API_KEY` | Constrained question selection and extraction |
+| `GNANI_API_KEY` | Gnani Prisma (speech-to-text) and Timbre (text-to-speech) |
+| `ALLOWED_ORIGINS` | Exact comma-separated browser origins for CORS. Not an authorisation control |
+| `GROQ_BASE_URL`, `PRISMA_BASE_URL`, `TIMBRE_ENDPOINT` | Optional endpoint overrides for a local stub; leave empty in normal operation |
+
+**Local testing only** — never set in Vercel or a deployed function: `LOCAL_SERVICE_KEY`,
+`LOCAL_ANON_KEY`.
+
+Set function secrets with the Supabase CLI, for example:
+
+```bash
+supabase secrets set GROQ_API_KEY=<value> GNANI_API_KEY=<value> ALLOWED_ORIGINS=<origins>
+```
+
+Never place provider secrets in a `VITE_` variable, in `.env.local` committed to Git, or in the
+browser bundle.
+
+---
+
+## Testing
+
+| Command | Suite | Requirement |
+|---|---|---|
+| `npm run build` | TypeScript check + production bundle | Node only |
+| `npm run test:mock` | Contract, patient flow, doctor flow, speech playback, recording lifecycle, back navigation, defect regression | Node only |
+| `npm run test:supabase` | Supabase-mode wiring and RPC contract tests | Node only (in-memory harness) |
+| `npm run test:api` | API integration against a **live** local stack | Docker + Supabase CLI + stub providers |
+| `npm run test:e2e` | 16 headless-Chrome interaction journeys on a mock build | Local Chrome |
+| `npm run test:visual` | Responsive QA across 7 viewports (360 px – 1440 px) | Local Chrome |
+
+`npm test` runs the mock, Supabase-mode and API suites. Because it includes `test:api`, it requires
+a running local stack; without one it stops with
+`Error: Local Supabase configuration is missing`. Run `npm run test:mock` and
+`npm run test:supabase` if you only want the offline suites.
+
+> **Do not confuse the two "Supabase" suites.** `npm run test:supabase` is an **in-memory
+> simulation**: it drives `src/lib/api.ts` against a fake client that models the schema, RLS
+> policies and RPC signatures. Despite one suite being titled "Real Local Supabase Integration", it
+> opens **no socket and contacts no database** — it is a Node-only contract test. Genuine
+> Docker-backed integration (real migrations, real RLS, real RPCs, real JWTs) is `npm run test:api`
+> and `npm run test:api:browser*`, which need `npx supabase start`. An earlier report that called
+> the harness "real local-stack integration" was imprecise; the harness result does not evidence
+> live-stack behaviour.
+
+To enable the API suite:
+
+```bash
+npx supabase start
+eval "$(npx supabase status -o env | sed 's/^/export /')"
+export VITE_SUPABASE_URL="$API_URL" VITE_SUPABASE_KEY="$PUBLISHABLE_KEY"
+export LOCAL_SERVICE_KEY="$SECRET_KEY"
+npm run test:api
+```
+
+> **Note:** `npm run test:e2e` and `npm run test:visual` regenerate the committed baselines in
+> `docs/screenshots/`. Review and revert those images rather than committing machine-specific
+> pixels unless you intend to update the baselines.
+
+---
+
+## Verification status
+
+Recorded for the release candidate `dbe2e25` (tag `v1.0.0-demo`). This is the honest, current
+state — not a statement of clinical or production readiness.
+
+| Check | Result |
+|---|---|
+| `npm run build` | **PASS** — TypeScript strict check clean, production bundle built |
+| `npm run test:mock` | **PASS** — 121 tests, 121 passed, 0 failed |
+| `npm run test:supabase` | **PASS** — 7 tests, 7 passed. In-memory RPC/schema harness only: **no database or network contact** |
+| `npm run test:e2e` | **PASS** — 16/16 headless-Chrome journeys |
+| `npm run test:visual` | **PASS** — zero overflow across 7 viewports |
+| `npm run test:api` | **NOT RUN** — blocked by the local Docker/Supabase environment. This is **not** a pass |
+| `npm run test:api:browser` (`:extras`) | **NOT RUN** — requires the local stack |
+
+**Not verified, and not claimed anywhere in this repository:**
+
+- Live Groq, Gnani Prisma or Gnani Timbre behaviour (the provider harness exists but has only been
+  exercised non-live).
+- Hosted Supabase: no migrations, seeds, functions or secrets have been applied to a hosted project.
+- Vercel or any other production deployment.
+- Clinical validation, clinical review, or linguistic approval of the Hindi content. Clinical
+  review is `pending`, and no human Hindi reviewer has signed off the `assistant_reviewed` text;
+  the bank remains `draft_owner_review`. The consent **copy** is approved (D-34, version
+  `2026-11-01.v1`, wording unchanged), but the **Hindi consent wording** still awaits a human
+  linguistic sign-off.
+- Cached prompt audio. The eleven files in `public/audio/` are documented **silent placeholders**,
+  not usable speech (tracked as defect `D-06`, an owner action).
+
+---
+
+## Deployment prerequisites (not completed)
+
+This repository contains the configuration and runbooks, not a deployment.
+
+**Frontend (Vercel)**
+
+- Framework preset: Vite. Build command `npm run build`. Output directory `dist`.
+- SPA rewrite so `/doctor` survives a refresh — already encoded in `vercel.json`.
+- Project environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_KEY` (public values only).
+
+**Backend (Supabase)**
+
+- Apply the timestamped migrations in `supabase/migrations/`, then the seeds deliberately
+  (`supabase/seed.sql`, and `supabase/seed-doctor-profiles.sql` after the Auth users exist).
+- Set function secrets (`GROQ_API_KEY`, `GNANI_API_KEY`, `ALLOWED_ORIGINS`).
+- Deploy both Edge Functions: `chat-turn` and `speak`.
+- Create the two demo doctor Auth users in the Supabase Dashboard (never with SQL) and map their
+  UIDs to doctor profiles.
+- Generate or authorise the cached prompt audio with the owner-approved, quota-reserved procedure.
+
+Step-by-step owner procedures: `docs/release-readiness/HOSTED-SUPABASE-SETUP.md`,
+`docs/release-readiness/VERCEL-DEPLOYMENT.md`, `docs/final-owner-launch-checklist.md`.
+
+---
+
+## Documentation map
+
+| Document | Contents |
+|---|---|
+| `AGENTS.md` | Architecture, security and product invariants |
+| `docs/report-design.md` | Report contract, sections, field states, submission and review |
+| `docs/demo-emergency-rules.md` | Demo emergency phrase rules, 112 guidance, ambiguity handling |
+| `docs/demo-seed-data.md` | Fictional departments, doctors, schedules and access rules |
+| `docs/architecture-decisions.md` | Settled architectural decisions |
+| `docs/failure-modes.md` | Retry and fallback behaviour |
+| `docs/environment-variables.md` | Full variable reference |
+| `docs/question-bank-review/README.md` | Question-bank review package and status |
+| `docs/release-readiness/` | Owner setup procedures, release certification and gate evidence |
+| `docs/final-audit/` | Figma-to-code, UI, interaction and logic audit evidence |
+| `docs/emergency-certification/` | Emergency matcher and urgent-workflow certification evidence |
+| `docs/design/`, `docs/design-parity/` | Figma exports and implementation comparisons |
+
+---
 
 ## Evaluator access
----
 
-The doctor dashboard is restricted. Working evaluator credentials are **not published** in this repository, this README, screenshots, Figma, source code or public posts. The doctor login card explains that credentials are shared privately with reviewers.
-## Test Suites & Quality Verification
+The doctor portal is restricted. Working evaluator credentials are **not published** in this
+repository, its history, screenshots, design files or source. The login screen states:
 
-The registration terms refer to a participant workspace, but the current programme page FAQ and challenge blog say there is no participant dashboard and the submission form is sent to the registered email. The project owner will follow the current email instructions and inspect the actual link received for this registration. Evaluator access will be provided only through a field explicitly confirmed as private/reviewer-only or another private method approved by the challenge organisers. Do not assume such a field exists. Never commit a working password.
-The repository includes a comprehensive 5-layer test pyramid:
+> **Evaluator access** — Credentials are shared privately with reviewers. Not displayed in public
+> project materials.
 
-Two synthetic doctor identities are provisioned for testing: General Medicine (Dr. Aditi Rao) and Emergency (Dr. Neha Verma). Their passwords are held privately by the project owner; Auth users are created through Supabase Dashboard, never inserted into `auth.users` with SQL. The public app is an educational demo: use synthetic patient inputs only.
-| Suite | Command | Coverage |
-| :--- | :--- | :--- |
-| **Unit & Integration** | `npm test` | 84 tests (26 Mock, 7 Supabase RPC, 51 API integration) |
-| **End-to-End Interactions** | `npm run test:e2e` | 16 complete patient, doctor, and bilingual journeys |
-| **Real Browser Supabase** | `npm run test:api:browser` | 17 real browser-to-database journeys |
-| **Edge Cases & Safety** | `npm run test:api:browser:extras` | 9 emergency, Hindi, and ambiguous clarification journeys |
-| **Responsive Visual QA** | `npm run test:visual` | 7 viewports (360px to 1440px) with zero overflow validation |
-| **Production Build** | `npm run build` | Full TypeScript validation (`tsc --noEmit`) and Vite asset bundling |
+Never commit a working password. Doctor accounts are created in the Supabase Dashboard, never
+inserted into `auth.users` with SQL.
 
 ---
 
-## Documentation Index
+## Licence
 
-- [`docs/evaluator-demo-guide.md`](docs/evaluator-demo-guide.md) — Step-by-step 5–7 minute walkthrough script for evaluators and judges.
-- [`docs/feature-matrix.md`](docs/feature-matrix.md) — Comprehensive status and readiness matrix for all product features.
-- [`docs/final-owner-setup.md`](docs/final-owner-setup.md) — Deployment instructions, secrets configuration, and SQL migration checklist.
-- [`docs/hindi-ui-review.csv`](docs/hindi-ui-review.csv) — Bilingual translation audit of 22 key UI strings with clinical review status.
-- [`docs/demo-emergency-rules.md`](docs/demo-emergency-rules.md) — Deterministic emergency phrase triggers and 112 guidance protocol.
-- [`docs/report-design.md`](docs/report-design.md) — Detailed clinical report schema, field definitions, and information states.
-- [`docs/demo-seed-data.md`](docs/demo-seed-data.md) — Fictional departments, doctor profiles, and appointment schedules.
+No licence has been added to this repository yet. Add a `LICENSE` file before publishing or
+permitting reuse.
 
----
-
-## Evaluator Access Protocol
-
-Doctor dashboard access (`/doctor`) is secured with Supabase Auth. Working evaluator credentials are **not published** in public repositories, commit histories, Figma files, or documentation.
-
-Credentials for the two synthetic doctor profiles:
-1. **General Medicine:** Dr. Aditi Rao (`dr.aditi.rao@hospital.demo`)
-2. **Emergency Medicine:** Dr. Neha Verma (`dr.neha.verma@hospital.demo`)
-
-are provided confidentially via the competition submission form to maintain system security.
-
----
-
-## License & Attribution
-
-Developed for educational demonstration purposes. Built with Google Antigravity & OpenCode.
+Developed as an educational demonstration. Built with Google Antigravity and OpenCode.

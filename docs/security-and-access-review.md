@@ -1,8 +1,8 @@
 # Security and Access Review
 
 Consolidated access model and the owner decisions that remain. This is the short review
-surface; the full audit is `docs/final-security-signoff.md`, with earlier point-in-time
-results in `docs/security-readiness-review.md` and `docs/security-test-results.md`.
+surface; the full audit is `docs/final-security-signoff.md`, with test evidence in
+`docs/security-test-results.md`.
 
 Scope: the two Edge Functions, PostgreSQL grants/RLS/SQL functions, provider adapters,
 audio handling, logging and error surfaces. No hosted project was touched; every runtime
