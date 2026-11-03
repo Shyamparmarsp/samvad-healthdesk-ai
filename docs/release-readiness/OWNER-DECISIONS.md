@@ -8,7 +8,7 @@ they are not part of either approved decision.
 |---|---|---|---|
 | **D-30** | Urgent-report review authority | Retain the existing restrictive rule: **only the Emergency doctor** may acknowledge / Mark Reviewed an urgent report. General Medicine keeps read-only cross-visibility. | **APPROVED** — 3 Nov 2026 |
 | **D-34** | Consent copy | Retain the intended existing version **`2026-11-01.v1`** and its exact text. No paraphrase, no shorter Figma greeting copy, no new version. | **APPROVED** — 3 Nov 2026 |
-| — | Urgent queue membership | `urgent_partial` only, or also `needs_human_review`? | **PENDING** |
+| — | Urgent queue membership | Retain the current predicate: `urgent_partial` only | **RECORDED** — 3 Nov 2026 (no change) |
 | — | Hindi consent wording (linguistic sign-off) | Human review of the Hindi consent text | **PENDING** |
 | — | D-06 prompt audio | Generate + owner listening pass | **PENDING** |
 
@@ -71,21 +71,22 @@ approved decision.
 
 ---
 
-## Related question — urgent queue membership (still pending)
+## Urgent queue membership — retained (recorded 3 November 2026)
 
-This is a **separate** question from D-30's review authority; the D-30 approval does not settle it.
+This is a separate question from D-30's review authority. The owner record retains the existing
+behaviour: the predicate is unchanged, so no queue behaviour, label or test changes.
 
 The urgent queue predicate is `status = 'urgent_partial'` only. Reports that are `submitted` with
 `needs_human_review = true` are **not** listed in the urgent queue (they appear in Reports with a
 warning flag and remain subject to the booking hold). The Figma D7 frame shows one such report in
 the queue.
 
-| Option | Effect |
-|---|---|
-| Keep the current predicate | The urgent queue means "emergency trigger fired" |
-| Include `needs_human_review` | Queue mixes emergencies with unclear answers; needs a UI label change and a queue-rule test update |
+| Option | Effect | Outcome |
+|---|---|---|
+| Keep the current predicate | The urgent queue means "emergency trigger fired" | **RETAINED** |
+| Include `needs_human_review` | Queue mixes emergencies with unclear answers; needs a UI label change and a queue-rule test update | Rejected |
 
-**No queue behaviour was changed.** An owner ruling is still required for this item.
+**No queue behaviour was changed**, and none is planned under this record.
 
 ---
 
@@ -156,6 +157,6 @@ consent records must keep the text the patient actually accepted.
 |---|---|---|---|
 | D-30 urgent-review authority (A / B / C) | **A — retain the fail-closed rule** (only the Emergency doctor acknowledges) | 2026-11-03 | |
 | D-34 consent copy (A / B / C) | **A — intended version `2026-11-01.v1`, wording and version unchanged** | 2026-11-03 | |
-| D-30 urgent-queue membership (keep / include `needs_human_review`) | **pending** | — | |
+| D-30 urgent-queue membership (keep / include `needs_human_review`) | **keep the current predicate** — `urgent_partial` only | 2026-11-03 | |
 | Hindi consent wording approved | **pending — no human Hindi sign-off claimed** | — | |
 | D-06 prompt audio generated + listening pass recorded | yes / no | | |

@@ -159,7 +159,7 @@ Supabase Edge Functions            Supabase Auth + PostgreSQL (RLS)
 | Data & auth | Supabase PostgreSQL, RLS, Supabase Auth (anonymous patients, email/password doctors) |
 | Speech-to-text | Gnani Prisma (v2.5) |
 | Text-to-speech | Gnani Timbre (`timbre-v2.5`; explicit model ID, never an SDK default) |
-| Reasoning | Groq API with runtime-validated structured output |
+| Reasoning | Groq API, model `qwen/qwen3.8-27b`, with `response_format.json_schema` and `strict: true` |
 
 Key structural rules:
 
@@ -258,10 +258,11 @@ presented to patients as clinically approved.
   consent text stays in the consent bubble, the friendly greeting stays audio-only, and neither
   the English nor the Hindi wording is paraphrased or version-bumped. The shorter Figma greeting
   copy is not used as the consent text.
-- **Still pending, and not covered by either approval:** the urgent-queue membership predicate, a
-  human Hindi linguistic sign-off (consent wording and question bank), and defect D-06 (cached
-  prompt audio are silent placeholders). The question bank remains `draft_owner_review` /
-  `pending` / `assistant_reviewed` as described above.
+- **Still pending, and not covered by these approvals:** a human Hindi linguistic sign-off
+  (consent wording and question bank) and defect D-06 (cached prompt audio are silent
+  placeholders). The question bank remains `draft_owner_review` / `pending` /
+  `assistant_reviewed` as described above. The urgent-queue predicate is recorded as retained
+  (`urgent_partial` only) and is unchanged.
 
 ---
 

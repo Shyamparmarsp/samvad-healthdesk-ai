@@ -151,3 +151,38 @@ curl -s -o /dev/null -w "%{http_code}\n" \
 4. Check `supabase secrets list` and the Vercel environment for stale duplicates.
 5. Record the rotation privately. Never place the new value in the repository to "document"
    it.
+
+## 10. Naming audit — verified against the source on 3 November 2026 (commit `dbe2e25`)
+
+Every name the application reads, with its read site. No other environment name exists.
+
+| Name | Read at | Notes |
+|---|---|---|
+| `VITE_SUPABASE_URL` | `src/lib/supabase.ts:12-14` | build-time constant baked into the browser bundle |
+| `VITE_SUPABASE_KEY` | `src/lib/supabase.ts:17-19` | **the only** frontend key name; there is no `VITE_SUPABASE_ANON_KEY` and no `VITE_SUPABASE_PUBLISHABLE_KEY` anywhere in the repository |
+| `GROQ_API_KEY` | `supabase/functions/chat-turn/index.ts:185,308,337` | server-only |
+| `GNANI_API_KEY` | `chat-turn/index.ts:639` (Prisma), `speak/index.ts:156` (Timbre) | one key for STT and TTS; server-only |
+| `ALLOWED_ORIGINS` | `chat-turn/index.ts:94`, `speak/index.ts:32` | server-only |
+| `GROQ_BASE_URL`, `PRISMA_BASE_URL`, `TIMBRE_ENDPOINT` | `chat-turn/index.ts:191,308,344,649`, `speak/index.ts:163` | local stub overrides only; must be unset in production |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (or the project's secret-key equivalent) | not read explicitly — injected by the platform and consumed by `withSupabase` from `@supabase/server` | never set these by hand and never put them in Vercel |
+
+`@supabase/server@1` (`supabase/functions/deno.json`) provides `withSupabase({ auth: "user" })`,
+which supplies the JWT-scoped client and the elevated server client. The functions read the
+caller's identity only from verified claims, never from the request body.
+
+### 10.1 Publishable-key compatibility
+
+Verified by code inspection, not by a live call. `src/lib/supabase.ts` passes
+`VITE_SUPABASE_KEY` straight to `createClient(url, key)` from `@supabase/supabase-js@^2.118.0`.
+That SDK accepts either the publishable key (`sb_publishable_…`) or the legacy `anon` JWT and
+sends it as the `apikey` header, so the collected publishable key needs no rename and no
+format change. The code validates only the URL (`startsWith('http')`, no `placeholder`), so no
+key-shape assumption is baked in.
+
+Two preconditions live outside the code and cannot be checked offline:
+
+1. the value must be the **publishable** key — never `sb_secret_…` and never a
+   `service_role` JWT;
+2. anonymous sign-ins must be enabled on the hosted project, because
+   `src/lib/api.ts:843,894` calls `auth.signInAnonymously()`. It is enabled for the local
+   stack only (`supabase/config.toml:179`, `enable_anonymous_sign_ins = true`).
