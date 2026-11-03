@@ -17,7 +17,7 @@ const ENV = Deno.env.toObject();
 const BASE = ENV.LOCAL_URL ?? "http://127.0.0.1:54321";
 const STUB = ENV.STUB_URL ?? "http://127.0.0.1:8787";
 const DB_CONTAINER = ENV.DB_CONTAINER ?? "supabase_db_samvad-backend";
-const FRONTEND_DIR = ENV.FRONTEND_DIR ?? "../samvad-integration";
+const FRONTEND_DIR = ENV.FRONTEND_DIR ?? ".";
 
 const SKIP_SMOKE = Deno.args.includes("--skip-smoke");
 const RUN_FRONTEND = Deno.args.includes("--frontend");

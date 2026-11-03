@@ -26,3 +26,7 @@ supabase/.temp/
 
 # Editor
 .vscode/
+
+# Root-level lock file created by ad-hoc `deno test` runs; the Edge Functions
+# lock file is committed at supabase/functions/deno.lock
+/deno.lock

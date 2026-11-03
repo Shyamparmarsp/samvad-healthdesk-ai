@@ -15,7 +15,7 @@
 
 const JSON_ONLY = Deno.args.includes("--json");
 const ENV = Deno.env.toObject();
-const FRONTEND_DIR = ENV.FRONTEND_DIR ?? "../samvad-integration";
+const FRONTEND_DIR = ENV.FRONTEND_DIR ?? ".";
 const DB_CONTAINER = ENV.DB_CONTAINER ?? "supabase_db_samvad-backend";
 
 type Status = "PASS" | "FAIL" | "BLOCKED";
