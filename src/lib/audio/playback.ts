@@ -106,6 +106,10 @@ export function createAudioPlayback(options: AudioPlaybackOptions = {}): AudioPl
     async unlock(): Promise<void> {
       const target = ensure();
       const previous = target.src;
+      // Unlocking is asynchronous. If a real utterance starts while the silent clip is
+      // still resolving, that playback owns the element: cleaning up afterwards would
+      // pause it and swallow its `ended` event.
+      const generation = token;
       try {
         target.muted = true;
         target.src = unlockSource;
@@ -113,13 +117,15 @@ export function createAudioPlayback(options: AudioPlaybackOptions = {}): AudioPl
       } catch {
         // Some browsers reject even a muted silent clip; the next play() reports it.
       } finally {
-        try {
-          target.pause();
-        } catch {}
-        target.muted = false;
-        try {
-          target.src = previous ?? '';
-        } catch {}
+        if (token === generation) {
+          try {
+            target.pause();
+          } catch {}
+          target.muted = false;
+          try {
+            target.src = previous ?? '';
+          } catch {}
+        }
       }
       unlocked = true;
     },

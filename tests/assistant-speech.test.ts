@@ -61,6 +61,50 @@ describe('Assistant speech channel', () => {
   });
 });
 
+
+describe('Audio playback channel — unlock race', () => {
+  it('8. a real utterance that starts during unlock() is not paused by the unlock cleanup', async () => {
+    let releaseUnlock: (() => void) | null = null;
+    let pauseCount = 0;
+
+    class SlowUnlockAudio extends FakeAudio {
+      override async play(): Promise<void> {
+        this.playCalls += 1;
+        if (this.src.startsWith('data:')) {
+          await new Promise<void>((resolve) => {
+            releaseUnlock = resolve;
+          });
+          return;
+        }
+      }
+      override pause(): void {
+        pauseCount += 1;
+      }
+    }
+
+    const element = new SlowUnlockAudio();
+    const playback = createAudioPlayback({ createAudio: () => element });
+
+    const unlocking = playback.unlock();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // The assistant starts the real prompt while the silent unlock clip is still pending.
+    const playing = playback.play('/audio/hi/ask-name.mp3');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(element.src, '/audio/hi/ask-name.mp3', 'prompt loaded');
+
+    element.onended?.();
+    assert.deepEqual(await playing, { ok: true }, 'prompt reported as played');
+
+    const pauseAfterPlay = pauseCount;
+    releaseUnlock?.();
+    await unlocking;
+
+    assert.equal(pauseCount, pauseAfterPlay, 'unlock cleanup does not pause the prompt');
+    assert.equal(element.src, '/audio/hi/ask-name.mp3', 'unlock cleanup keeps the prompt source');
+  });
+});
+
 describe('Audio playback channel', () => {
   it('4. unlock() and play() reuse one element so the gesture permission survives', async () => {
     const elements: FakeAudio[] = [];
