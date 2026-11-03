@@ -55,7 +55,7 @@ export const KNOWN_PLACEHOLDER_SHA256 = [
   "8cc2ed04be3808f22bc866cb7dc33c1e", // md5 of the 11 identical wav files
 ];
 
-const MIN_DURATION_SECONDS = 1.0;
+const MIN_DURATION_SECONDS = 0.8;
 const MIN_MEAN_VOLUME_DB = -45;
 const MIN_MAX_VOLUME_DB = -20;
 
@@ -372,6 +372,12 @@ async function live(assets: PromptAsset[], apiKey: string): Promise<void> {
   const seenHashes = new Set<string>();
 
   for (const asset of assets) {
+    try {
+      if (Deno.statSync(asset.path).size > 0) {
+        console.log(`  SKIP ${asset.path} (already generated)`);
+        continue;
+      }
+    } catch {}
     requests += 1;
     console.log(`[${requests}/${assets.length}] synthesising ${asset.language}/${asset.promptId}`);
     const result = await synthesize({ apiKey }, { text: asset.text, language: asset.speechLanguage, voice: asset.voice });

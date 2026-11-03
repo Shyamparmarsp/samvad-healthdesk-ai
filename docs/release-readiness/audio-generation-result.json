@@ -1,0 +1,21 @@
+{
+  "generatedAt": "2026-11-03T18:56:09.524Z",
+  "model": "timbre-v2.5",
+  "requestCount": 1,
+  "pass": 1,
+  "fail": 0,
+  "note": "Request count is exact: one synthesis attempt per prompt, no retries.",
+  "results": [
+    {
+      "path": "public/audio/en/ask-name.mp3",
+      "status": "PASS",
+      "requests": 1,
+      "sha256": "75747251826f422a61a7fa821ca267e11b81ae4ff0b440ccb5142e2ae492c2d4",
+      "bytes": 16128,
+      "durationSeconds": 1.008,
+      "meanVolumeDb": -16.2,
+      "maxVolumeDb": -2.9,
+      "probe": "ffprobe+ffmpeg"
+    }
+  ]
+}
