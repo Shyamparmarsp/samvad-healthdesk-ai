@@ -32,11 +32,33 @@ Source: <https://console.groq.com/docs/structured-outputs>, <https://console.gro
 ### 1.3 Candidate models — VERIFIED-DOCS
 | Model ID | Speed | Context | Max completion | Notes |
 |---|---|---|---|---|
-| `openai/gpt-oss-20b` | ~1000 t/s | 131,072 | 65,536 | Preferred: lowest latency, strict mode supported |
-| `openai/gpt-oss-120b` | ~500 t/s | 131,072 | 65,536 | Fallback if 20B output quality is insufficient |
-| `qwen/qwen3.8-27b` | ~450 t/s | 131,072 | 16,384 | Alternative with strict mode |
+| `qwen/qwen3.8-27b` | ~450 t/s | 131,072 | 16,384 | **Selected**: owner decision, strict mode supported |
+| `openai/gpt-oss-20b` | ~1000 t/s | 131,072 | 65,536 | Documented alternative; **not selected, not used** |
+| `openai/gpt-oss-120b` | ~500 t/s | 131,072 | 65,536 | Documented alternative; **not selected, not used** |
 
-**Selected default:** `openai/gpt-oss-20b` with `strict: true`. Re-verify before deployment if Groq changes its model list.
+**Selected model:** `qwen/qwen3.8-27b` with `strict: true`, set once in
+`supabase/functions/_shared/groq.ts` (`GROQ_MODEL`). Re-verify before deployment if Groq
+changes its model list.
+
+**Single active reasoning model.** The product owner replaced GPT-OSS-20B with Qwen 3.8 27B
+on 3 November 2026. There is exactly one reasoning model, one adapter and one request shape;
+no secondary or fallback model is configured. A provider failure always resolves to the
+documented scripted/deterministic fallback (department → General Medicine, adaptive question →
+first retrieved approved question), never to another model. The GPT-OSS rows above remain in
+this file only as the provider-verification record of what was documented and considered;
+they are not reachable from the application.
+
+**Reasoning-specific parameters.** None are sent. The request body is exactly
+`{ model, messages, response_format }`: no `reasoning_effort`, `reasoning_format`,
+`temperature`, `max_tokens`, `tools`, `tool_choice` or `stream`. The documented structured
+output contract needs none of them, and `strict: true` constrains the decoding. Adding one is
+an owner-approved change, not an agent decision. Requests are also far below Qwen's 16,384
+max-completion budget (single small JSON object).
+
+**Migration verification status:** the request shape, model id and parsing are covered by
+mocked tests (`_shared/groq.test.ts`, `_shared/groq-model-selection.test.ts`). **No live Groq
+call has been made**; the model id and `strict` support still need the owner's B-1 check in §6.
+
 
 ### 1.4 Error and timeout behaviour
 - **VERIFIED-DOCS:** schema failures in best-effort mode return HTTP 400; rate limits return 429; auth failures return 401.
@@ -238,7 +260,7 @@ curl -s https://api.groq.com/openai/v1/chat/completions \
   -H "Authorization: Bearer $GROQ_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "openai/gpt-oss-20b",
+    "model": "qwen/qwen3.8-27b",
     "messages": [
       {"role":"system","content":"Return JSON only."},
       {"role":"user","content":"The patient reports knee pain for three weeks, moderate."}

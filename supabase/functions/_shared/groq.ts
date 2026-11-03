@@ -8,8 +8,17 @@
  * Fixed facts encoded here:
  *   - base URL https://api.groq.com/openai/v1, endpoint POST /chat/completions
  *   - auth: Authorization: Bearer <key>
- *   - response_format.json_schema with strict: true is supported on openai/gpt-oss-20b
+ *   - response_format.json_schema with strict: true is supported on qwen/qwen3.8-27b
  *   - streaming and tool use are NOT supported together with structured outputs
+ *
+ * Model selection (owner decision): GROQ_MODEL is the single active reasoning model.
+ * `qwen/qwen3.8-27b` replaced the previous default model; the historical record lives in
+ * `docs/provider-notes.md` §1.3, not in runtime code. There is no model fallback: a
+ * provider failure returns a typed failure and the caller uses its scripted/deterministic
+ * fallback, never a second model. No reasoning-specific request parameter
+ * (`reasoning_effort`, `reasoning_format`) is sent, because none is documented as
+ * required for structured output, and the documented contract for this model allows the
+ * same body. Keep it that way unless the owner authorizes a change.
  *
  * Deliberately NOT encoded: any request timeout value, retry policy or rate-limit
  * assumption. No timeout is documented for /chat/completions, so the caller supplies
@@ -20,7 +29,12 @@
  */
 
 const DEFAULT_BASE_URL = "https://api.groq.com/openai/v1";
-const DEFAULT_MODEL = "openai/gpt-oss-20b";
+/**
+ * The only reasoning model this application selects. Owner-selected migration target.
+ * Documented as supporting `response_format.json_schema` with `strict: true` in
+ * `docs/provider-notes.md` §1.2. Max completion tokens: 16,384 (requests here are tiny).
+ */
+export const GROQ_MODEL = "qwen/qwen3.8-27b";
 const DEFAULT_TIMEOUT_MS = 8_000;
 
 export type GroqFailureKind =
@@ -39,7 +53,8 @@ export type GroqResult<T> =
 
 export interface GroqOptions {
   apiKey: string;
-  model?: string;
+  // There is deliberately no `model` option: the model is not caller-selectable, so no
+  // code path can select a second reasoning model. `GROQ_MODEL` is the only one sent.
   timeoutMs?: number;
   baseUrl?: string;
   /** Injected for tests. Defaults to the global fetch. */
@@ -83,7 +98,7 @@ export async function requestStructured<T>(
 ): Promise<GroqResult<T>> {
   if (!options.apiKey) return { ok: false, kind: "config" };
 
-  const model = options.model ?? DEFAULT_MODEL;
+  const model = GROQ_MODEL;
   const doFetch = options.fetchImpl ?? fetch;
   const baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "");
   const controller = new AbortController();

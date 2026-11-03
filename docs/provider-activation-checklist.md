@@ -98,7 +98,7 @@ No patient data, no real recording and no transcript is ever sent.
 
 | Probe | Pass condition |
 |---|---|
-| B-1 | valid JSON matching the strict schema, `model=<groq model id>` reported |
+| B-1 | valid JSON matching the strict schema, `model=qwen/qwen3.8-27b` reported |
 | B-3/B-4 | `ok`, a model id and `chars ≥ 0`; silence usually yields an empty transcript, which is a **pass** for connectivity |
 | B-5 | `kind=unsupported_format`, no provider call |
 | B-7/8 | audio bytes returned with a content type, for both languages |

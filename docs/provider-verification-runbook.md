@@ -23,8 +23,8 @@ Companion documents: `docs/provider-notes.md` (verified provider facts),
 |---|---|
 | Endpoint | `POST https://api.groq.com/openai/v1/chat/completions` |
 | Auth | `Authorization: Bearer <GROQ_API_KEY>` |
-| Model | `openai/gpt-oss-20b` (default in the adapter) |
-| Request | JSON `{ model, messages: [{role:"system",content},{role:"user",content}], response_format: { type:"json_schema", json_schema:{ name, strict:true, schema } } }` |
+| Model | `qwen/qwen3.8-27b` (`GROQ_MODEL`, the single active reasoning model in the adapter) |
+| Request | JSON `{ model, messages: [{role:"system",content},{role:"user",content}], response_format: { type:"json_schema", json_schema:{ name, strict:true, schema } } }` — no reasoning/tool/stream parameters |
 | Structured output | `response_format.json_schema` with `strict: true`; no streaming, no tools |
 | Response | `choices[0].message.content` is a JSON string; parsed and then runtime-validated |
 | Timeout | Client-side **8,000 ms** default (`DEFAULT_TIMEOUT_MS`); caller may override |
