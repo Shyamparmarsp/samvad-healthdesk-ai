@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../i18n';
 import {
   startSession,
@@ -14,13 +14,8 @@ import { ChatTurnResponse } from '../../types/api';
 import { CorrectableField, ReportDocumentV1, ReportRow } from '../../types/report';
 import { Appointment } from '../../types/doctor';
 import { CONSENT_VERSION } from '../../types/consent';
-import { captureVoiceAnswer, type VoiceAnswer } from '../../lib/audio/voice';
-import {
-  cachedPromptSources,
-  createPromptAudioCache,
-  promptIdForQuestion,
-} from '../../lib/audio/prompt-audio';
 import { PatientScreen, resolveBackNavigation, reviewModeFor } from '../../lib/navigation';
+import { useVoiceConversation, type VoiceNotice } from './useVoiceConversation';
 
 import { WelcomeView } from './WelcomeView';
 import { ConsentView } from './ConsentView';
@@ -68,10 +63,9 @@ export const PatientShell: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   // D-04: the global daily cap is a distinct state, not a silent no-op consent screen.
   const [demoBusy, setDemoBusy] = useState<boolean>(false);
-
-  /** Session-scoped TTS cache: replaying an adaptive question never re-buys it (D-06). */
-  const audioCacheRef = useRef(createPromptAudioCache());
-  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+  /** Voice vs text is a shell-level mode: text mode must stop the microphone. */
+  const [inputMode, setInputMode] = useState<'voice' | 'text'>('voice');
+  const [pendingVoiceTranscript, setPendingVoiceTranscript] = useState('');
 
   const navigateToScreen = (nextScreen: PatientScreen) => {
     if (nextScreen !== currentScreen) {
@@ -79,6 +73,46 @@ export const PatientShell: React.FC = () => {
       setCurrentScreen(nextScreen);
     }
   };
+
+  /** Adaptive prompts are synthesised once per session and then replayed (D-06). */
+  const speakAdaptiveQuestion = async (questionId: string): Promise<string | null> => {
+    if (!sessionId) return null;
+    try {
+      const res = await speak(sessionId, questionId);
+      return res.audioUrl ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  /** Applies a response produced by the automatic voice loop. */
+  const applyVoiceResponse = (res: ChatTurnResponse) => {
+    setChatState(res);
+    if (res.emergency_triggered || res.session_status === 'emergency') {
+      navigateToScreen('emergency');
+      return;
+    }
+    if (res.is_complete || (res.is_cap_reached && res.draft_report)) {
+      navigateToScreen('review');
+    }
+  };
+
+  // The loop only runs on an accepted consent: it never records into a `created` session.
+  const voiceActive =
+    currentScreen === 'conversation' &&
+    (chatState?.session_status === 'consented' || chatState?.session_status === 'in_progress');
+
+  const voice = useVoiceConversation({
+    active: voiceActive,
+    sessionId,
+    language,
+    question: chatState?.current_question
+      ? { id: String(chatState.current_question.id), text: chatState.current_question.text }
+      : undefined,
+    initialTurnCount: chatState?.turn_count ?? 0,
+    speakAdaptive: speakAdaptiveQuestion,
+    onResponse: applyVoiceResponse,
+  });
 
   /**
    * D-02 / D-10: Back is blocked on terminal screens (emergency, confirmations,
@@ -117,6 +151,10 @@ export const PatientShell: React.FC = () => {
             setCurrentScreen('review');
           } else if (res.session_status === 'declined') {
             setCurrentScreen('consent_declined');
+          } else if (res.session_status === 'created') {
+            // Consent is never inferred: a restored session that has not answered the
+            // consent question returns to the consent screen, not the microphone.
+            setCurrentScreen('consent');
           } else if (res.session_status === 'in_progress' || res.current_question) {
             setCurrentScreen('conversation');
           } else if (res.session_status === 'ended') {
@@ -156,9 +194,15 @@ export const PatientShell: React.FC = () => {
     } catch {}
   };
 
-  // 1. Start talking / typing from welcome screen
-  const handleStartIntake = async () => {
+  // 1. Start talking / typing from welcome screen. The entry mode is remembered: a patient
+  // who chose "Type Instead" must not have the microphone opened for them.
+  const handleStartIntake = async (mode: 'voice' | 'text' = 'voice') => {
     if (isProcessing) return; // never create two sessions from a double click
+    setInputMode(mode);
+    // Inside the click gesture: unlock playback and ask for the microphone now, so the
+    // assistant can speak and record without further taps.
+    voice.unlock({ microphone: mode === 'voice' });
+    voice.setSuspended(mode === 'text');
     setIsProcessing(true);
     setErrorMessage(null);
     setDemoBusy(false);
@@ -210,6 +254,8 @@ export const PatientShell: React.FC = () => {
     setIsProcessing(true);
     setErrorMessage(null);
     try {
+      // The Yes click is a gesture: unlock audio and, in voice mode, the microphone.
+      voice.unlock({ microphone: inputMode === 'voice' });
       const res = await recordConsent(sessionId, true, language, CONSENT_VERSION);
       setChatState(res);
       navigateToScreen('conversation');
@@ -279,6 +325,19 @@ export const PatientShell: React.FC = () => {
         navigateToScreen('review');
       } else if (origin === 'transcript') {
         navigateToScreen('conversation');
+        if (res.current_question) {
+          void voice.announce({
+            id: String(res.current_question.id),
+            text: res.current_question.text,
+          });
+        }
+      } else if (res.current_question) {
+        // A typed or chip answer also gets spoken: the assistant keeps the conversation
+        // voice-first, and listening resumes only when the patient is in voice mode.
+        void voice.announce({
+          id: String(res.current_question.id),
+          text: res.current_question.text,
+        });
       }
       return true;
     } catch (err: any) {
@@ -290,157 +349,62 @@ export const PatientShell: React.FC = () => {
     }
   };
 
-  // 4. Voice turn: capture a contract-valid WAV, let the backend transcribe it, then
-  // show the transcript for confirmation. Never fabricate a transcript locally.
-  const handleVoiceRecorded = async (voicePayload: VoiceAnswer | string) => {
-    if (!sessionId || !chatState?.current_question) return;
-    if (chatState.session_status === 'emergency') {
-      navigateToScreen('emergency');
-      return;
-    }
-
-    // D-40: a string payload used to re-open the microphone with no user gesture.
-    // It is not a confirmed answer, so it is reported instead of being sent.
-    if (typeof voicePayload === 'string') {
-      setErrorMessage(t.chat.recordingFailed);
-      return;
-    }
-
-    setIsProcessing(true);
-    setErrorMessage(null);
-    try {
-      const voice: VoiceAnswer =
-        voicePayload && typeof voicePayload === 'object' && 'audio_base64' in voicePayload
-          ? voicePayload
-          : await captureVoiceAnswer();
-      const res = await chatTurn({
-        action: 'submit_turn',
-        session_id: sessionId,
-        question_id: chatState.current_question.id,
-        audio_base64: voice.audio_base64,
-        audio_format: voice.audio_format,
-      });
-      setChatState(res);
-
-      if (res.emergency_triggered || res.session_status === 'emergency') {
-        navigateToScreen('emergency');
-      } else if (res.transcript_preview) {
-        setPendingTranscript(res.transcript_preview.text);
-        navigateToScreen('what_we_heard');
-      } else if (res.error) {
-        setErrorMessage(
-          res.error === 'provider_unavailable'
-            ? 'Voice transcription is unavailable right now. Please type your answer instead.'
-            : `Voice step failed (${res.error}). Please type your answer instead.`,
-        );
-      }
-    } catch (err: any) {
-      console.error('Error submitting voice turn', err);
-      setErrorMessage(sanitizeUserError(err));
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   // D-41: navigate only after the confirmed answer was actually accepted.
   const handleConfirmTranscript = async (confirmedText: string) => {
     const accepted = await handleSendAnswer(confirmedText, 'transcript');
     if (accepted) setPendingTranscript('');
   };
 
-  const stopActiveAudio = () => {
-    if (activeAudioRef.current) {
-      activeAudioRef.current.pause();
-      activeAudioRef.current = null;
-    }
+  /** Voice ↔ text. Text mode keeps the spoken questions but closes the microphone. */
+  const handleChangeInputMode = (mode: 'voice' | 'text') => {
+    setInputMode(mode);
+    voice.setSuspended(mode === 'text');
   };
 
-  /** Try static candidates in order and play the first one that decodes. */
-  const playFirstAvailable = async (urls: string[]): Promise<boolean> => {
-    for (const url of urls) {
-      stopActiveAudio();
-      const audio = new Audio(url);
-      activeAudioRef.current = audio;
-      audio.onended = () => {
-        if (activeAudioRef.current === audio) activeAudioRef.current = null;
-      };
-      try {
-        await audio.play();
-        return true;
-      } catch {
-        // Try the next candidate.
-      }
-    }
-    stopActiveAudio();
-    return false;
-  };
-
-  const playUrl = async (url: string, onFailure: () => void) => {
-    stopActiveAudio();
-    const audio = new Audio(url);
-    activeAudioRef.current = audio;
-    audio.onended = () => {
-      if (activeAudioRef.current === audio) activeAudioRef.current = null;
-    };
-    audio.onerror = () => {
-      if (activeAudioRef.current === audio) activeAudioRef.current = null;
-      onFailure();
-    };
-    try {
-      await audio.play();
-    } catch {
-      onFailure();
-    }
+  const handleRetryVoice = () => {
+    setInputMode('voice');
+    setPendingVoiceTranscript('');
+    voice.setSuspended(false);
+    void voice.retry();
   };
 
   /**
-   * D-06: fixed prompts are served from `public/audio` (no provider call), and adaptive
-   * prompts are fetched at most once per session and then replayed from the cache.
+   * An automatic submission that the backend rejected lands on the existing transcript
+   * screen, so the patient can retry (or correct) instead of losing what they said.
    */
-  const handleReplayAudio = async () => {
-    const question = chatState?.current_question;
-    if (!sessionId || !question) return;
-
-    const questionId = String(question.id);
-    const promptId = promptIdForQuestion(questionId);
-
-    if (promptId) {
-      const played = await playFirstAvailable(cachedPromptSources(language, promptId));
-      if (!played) setErrorMessage(t.chat.audioUnavailable);
-      return;
-    }
-
-    const cached = audioCacheRef.current.get(language, questionId);
-    if (cached) {
-      await playUrl(cached, () => setErrorMessage(t.chat.audioUnavailable));
-      return;
-    }
-
-    try {
-      const res = await speak(sessionId, questionId);
-      if (res.audioUrl) {
-        audioCacheRef.current.set(language, questionId, res.audioUrl);
-        await playUrl(res.audioUrl, () => setErrorMessage(t.chat.audioUnavailable));
-      } else {
-        setErrorMessage(t.chat.audioUnavailable);
-      }
-    } catch (err) {
-      console.warn('Replay audio request failed', err);
-      setErrorMessage(t.chat.audioUnavailable);
-    }
-  };
-
   useEffect(() => {
-    return () => {
-      stopActiveAudio();
-    };
+    if (currentScreen !== 'conversation') return;
+    if (voice.notice !== 'submit_failed') return;
+    const transcript = voice.transcript.trim();
+    if (!transcript) return;
+    setPendingTranscript(transcript);
+    navigateToScreen('what_we_heard');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voice.notice, voice.transcript, currentScreen]);
+
+  /** Leaving the conversation always releases the microphone. */
+  useEffect(() => {
+    if (currentScreen === 'conversation') return;
+    voice.stop();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentScreen]);
 
+  // Clear the optimistic transcript bubble once the answer is stored by the backend.
   useEffect(() => {
-    return () => {
-      audioCacheRef.current.clear();
-    };
-  }, []);
+    if (voice.phase === 'listening' || voice.phase === 'assistant_speaking') {
+      setPendingVoiceTranscript('');
+    }
+  }, [voice.phase]);
+
+  useEffect(() => {
+    setPendingVoiceTranscript(voice.transcript);
+  }, [voice.transcript]);
+
+  /** D-06: replay the current prompt through the same unlocked audio channel. */
+  const handleReplayAudio = async () => {
+    if (!chatState?.current_question) return;
+    await voice.replay();
+  };
 
   // 5. Report corrections
   const handleCorrectField = async (
@@ -530,8 +494,9 @@ export const PatientShell: React.FC = () => {
   // 11. Restart session
   const handleRestart = () => {
     forgetSession();
-    stopActiveAudio();
-    audioCacheRef.current.clear();
+    voice.stop();
+    setPendingVoiceTranscript('');
+    setInputMode('voice');
     setSessionId('');
     setChatState(null);
     setActiveAppointment(undefined);
@@ -545,6 +510,31 @@ export const PatientShell: React.FC = () => {
   const reviewDocument: ReportDocumentV1 | undefined =
     (chatState?.draft_report as ReportDocumentV1 | undefined) ??
     (chatState?.submitted_report?.report as ReportDocumentV1 | undefined);
+
+  /** Localized banner text for a voice notice. Never raw provider or database text. */
+  const voiceNoticeMessage = (): string | null => {
+    const notice: VoiceNotice | null = voice.notice;
+    switch (notice) {
+      case 'audio_blocked':
+        return t.chat.audioBlocked;
+      case 'audio_unavailable':
+        return t.chat.audioUnavailable;
+      case 'microphone_unavailable':
+        return t.chat.micUnavailable;
+      case 'transcription_empty':
+        return t.chat.transcriptEmpty;
+      case 'transcription_failed':
+        return t.chat.transcriptionFailed;
+      case 'submit_failed':
+        return t.chat.submitFailed;
+      case 'answer_not_accepted':
+        return t.chat.answerNotAccepted;
+      case 'recording_failed':
+        return t.chat.recordingFailed;
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="w-[390px] max-w-[390px] h-[844px] bg-[#dde3ee] relative overflow-hidden flex flex-col select-none">
@@ -578,8 +568,8 @@ export const PatientShell: React.FC = () => {
 
         {currentScreen === 'welcome' && (
           <WelcomeView
-            onStartTalking={handleStartIntake}
-            onTypeInstead={handleStartIntake}
+            onStartTalking={() => void handleStartIntake('voice')}
+            onTypeInstead={() => void handleStartIntake('text')}
             demoBusy={demoBusy}
             isStarting={isProcessing}
           />
@@ -608,11 +598,24 @@ export const PatientShell: React.FC = () => {
             demoBusy={chatState?.demo_busy}
             sessionStatus={chatState?.session_status}
             onSendText={handleSendAnswer}
-            onVoiceRecorded={handleVoiceRecorded}
             onReplayAudio={handleReplayAudio}
             onBack={handleBack}
-            isProcessing={isProcessing}
+            isProcessing={
+              isProcessing || voice.phase === 'transcribing' || voice.phase === 'submitting'
+            }
             onEndSession={handleEndSessionCap}
+            voicePhase={voice.phase}
+            voiceElapsedSeconds={voice.elapsedSeconds}
+            micDenied={voice.micDenied}
+            pendingTranscript={pendingVoiceTranscript}
+            voiceNotice={voiceNoticeMessage()}
+            onDismissNotice={() => {
+                        voice.dismissNotice();
+            }}
+            inputMode={inputMode}
+            onChangeMode={handleChangeInputMode}
+            onDoneAnswer={() => void voice.done()}
+            onRetryVoice={handleRetryVoice}
           />
         )}
 

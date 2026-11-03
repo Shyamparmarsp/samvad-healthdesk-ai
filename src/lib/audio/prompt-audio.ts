@@ -51,14 +51,31 @@ export function cachedPromptUrl(language: Language, promptId: PromptId): string 
 }
 
 /**
- * Candidate static locations, most authoritative first.
+ * Sources that must never be played as speech.
  *
- * The approved production layout is `/audio/{lang}/{prompt}.mp3`. The demo bundle also
- * ships `/audio/{prompt}_{lang}.wav`, so the player tries both before reporting the
- * prompt as unavailable. No provider call is made for either candidate.
+ * Before the real recordings existed, the bundle shipped 1-second, all-zero WAV files with
+ * these names. Playing one produced a "successful" silent utterance, which is worse than an
+ * honest failure: the patient hears nothing and the UI claims the assistant spoke. They are
+ * kept on disk for reference only and are excluded from every playback candidate list.
+ */
+export const SILENT_PLACEHOLDER_SUFFIXES: readonly string[] = CACHED_PROMPT_IDS.flatMap(
+  (promptId) => [`/audio/${promptId}_en.wav`, `/audio/${promptId}_hi.wav`],
+);
+
+/** True for a known all-zero placeholder asset. */
+export function isSilentPlaceholderSource(url: string): boolean {
+  return SILENT_PLACEHOLDER_SUFFIXES.some((suffix) => url.endsWith(suffix)) || url.endsWith('/audio/question.wav');
+}
+
+/**
+ * Candidate static locations for one prompt.
+ *
+ * Only real speech is returned. The mp3 recording is the single source of truth; the
+ * legacy `.wav` placeholders are excluded so a missing recording is reported as
+ * unavailable instead of being "played" as silence. No provider call is made either way.
  */
 export function cachedPromptSources(language: Language, promptId: PromptId): string[] {
-  return [cachedPromptUrl(language, promptId), `/audio/${promptId}_${language}.wav`];
+  return [cachedPromptUrl(language, promptId)].filter((url) => !isSilentPlaceholderSource(url));
 }
 
 export type PromptAudioStatus = 'idle' | 'loading' | 'playing' | 'missing' | 'blocked' | 'error';
