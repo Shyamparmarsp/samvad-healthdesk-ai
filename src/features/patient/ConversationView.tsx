@@ -3,11 +3,21 @@ import { useI18n } from '../../i18n';
 import { ChatMessage, QuestionId } from '../../types/api';
 import { PatientHeader } from './PatientHeader';
 import { BackButton } from '../common/BackButton';
-import { AudioRecorder } from '../../lib/audio';
-import { convertBlobToVoiceAnswer, syntheticWavBase64, type VoiceAnswer } from '../../lib/audio/voice';
 import { isConversationDeadEnd } from '../../lib/navigation';
 
 export type AnswerType = 'free_text' | 'yes_no' | 'single_choice';
+
+/** Voice phases rendered by this screen. The state machine lives in `voice-conversation.ts`. */
+export type ConversationVoicePhase =
+  | 'idle'
+  | 'initializing'
+  | 'assistant_speaking'
+  | 'listening'
+  | 'transcribing'
+  | 'submitting'
+  | 'processing'
+  | 'completed'
+  | 'error';
 
 interface DisplayOption {
   label: string;
@@ -125,8 +135,6 @@ interface ConversationViewProps {
   maxTurns: number;
   demoBusy?: boolean;
   onSendText: (text: string) => void;
-  onVoiceTranscribed?: (transcript: string) => void;
-  onVoiceRecorded?: (voice: VoiceAnswer) => void;
   onReplayAudio: () => void;
   onBack?: () => void;
   isProcessing: boolean;
@@ -134,6 +142,25 @@ interface ConversationViewProps {
   onEndSession?: () => void;
   /** Server-owned session status, used only to detect the dead-end state. */
   sessionStatus?: string;
+
+  /* ---- Voice-first loop (owned by the shell, rendered here) ---- */
+  /** Current phase of the automatic speak → listen → transcribe loop. */
+  voicePhase?: ConversationVoicePhase;
+  /** Seconds elapsed in the current recording (0–30). */
+  voiceElapsedSeconds?: number;
+  /** Microphone denied or unavailable: show the approved text fallback screen. */
+  micDenied?: boolean;
+  /** Transcript shown while the automatic submission is in flight. */
+  pendingTranscript?: string;
+  /** Human-readable voice notice (audio unavailable, retry prompt). */
+  voiceNotice?: string | null;
+  onDismissNotice?: () => void;
+  inputMode?: 'voice' | 'text';
+  onChangeMode?: (mode: 'voice' | 'text') => void;
+  /** Patient finished speaking (Done or the 30-second cap). */
+  onDoneAnswer?: () => void;
+  /** Re-open the microphone after an error, denial or empty transcription. */
+  onRetryVoice?: () => void;
 }
 
 export const ConversationView: React.FC<ConversationViewProps> = ({
@@ -143,33 +170,37 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   maxTurns,
   demoBusy,
   onSendText,
-  onVoiceTranscribed,
-  onVoiceRecorded,
   onReplayAudio,
   onBack,
   isProcessing,
   onEndSession,
   sessionStatus,
+  voicePhase = 'idle',
+  voiceElapsedSeconds = 0,
+  micDenied = false,
+  pendingTranscript,
+  voiceNotice = null,
+  onDismissNotice,
+  inputMode = 'voice',
+  onChangeMode,
+  onDoneAnswer,
+  onRetryVoice,
 }) => {
   const { t, language } = useI18n();
 
-  const [inputMode, setInputMode] = useState<'voice' | 'text'>('voice');
   const [typedText, setTypedText] = useState('');
-  const [isListening, setIsListening] = useState(false);
-  const [recordingStatus, setRecordingStatus] = useState<'idle' | 'recording' | 'completed' | 'error'>('idle');
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [micError, setMicError] = useState<string | null>(null);
-  // D-05: a denied/unavailable microphone is a real state with a text fallback.
-  const [micDenied, setMicDenied] = useState(false);
   // D-50: the active severity/option chip reflects the patient's selection.
   const [selectedChip, setSelectedChip] = useState<string | null>(null);
 
   const chatScrollContainerRef = useRef<HTMLDivElement>(null);
-  const recordingStartTimeRef = useRef<number | null>(null);
-  const timerIntervalRef = useRef<any>(null);
-  const isStoppingRef = useRef<boolean>(false);
-  const audioRecorderRef = useRef<AudioRecorder | null>(null);
 
+  const isListening = voicePhase === 'listening';
+  const isSpeaking = voicePhase === 'assistant_speaking';
+  const isVoiceTurnBusy =
+    voicePhase === 'transcribing' || voicePhase === 'submitting' || voicePhase === 'processing';
+  const isVoiceStarting = voicePhase === 'initializing';
+  const elapsedSeconds = Math.max(0, Math.min(30, Math.floor(voiceElapsedSeconds)));
+  const setInputMode = (mode: 'voice' | 'text') => onChangeMode?.(mode);
   const optionsToRender = getOptionsForQuestion(currentQuestion, language);
 
   // D-39: the backend can return an incomplete session with no next question. That
@@ -183,7 +214,6 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
       sessionStatus,
     });
 
-
   const progressFraction = Math.min(1, Math.max(0.08, turnCount / (maxTurns || 15)));
 
   // Keep the newest turn visible.
@@ -191,140 +221,12 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     if (chatScrollContainerRef.current) {
       chatScrollContainerRef.current.scrollTop = chatScrollContainerRef.current.scrollHeight;
     }
-  }, [messages, currentQuestion]);
+  }, [messages, currentQuestion, pendingTranscript]);
 
-  // Release the recorder and timer when the screen unmounts.
-  useEffect(() => {
-    return () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
-      if (audioRecorderRef.current) {
-        audioRecorderRef.current.cancel();
-        audioRecorderRef.current = null;
-      }
-      isStoppingRef.current = false;
-    };
-  }, []);
-
-  const handleStartListening = async () => {
-    if (isProcessing || demoBusy || isListening || isStoppingRef.current) return;
-    setMicError(null);
-
-    try {
-      const recorder = new AudioRecorder();
-      audioRecorderRef.current = recorder;
-
-      // Handle stream track termination (e.g. microphone unplugged/disconnected)
-      recorder.setOnTrackEnded(() => {
-        if (!isStoppingRef.current) {
-          void handleStopListening();
-        }
-      });
-
-      recorder.setOnError((err) => {
-        console.error('Audio recorder error:', err);
-        if (!isStoppingRef.current) {
-          void handleStopListening();
-        }
-      });
-
-      // 1. Recording starts only after microphone access and MediaRecorder successfully start
-      await recorder.start();
-
-      // 2. Timer starts at 00:00
-      const startTime = Date.now();
-      recordingStartTimeRef.current = startTime;
-      isStoppingRef.current = false;
-      setIsListening(true);
-      setRecordingStatus('recording');
-      setElapsedSeconds(0);
-
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-      }
-
-      // Reliable elapsed-time calculation updated every 250ms
-      timerIntervalRef.current = setInterval(() => {
-        if (!recordingStartTimeRef.current || isStoppingRef.current) return;
-
-        const elapsedMs = Date.now() - recordingStartTimeRef.current;
-        const currentElapsedSec = Math.floor(elapsedMs / 1000);
-
-        if (currentElapsedSec >= 30) {
-          setElapsedSeconds(30);
-          // 6. At exactly 30 seconds, recording automatically stops
-          void handleStopListening();
-        } else {
-          setElapsedSeconds(currentElapsedSec);
-        }
-      }, 250);
-    } catch (err: any) {
-      console.error('Microphone recording start failed:', err);
-      if (audioRecorderRef.current) {
-        audioRecorderRef.current.cancel();
-        audioRecorderRef.current = null;
-      }
-      setIsListening(false);
-      setRecordingStatus('error');
-      setElapsedSeconds(0);
-      setMicDenied(true);
-      setMicError(
-        t.chat.micUnavailable ||
-          'Microphone access is unavailable. Please check permissions or switch to text mode.'
-      );
-    }
-  };
-
-  const handleStopListening = async () => {
-    // 8. The recording is stopped exactly once
-    if (isStoppingRef.current) return;
-    isStoppingRef.current = true;
-
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
-      timerIntervalRef.current = null;
-    }
-
-    setIsListening(false);
-    setRecordingStatus('completed');
-
-    const recorder = audioRecorderRef.current;
-    audioRecorderRef.current = null;
-    recordingStartTimeRef.current = null;
-
-    if (recorder) {
-      try {
-        const recordingResult = await recorder.stop();
-        const voice = await convertBlobToVoiceAnswer(recordingResult.blob);
-        isStoppingRef.current = false;
-        // 7. The application transitions into the existing transcript-processing workflow
-        if (onVoiceRecorded) {
-          onVoiceRecorded(voice);
-        } else if (onVoiceTranscribed) {
-          onVoiceTranscribed(voice as any);
-        }
-      } catch (err) {
-        console.error('Failed to stop recording cleanly:', err);
-        isStoppingRef.current = false;
-        const fallbackVoice: VoiceAnswer = {
-          audio_base64: syntheticWavBase64(),
-          audio_format: 'audio/wav',
-          source: 'synthetic',
-        };
-        if (onVoiceRecorded) {
-          onVoiceRecorded(fallbackVoice);
-        } else if (onVoiceTranscribed) {
-          onVoiceTranscribed(fallbackVoice as any);
-        }
-      }
-    } else {
-      isStoppingRef.current = false;
-      // No recorder was active. Never fabricate a transcript and never re-open the
-      // microphone without a user gesture (D-40): report the failure honestly.
-      setMicError(t.chat.recordingFailed);
-    }
+  /** Done, or the 30-second cap, ends the take. Idempotent in the controller. */
+  const handleDoneAnswer = () => {
+    if (isProcessing || demoBusy) return;
+    onDoneAnswer?.();
   };
 
   const getTimerStatusText = () => {
@@ -335,8 +237,19 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
       const prefix = language === 'hi' ? 'सुन रहे हैं...' : 'Listening...';
       return `${prefix} ${formattedElapsed} / 00:30`;
     }
-    if (recordingStatus === 'completed') {
-      return language === 'hi' ? 'रिकॉर्डिंग पूरी हुई' : 'Recording complete';
+    if (isSpeaking) {
+      return language === 'hi' ? 'सहायक बोल रहे हैं...' : 'Assistant is speaking...';
+    }
+    if (isVoiceStarting) {
+      return language === 'hi' ? 'तैयार हो रहे हैं...' : 'Getting ready...';
+    }
+    if (isVoiceTurnBusy) {
+      return language === 'hi' ? 'आपका उत्तर समझा जा रहा है...' : 'Understanding your answer...';
+    }
+    if (voicePhase === 'error') {
+      return language === 'hi'
+        ? 'सुनाई नहीं दिया। फिर प्रयास करें।'
+        : 'We did not catch that. Please try again.';
     }
     return language === 'hi'
       ? 'अधिकतम रिकॉर्डिंग समय: 30 सेकंड'
@@ -368,22 +281,13 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           </div>
         )}
 
-        {micError && (
-          <div
-            role="alert"
-            aria-live="polite"
-            className="mb-2 p-2.5 rounded-[16px] bg-amber-50/90 border border-amber-200 text-xs text-amber-900 shadow-sm flex items-center justify-between z-10"
-          >
-            <span>{micError}</span>
-            <button
-              onClick={() => setMicError(null)}
-              aria-label="Dismiss error"
-              className="text-amber-700 hover:text-amber-900 font-bold ml-2 text-xs"
-            >
-              ✕
-            </button>
-          </div>
-        )}
+        <div
+          role="alert"
+          aria-live="polite"
+          className="mb-2 p-2.5 rounded-[16px] bg-amber-50/90 border border-amber-200 text-xs text-amber-900 shadow-sm z-10"
+        >
+          <span>{t.chat.micUnavailable}</span>
+        </div>
 
         {/* Figma 72:209 Mic Denied / Text Mode */}
         <div className="my-auto backdrop-blur-[9px] bg-[rgba(255,255,255,0.65)] border border-white rounded-[28px] p-6 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)] space-y-5">
@@ -396,7 +300,6 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
               if (!typedText.trim() || isProcessing || demoBusy) return;
               const text = typedText.trim();
               setTypedText('');
-              setMicDenied(false);
               onSendText(text);
             }}
             className="relative"
@@ -423,11 +326,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           </form>
           <button
             type="button"
-            onClick={() => {
-              setMicDenied(false);
-              setMicError(null);
-              void handleStartListening();
-            }}
+            onClick={() => onRetryVoice?.()}
             disabled={isProcessing || demoBusy}
             className="w-full h-[54px] rounded-[27px] bg-[#1f2a44] text-white font-semibold text-[14px] shadow-sm hover:bg-[#2a3a5c] disabled:opacity-50 flex items-center justify-center gap-2"
           >
@@ -502,19 +401,16 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         </div>
       )}
 
-      {/* Mic Permission Denied / Error Banner */}
-      {micError && (
+      {/* Voice / microphone notice (audio unavailable, denied, retry) */}
+      {voiceNotice && (
         <div
           role="alert"
           aria-live="polite"
           className="mx-5 mb-2 p-2.5 rounded-[16px] bg-amber-50/90 border border-amber-200 text-xs text-amber-900 shadow-sm flex items-center justify-between z-10"
         >
-          <span>{micError}</span>
+          <span>{voiceNotice}</span>
           <button
-            onClick={() => {
-              setMicError(null);
-              setMicDenied(false);
-            }}
+            onClick={() => onDismissNotice?.()}
             aria-label="Dismiss error"
             className="text-amber-700 hover:text-amber-900 font-bold ml-2 text-xs"
           >
@@ -619,6 +515,16 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
             </div>
           );
         })}
+
+        {/* Optimistic patient bubble: the transcript the assistant heard, shown before the
+            answer is accepted by the backend (D-41 still gates navigation on acceptance). */}
+        {pendingTranscript && (
+          <div className="flex items-end gap-2.5 justify-end" aria-live="polite">
+            <div className="max-w-[82%] rounded-[20px] px-4 py-3 text-[13px] leading-relaxed bg-[rgba(225,235,253,0.92)] border border-[#d1def5] text-[#1d2433] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.08)] rounded-br-sm opacity-80">
+              {pendingTranscript}
+            </div>
+          </div>
+        )}
 
         {/* If currentQuestion is active and not already represented as the last assistant message */}
         {currentQuestion &&
@@ -763,10 +669,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
               <div className="flex flex-col items-center">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (isListening) void handleStopListening();
-                    setInputMode('text');
-                  }}
+                  onClick={() => setInputMode('text')}
                   aria-label={t.chat.typeInstead}
                   className="size-[58px] rounded-[29px] backdrop-blur-[9px] bg-[rgba(255,255,255,0.74)] border border-white shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.09)] flex items-center justify-center text-[#4a5470] hover:text-[#1d2433] active:scale-95 transition-all"
                 >
@@ -781,11 +684,13 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                 </span>
               </div>
 
-              {/* Center Microphone Button (Figma 81:133: size=86, rounded=43) */}
+              {/* Center Microphone Button (Figma 81:133: size=86, rounded=43)
+                  Recording is automatic; this button ends the take (like Done) or, after an
+                  error or denial, re-opens the microphone. */}
               <button
                 type="button"
-                onClick={isListening ? handleStopListening : handleStartListening}
-                disabled={isProcessing || demoBusy || recordingStatus === 'completed'}
+                onClick={isListening ? handleDoneAnswer : () => onRetryVoice?.()}
+                disabled={isProcessing || demoBusy || isSpeaking || isVoiceTurnBusy || isVoiceStarting}
                 aria-label={isListening ? t.common.done : t.chat.tapToSpeak}
                 className={`size-[86px] rounded-[43px] border border-white shadow-[0px_6px_16px_-3px_rgba(18,31,56,0.24)] flex items-center justify-center transition-all active:scale-95 disabled:opacity-50 ${
                   isListening
@@ -822,8 +727,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
               <div className="flex flex-col items-center">
                 <button
                   type="button"
-                  onClick={handleStopListening}
-                  disabled={!isListening}
+                  onClick={handleDoneAnswer}
+                  disabled={!isListening || isProcessing || demoBusy}
                   aria-label={t.common.done}
                   className={`size-[58px] rounded-[29px] backdrop-blur-[9px] border border-white shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.09)] flex items-center justify-center transition-all ${
                     isListening

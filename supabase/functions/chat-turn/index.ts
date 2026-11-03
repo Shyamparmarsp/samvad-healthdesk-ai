@@ -59,7 +59,7 @@ import {
   type BankDepartment,
   type BankQuestion,
 } from "../_shared/intake/question-bank.ts";
-import { MAX_ADAPTIVE_QUESTIONS, selectAdaptiveQuestion } from "../_shared/intake/select.ts";
+import { MAX_ADAPTIVE_QUESTIONS, eligibleCandidates, selectAdaptiveQuestion } from "../_shared/intake/select.ts";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Admin = any;
@@ -335,19 +335,38 @@ async function maybeAdaptiveQuestion(
   });
   if (candidates.length === 0) return null;
 
+  // Repetition safeguard: never ask again about a field this session already handled, and
+  // never cover the same topic twice. Retrieval only excludes exact ids, so the v2 bank
+  // could otherwise re-ask "duration" with a different wording.
+  const handledFields = (Object.keys(fields) as Array<keyof FieldMap>)
+    .filter((key) => fields[key].status !== "not_asked")
+    .map(String);
+  const askedTopics = asked
+    .map((id) => getBankQuestion(id)?.topic ?? "")
+    .filter((topic) => topic.length > 0);
+
+  const eligible = eligibleCandidates(candidates, { handledFields, askedTopics });
+  if (eligible.length === 0) {
+    consoleLogger.info("action_completed", {
+      action: "adaptive_exhausted",
+      considered: candidates.length,
+    });
+    return null;
+  }
+
   const apiKey = Deno.env.get("GROQ_API_KEY") ?? "";
   const reservation = await reserveUsage(admin, "groq");
   if (!reservation.allowed) {
     consoleLogger.info("usage_capped", { counter: "groq" });
-    return candidates[0].id;
+    return eligible[0].id;
   }
   const picked = await selectAdaptiveQuestion(
     { apiKey, baseUrl: Deno.env.get("GROQ_BASE_URL") ?? undefined },
-    candidates,
+    eligible,
     typeof concern.value === "string" ? concern.value : "",
   );
   consoleLogger.info("provider_attempt", { provider: "groq", ok: picked?.source === "model" });
-  return picked?.id ?? candidates[0].id;
+  return picked?.id ?? eligible[0].id;
 }
 
 async function ensureDraftReport(

@@ -11,6 +11,30 @@ import type { BankQuestion } from "./question-bank.ts";
 
 export const MAX_ADAPTIVE_QUESTIONS = 3;
 
+/**
+ * Removes questions the session has already covered.
+ *
+ * `retrieveCandidates` only excludes exact ids that were already asked. That is not enough
+ * to stop the conversation from feeling repetitive: the v2 bank contains several questions
+ * per topic, so a patient who declined one "duration" question could be asked another one
+ * immediately, and a question whose report field is already answered could still be chosen
+ * on tag overlap alone.
+ *
+ * Two deterministic filters are applied here:
+ *   1. the target report field must not already be handled (provided/declined/unknown/…),
+ *   2. the topic must not already have been covered in this session.
+ *
+ * No question text is invented, no field is written and the approved ranking is preserved.
+ */
+export function eligibleCandidates(
+  candidates: readonly BankQuestion[],
+  input: { handledFields?: readonly string[]; askedTopics?: readonly string[] } = {},
+): BankQuestion[] {
+  const handled = new Set(input.handledFields ?? []);
+  const topics = new Set((input.askedTopics ?? []).filter((topic) => topic.length > 0));
+  return candidates.filter((candidate) => !handled.has(candidate.field) && !topics.has(candidate.topic));
+}
+
 export async function selectAdaptiveQuestion(
   options: GroqOptions,
   candidates: readonly BankQuestion[],

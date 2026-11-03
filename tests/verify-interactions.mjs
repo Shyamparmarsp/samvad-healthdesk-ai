@@ -233,15 +233,18 @@ async function runVerification() {
     `);
     await sleep(600);
 
-    // Verify conversation screen renders
+    // Verify conversation screen renders. Voice-first intake opens in the mode the patient
+    // chose on the welcome screen: "Type Instead" now lands directly in the text card.
     const convText = await cdp.eval('document.body.innerText');
     assert.ok(convText.includes('name') || convText.includes('full name') || convText.includes('Namaste'), 'First assistant message asking for name must render');
     assert.ok(
       convText.includes('Tap to speak') ||
       convText.includes('Type instead') ||
       convText.includes('Maximum recording time') ||
-      convText.includes('अधिकतम रिकॉर्डिंग समय'),
-      'Voice controls must render on conversation screen'
+      convText.includes('अधिकतम रिकॉर्डिंग समय') ||
+      convText.includes('Text Intake Mode') ||
+      convText.includes('Use voice'),
+      'Voice or text intake controls must render on conversation screen'
     );
     console.log('  ✓ Conversation screen rendered with first question and mic control');
 
