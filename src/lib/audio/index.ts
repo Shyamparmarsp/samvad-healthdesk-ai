@@ -42,6 +42,15 @@ export class AudioRecorder {
     return this.mediaRecorder !== null && this.mediaRecorder.state === 'recording';
   }
 
+  /**
+   * The live microphone stream, for voice-activity analysis of the current take.
+   * Returns null when no take is open. The recorder stays the sole owner of the stream:
+   * callers must not stop its tracks.
+   */
+  get stream(): MediaStream | null {
+    return this.mediaStream;
+  }
+
   get durationMs(): number {
     return this.startTime > 0 ? Date.now() - this.startTime : 0;
   }

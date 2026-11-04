@@ -8,6 +8,7 @@ import {
   doctorLogout,
 } from '../../lib/api';
 
+import { ThemeToggle } from '../common/ThemeToggle';
 import { DoctorLogin } from './DoctorLogin';
 import { DoctorDashboardView } from './DoctorDashboardView';
 import { DoctorReportsList } from './DoctorReportsList';
@@ -116,18 +117,21 @@ export const DoctorShell: React.FC = () => {
         <aside className="relative z-10 w-full md:w-[238px] md:h-[780px] rounded-[26px] backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.13)] p-4 flex flex-col justify-between flex-shrink-0">
           <div>
             {/* Brand Header (Figma 82:30 & 82:32) */}
-            <div className="flex items-center gap-2.5 pb-6 pt-1">
-              <div
-                className="w-[36px] h-[36px] rounded-[11px] bg-[#1f2a44] border border-white text-white flex items-center justify-center font-bold text-[26px] leading-none shadow-sm flex-shrink-0"
-                aria-hidden="true"
-              >
-                +
+            <div className="flex items-center justify-between gap-2 pb-6 pt-1">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="w-[36px] h-[36px] rounded-[11px] bg-[#1f2a44] border border-white text-white flex items-center justify-center font-bold text-[26px] leading-none shadow-sm flex-shrink-0"
+                  aria-hidden="true"
+                >
+                  +
+                </div>
+                <div>
+                  <span className="font-bold text-[12px] text-[#1d2433] tracking-tight leading-tight block">
+                    Samvad HealthDesk AI
+                  </span>
+                </div>
               </div>
-              <div>
-                <span className="font-bold text-[12px] text-[#1d2433] tracking-tight leading-tight block">
-                  Samvad HealthDesk AI
-                </span>
-              </div>
+              <ThemeToggle />
             </div>
 
             {/* 4 Navigation Items Only (Figma 82:34 - 82:55) */}

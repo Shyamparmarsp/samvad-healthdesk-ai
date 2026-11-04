@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useI18n } from '../../i18n';
 import {
   startSession,
@@ -66,6 +66,9 @@ export const PatientShell: React.FC = () => {
   /** Voice vs text is a shell-level mode: text mode must stop the microphone. */
   const [inputMode, setInputMode] = useState<'voice' | 'text'>('voice');
   const [pendingVoiceTranscript, setPendingVoiceTranscript] = useState('');
+  const [exitDialogOpen, setExitDialogOpen] = useState(false);
+  /** Set when the patient leaves: late provider responses must not navigate afterwards. */
+  const exitedRef = useRef(false);
 
   const navigateToScreen = (nextScreen: PatientScreen) => {
     if (nextScreen !== currentScreen) {
@@ -87,6 +90,7 @@ export const PatientShell: React.FC = () => {
 
   /** Applies a response produced by the automatic voice loop. */
   const applyVoiceResponse = (res: ChatTurnResponse) => {
+    if (exitedRef.current) return;
     setChatState(res);
     if (res.emergency_triggered || res.session_status === 'emergency') {
       navigateToScreen('emergency');
@@ -142,6 +146,7 @@ export const PatientShell: React.FC = () => {
         try {
           const res = await resumeSession(savedSessionId);
           if (cancelled) return;
+          exitedRef.current = false;
           setSessionId(res.session_id);
           setChatState(res);
 
@@ -201,6 +206,7 @@ export const PatientShell: React.FC = () => {
     setInputMode(mode);
     // Inside the click gesture: unlock playback and ask for the microphone now, so the
     // assistant can speak and record without further taps.
+    exitedRef.current = false;
     voice.unlock({ microphone: mode === 'voice' });
     voice.setSuspended(mode === 'text');
     setIsProcessing(true);
@@ -491,6 +497,32 @@ export const PatientShell: React.FC = () => {
     navigateToScreen('confirmed_report_only');
   };
 
+  /**
+   * Back/Exit. During an emergency the patient is routed to the 112 guidance instead of a
+   * dialog, so the instructions can never be dismissed by an ordinary back action.
+   */
+  const handleRequestExit = () => {
+    if (chatState?.session_status === 'emergency' || chatState?.emergency_triggered) {
+      navigateToScreen('emergency');
+      return;
+    }
+    setExitDialogOpen(true);
+  };
+
+  const handleCancelExit = () => setExitDialogOpen(false);
+
+  const handleConfirmExit = () => {
+    setExitDialogOpen(false);
+    exitedRef.current = true;
+    // Release every media resource and timer owned by the voice loop.
+    voice.stop();
+    setPendingVoiceTranscript('');
+    setPendingTranscript('');
+    // Answers already persisted by chat-turn stay on the server; the browser keeps the
+    // session id so the same patient can resume. Nothing is submitted or completed here.
+    navigateToScreen('welcome');
+  };
+
   // 11. Restart session
   const handleRestart = () => {
     forgetSession();
@@ -531,6 +563,8 @@ export const PatientShell: React.FC = () => {
         return t.chat.answerNotAccepted;
       case 'recording_failed':
         return t.chat.recordingFailed;
+      case 'vad_unavailable':
+        return t.chat.vadUnavailable;
       default:
         return null;
     }
@@ -616,6 +650,12 @@ export const PatientShell: React.FC = () => {
             onChangeMode={handleChangeInputMode}
             onDoneAnswer={() => void voice.done()}
             onRetryVoice={handleRetryVoice}
+            vadActive={voice.vadActive && voice.phase === 'listening'}
+            speechActive={voice.speechActive}
+            exitDialogOpen={exitDialogOpen}
+            onRequestExit={handleRequestExit}
+            onCancelExit={handleCancelExit}
+            onConfirmExit={handleConfirmExit}
           />
         )}
 

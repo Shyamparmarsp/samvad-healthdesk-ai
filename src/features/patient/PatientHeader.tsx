@@ -1,5 +1,6 @@
 import React from 'react';
 import { useI18n } from '../../i18n';
+import { ThemeToggle } from '../common/ThemeToggle';
 
 interface PatientHeaderProps {
   progress?: number; // 0 to 1
@@ -36,36 +37,40 @@ export const PatientHeader: React.FC<PatientHeaderProps> = ({ progress, onBack }
           </span>
         </div>
 
-        {/* Language Toggle Pill (Exact Figma 81:7 / 98:46) */}
-        <div
-          className="w-[120px] h-[34px] rounded-[17px] bg-[rgba(255,255,255,0.55)] backdrop-blur-[9px] border border-white shadow-[0px_3px_8px_-3px_rgba(41,51,79,0.08)] flex items-center p-0.5 select-none"
-          role="group"
-          aria-label="Language selector"
-        >
-          <button
-            type="button"
-            onClick={() => setLanguage('en')}
-            className={`w-[58px] h-[30px] rounded-[15px] text-[10px] font-semibold transition-all flex items-center justify-center ${
-              language === 'en'
-                ? 'bg-[#1f2a44] text-white shadow-sm'
-                : 'text-[#4a5470] hover:text-[#1d2433]'
-            }`}
-            aria-pressed={language === 'en'}
+        {/* Theme + Language controls (top-right) */}
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          {/* Language Toggle Pill (Exact Figma 81:7 / 98:46) */}
+          <div
+            className="w-[120px] h-[34px] rounded-[17px] bg-[rgba(255,255,255,0.55)] backdrop-blur-[9px] border border-white shadow-[0px_3px_8px_-3px_rgba(41,51,79,0.08)] flex items-center p-0.5 select-none"
+            role="group"
+            aria-label="Language selector"
           >
-            English
-          </button>
-          <button
-            type="button"
-            onClick={() => setLanguage('hi')}
-            className={`w-[58px] h-[30px] rounded-[15px] text-[11px] font-semibold transition-all flex items-center justify-center ${
-              language === 'hi'
-                ? 'bg-[#1f2a44] text-white shadow-sm'
-                : 'text-[#4a5470] hover:text-[#1d2433]'
-            }`}
-            aria-pressed={language === 'hi'}
-          >
-            हिंदी
-          </button>
+            <button
+              type="button"
+              onClick={() => setLanguage('en')}
+              className={`w-[58px] h-[30px] rounded-[15px] text-[10px] font-semibold transition-all flex items-center justify-center ${
+                language === 'en'
+                  ? 'bg-[#1f2a44] text-white shadow-sm'
+                  : 'text-[#4a5470] hover:text-[#1d2433]'
+              }`}
+              aria-pressed={language === 'en'}
+            >
+              English
+            </button>
+            <button
+              type="button"
+              onClick={() => setLanguage('hi')}
+              className={`w-[58px] h-[30px] rounded-[15px] text-[11px] font-semibold transition-all flex items-center justify-center ${
+                language === 'hi'
+                  ? 'bg-[#1f2a44] text-white shadow-sm'
+                  : 'text-[#4a5470] hover:text-[#1d2433]'
+              }`}
+              aria-pressed={language === 'hi'}
+            >
+                हिंदी
+              </button>
+          </div>
         </div>
       </div>
 
