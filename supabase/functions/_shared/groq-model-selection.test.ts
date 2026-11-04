@@ -220,7 +220,7 @@ Deno.test({
       );
       assertEqual(department, "dermatology", "loopback answer parsed");
       assertEqual(seen.model, EXPECTED_MODEL, "model over the wire");
-      assertEqual(seen.topLevel?.join(","), "messages,model,response_format", "request keys");
+      assertEqual(seen.topLevel?.join(","), "max_completion_tokens,messages,model,response_format,temperature", "request keys");
     } finally {
       await server.shutdown();
     }

@@ -73,8 +73,19 @@ export async function selectAdaptiveQuestion(
   const result = await requestStructured<{ question_id: string }>(options, {
     schemaName: "adaptive_question",
     schema: schema as unknown as Record<string, unknown>,
-    system: "Choose the single most useful next question id from the allowed list. Return JSON only.",
-    user: `Concern: ${concern.slice(0, 300)}`,
+    system: [
+      "You are choosing the single most useful next intake question for a hospital pre-visit.",
+      "Pick one id from the allowed list. Never invent an id, a question or a diagnosis.",
+      "Prefer a question about the patient's stated concern. Return JSON only.",
+    ].join(" "),
+    // Compact catalogue (id + short text) instead of the whole bank: the model can pick
+    // relevantly without a large prompt, and the enum above already constrains the answer.
+    user: [
+      `Patient concern: ${concern.slice(0, 240) || "(not stated)"}`,
+      "Allowed questions:",
+      ...candidates.map((candidate) => `- ${candidate.id}: ${candidate.en.slice(0, 90)}`),
+      "Return exactly one allowed id.",
+    ].join("\n"),
     validate: (parsed) => {
       if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
       const value = parsed as Record<string, unknown>;

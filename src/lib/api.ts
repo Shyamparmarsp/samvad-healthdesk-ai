@@ -797,12 +797,14 @@ function buildDraftReport(session: SessionState): ReportDocumentV1 {
     },
     primary_concern: { status: data.primary_concern ? 'provided' : 'not_provided', value: data.primary_concern || null },
     clinical_details: {
-      duration: { status: data.duration ? 'provided' : 'not_provided', value: data.duration || null },
-      severity: { status: data.severity ? 'provided' : 'not_provided', value: data.severity || null },
-      conditions: { status: data.conditions?.length ? 'provided' : 'declined', value: data.conditions || null },
-      medications: { status: data.medications?.length ? 'provided' : 'declined', value: data.medications || null },
-      allergies: { status: data.allergies?.length ? 'provided' : 'declined', value: data.allergies || null },
-      other_symptoms: { status: data.other_symptoms?.length ? 'provided' : 'declined', value: data.other_symptoms || null },
+      // v1.3: an unanswered item is `not_asked`, never `declined` and never a negative
+      // finding. `declined` is reserved for an explicit patient refusal.
+      duration: { status: data.duration ? 'provided' : 'not_asked', value: data.duration || null },
+      severity: { status: data.severity ? 'provided' : 'not_asked', value: data.severity || null },
+      conditions: { status: data.conditions?.length ? 'provided' : 'not_asked', value: data.conditions?.length ? data.conditions : null },
+      medications: { status: data.medications?.length ? 'provided' : 'not_asked', value: data.medications?.length ? data.medications : null },
+      allergies: { status: data.allergies?.length ? 'provided' : 'not_asked', value: data.allergies?.length ? data.allergies : null },
+      other_symptoms: { status: data.other_symptoms?.length ? 'provided' : 'not_asked', value: data.other_symptoms?.length ? data.other_symptoms : null },
     },
     missing_information: missing,
     summary: {
@@ -1578,11 +1580,101 @@ export async function submitReport(action: SubmitReportAction): Promise<ChatTurn
       action: 'submit_report',
       session_id: action.session_id,
       ...(reportId ? { report_id: reportId } : {}),
+      ...(action.partial ? { partial: true } : {}),
+      ...(action.preview ? { preview: true } : {}),
     });
   }
 
   const session = mockSessions.get(action.session_id);
-  if (!session || !session.draftReport) {
+  if (!session) {
+    throw new Error('Session not found');
+  }
+
+  // Mock-mode v1.3 early finish: the same rule the backend enforces (>= 3 accepted answers).
+  const answeredCount = Object.values(session.collectedData).filter((value) => {
+    if (value === undefined || value === null || value === '') return false;
+    if (Array.isArray(value)) return value.length > 0;
+    return true;
+  }).length;
+
+  if (action.partial) {
+    // Idempotent replay: a second send returns the stored report unchanged.
+    if (session.submittedReport && !action.preview) {
+      return {
+        session_id: session.sessionId,
+        session_status: 'submitted',
+        current_question: undefined,
+        messages: session.messages,
+        turn_count: session.turnCount,
+        max_turns: 15,
+        is_complete: false,
+        is_cap_reached: false,
+        can_submit: false,
+        accepted_answer_count: answeredCount,
+        can_finish_partial: false,
+        submitted_report: session.submittedReport,
+      };
+    }
+    if (answeredCount < 3) throw new ApiError('invalid_state', 'invalid_state', 409);
+    const partialDocument = session.draftReport ?? buildDraftReport(session);
+    if (action.preview) {
+      return {
+        session_id: session.sessionId,
+        session_status: session.sessionStatus,
+        current_question: undefined,
+        messages: session.messages,
+        turn_count: session.turnCount,
+        max_turns: 15,
+        is_complete: false,
+        is_cap_reached: false,
+        can_submit: false,
+        accepted_answer_count: answeredCount,
+        can_finish_partial: true,
+        draft_report: partialDocument,
+      };
+    }
+    session.sessionStatus = 'submitted';
+    const deptKey = partialDocument.routing_snapshot.department_key;
+    const doctor = FICTIONAL_DOCTORS[deptKey];
+    const row: ReportRow = {
+      id: `rep-partial-${Date.now()}`,
+      session_id: session.sessionId,
+      user_id: session.userId,
+      status: 'partial',
+      schema_version: 1,
+      department_key: deptKey,
+      doctor_id: doctor.id,
+      intake_reference: generateReferenceCode('SHD'),
+      possible_urgent: false,
+      needs_human_review: false,
+      emergency_rule_id: null,
+      submitted_at: new Date().toISOString(),
+      reviewed_at: null,
+      reviewed_by: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      report: partialDocument,
+    };
+    session.draftReport = partialDocument;
+    session.submittedReport = row;
+    mockReports.set(row.id, row);
+    return {
+      session_id: session.sessionId,
+      session_status: 'submitted',
+      current_question: undefined,
+      messages: session.messages,
+      turn_count: session.turnCount,
+      max_turns: 15,
+      is_complete: false,
+      is_cap_reached: false,
+      can_submit: false,
+      accepted_answer_count: answeredCount,
+      can_finish_partial: false,
+      submitted_report: row,
+    };
+  }
+
+  if (!session.draftReport) {
     throw new Error('No draft report to submit');
   }
 

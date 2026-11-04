@@ -172,6 +172,10 @@ interface ConversationViewProps {
   vadActive?: boolean;
   /** Playback actually started for the current question. */
   speechActive?: boolean;
+  /** v1.3: at least three accepted answers exist, so the patient may finish early. */
+  canFinish?: boolean;
+  /** Opens the partial-report preview (stops the voice loop first). */
+  onFinish?: () => void;
 }
 
 export const ConversationView: React.FC<ConversationViewProps> = ({
@@ -202,6 +206,8 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   onConfirmExit,
   vadActive = false,
   speechActive = false,
+  canFinish = false,
+  onFinish,
 }) => {
   const { t, language } = useI18n();
 
@@ -592,11 +598,24 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           <div role="alert" className="mx-1 my-2 p-3.5 rounded-[18px] bg-amber-50/90 border border-amber-200 text-xs text-amber-900">
             <p className="font-bold text-[12px]">{t.chat.deadEndTitle}</p>
             <p className="mt-1 text-[11px] leading-snug">{t.chat.deadEndMessage}</p>
+            {canFinish && onFinish ? (
+              <button
+                type="button"
+                onClick={onFinish}
+                className="mt-2.5 w-full h-[40px] rounded-[20px] bg-[#1f2a44] text-white text-[12px] font-semibold"
+              >
+                {t.review.finishCta}
+              </button>
+            ) : null}
             {onEndSession && (
               <button
                 type="button"
                 onClick={onEndSession}
-                className="mt-2.5 w-full h-[40px] rounded-[20px] bg-[#1f2a44] text-white text-[12px] font-semibold"
+                className={`${canFinish ? 'mt-2' : 'mt-2.5'} w-full h-[40px] rounded-[20px] ${
+                  canFinish
+                    ? 'bg-[rgba(255,255,255,0.8)] border border-amber-300 text-amber-900'
+                    : 'bg-[#1f2a44] text-white'
+                } text-[12px] font-semibold`}
               >
                 {t.review.endSession}
               </button>
@@ -604,6 +623,25 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* v1.3 early finish: available from the third accepted answer onwards and never
+          forced — the patient may keep answering instead. */}
+      {canFinish && onFinish && (
+        <div className="px-5 pb-1 z-10">
+          <button
+            type="button"
+            onClick={onFinish}
+            disabled={isProcessing || demoBusy}
+            className="w-full h-[44px] rounded-[22px] backdrop-blur-[9px] bg-[rgba(255,255,255,0.8)] border border-[#1f2a44]/30 text-[#1f2a44] text-[12px] font-semibold hover:bg-white active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+            <span>{t.review.finishCta}</span>
+          </button>
+          <p className="mt-1 text-center text-[9px] text-[#4a5470] leading-tight">{t.review.finishHint}</p>
+        </div>
+      )}
 
       {/* Option Chips (Figma 81:85 - 81:90: Mild, Moderate, Severe chips, or Gender 2x2 grid) */}
       {optionsToRender.length > 0 && !isListening && (

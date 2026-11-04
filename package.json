@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "npm run test:mock && npm run test:supabase && npm run test:api",
-    "test:mock": "tsx --test tests/contract-regression.test.ts tests/patient-flow.test.ts tests/doctor-flow.test.ts tests/browser-speech-playback.test.ts tests/recording-lifecycle.test.ts tests/back-navigation.test.ts tests/remediation.test.ts tests/voice-conversation.test.ts tests/assistant-speech.test.ts tests/vad.test.ts tests/theme.test.ts tests/partial-report-contract.test.ts tests/conversation-exit.test.ts",
+    "test:mock": "tsx --test tests/contract-regression.test.ts tests/patient-flow.test.ts tests/doctor-flow.test.ts tests/browser-speech-playback.test.ts tests/recording-lifecycle.test.ts tests/back-navigation.test.ts tests/remediation.test.ts tests/voice-conversation.test.ts tests/assistant-speech.test.ts tests/vad.test.ts tests/theme.test.ts tests/partial-report-contract.test.ts tests/conversation-exit.test.ts tests/partial-report-flow.test.ts",
     "test:supabase": "tsx --test tests/supabase-mode.test.ts tests/local-supabase-journey.test.ts",
     "test:api": "tsx --test --test-concurrency=1 tests/api/patient-journey.test.ts tests/api/safety-and-adaptive.test.ts tests/api/contract-and-authorisation.test.ts",
     "test:api:journey": "tsx --test tests/api/patient-journey.test.ts",

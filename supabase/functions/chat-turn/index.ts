@@ -219,6 +219,17 @@ async function resolveDraftRouting(
   return { routing: resolved.routing, source: resolved.source };
 }
 
+/**
+ * Department/doctor for an early-finish report. Deterministic by design:
+ * the department decided during intake is reused, otherwise the documented General
+ * Medicine fallback applies. No model call is made at finish time, so the patient never
+ * waits on Groq and a late suggestion can never re-route an almost-finished intake.
+ */
+async function resolveFinishRouting(admin: Admin, session: SessionRow): Promise<RoutingSnapshot> {
+  const reference = await loadReferenceData(admin);
+  return resolveRouting(session.preliminary_department ?? null, reference.departments, reference.doctors).routing;
+}
+
 async function emergencyRouting(admin: Admin): Promise<RoutingSnapshot> {
   const reference = await loadReferenceData(admin);
   return resolveEmergencyRouting(reference.departments, reference.doctors);
@@ -266,8 +277,30 @@ function currentQuestionFor(session: SessionRow): ChatTurnResponse["current_ques
   };
 }
 
+/**
+ * Accepted answers = patient messages the backend actually stored for a question.
+ * Rejected, empty and duplicated submissions never create a row, so they cannot inflate
+ * this count. Used for the v1.3 early-finish threshold, which is enforced here and not in
+ * the browser.
+ */
+export const MIN_ANSWERS_FOR_PARTIAL = 3;
+
+function acceptedAnswerCount(messages: MessageRow[]): number {
+  const seen = new Set<string>();
+  for (const message of messages) {
+    if (message.role !== "patient") continue;
+    const questionId = message.question_id;
+    const text = (message.final_text ?? "").trim();
+    if (!questionId || text.length === 0) continue;
+    // One accepted answer per question id: a repeated/duplicate row cannot count twice.
+    seen.add(questionId);
+  }
+  return seen.size;
+}
+
 function baseResponse(session: SessionRow, messages: MessageRow[]): ChatTurnResponse {
   const fields = rebuildFields(messages);
+  const answered = acceptedAnswerCount(messages);
   const state = progress({
     fields,
     answerTurnCount: session.answer_turn_count,
@@ -284,6 +317,12 @@ function baseResponse(session: SessionRow, messages: MessageRow[]): ChatTurnResp
     is_complete: state.is_complete,
     is_cap_reached: state.is_cap_reached,
     can_submit: state.can_submit,
+    accepted_answer_count: answered,
+    can_finish_partial:
+      answered >= MIN_ANSWERS_FOR_PARTIAL &&
+      session.status !== "emergency" &&
+      session.status !== "submitted" &&
+      session.status !== "declined",
   };
 }
 
@@ -336,7 +375,8 @@ async function maybeAdaptiveQuestion(
     tags,
     missingFields: missingFields as string[],
     askedIds: asked,
-    limit: 8,
+    // A compact candidate set keeps the model prompt small and the answer fast.
+    limit: 6,
   });
   if (candidates.length === 0) return null;
 
@@ -365,12 +405,19 @@ async function maybeAdaptiveQuestion(
     consoleLogger.info("usage_capped", { counter: "groq" });
     return eligible[0].id;
   }
+  const startedAt = performance.now();
   const picked = await selectAdaptiveQuestion(
     { apiKey, baseUrl: Deno.env.get("GROQ_BASE_URL") ?? undefined },
     eligible,
     typeof concern.value === "string" ? concern.value : "",
   );
-  consoleLogger.info("provider_attempt", { provider: "groq", ok: picked?.source === "model" });
+  consoleLogger.info("provider_attempt", {
+    provider: "groq",
+    action: "adaptive_question",
+    ok: picked?.source === "model",
+    candidates: eligible.length,
+    duration_ms: Math.round(performance.now() - startedAt),
+  });
   return picked?.id ?? eligible[0].id;
 }
 
@@ -854,13 +901,29 @@ async function handleSubmitTurn(
   });
 
   if (insertError) {
-    // Unique (session_id, turn_index): a duplicate submission.
+    // Unique (session_id, turn_index). Two cases:
+    //   a) the same turn is already stored (a duplicate submit from a VAD/Done race or a
+    //      retry) -> treat it as accepted and advance, never store a second copy;
+    //   b) some other row blocks the insert -> report the current state unchanged.
+    const stored = await loadMessages(admin, session.id);
+    const alreadyStored = stored.some(
+      (message) => message.role === "patient" && message.turn_index === nextTurn &&
+        message.question_id === request.question_id,
+    );
+    if (!alreadyStored) {
+      const current = await loadSession(admin, session.id, userId);
+      return json(baseResponse(current, stored));
+    }
     const current = await loadSession(admin, session.id, userId);
-    const response = baseResponse(current, await loadMessages(admin, session.id));
-    return json(response);
+    if (current.current_question_id !== request.question_id) {
+      // The concurrent request already advanced the session; nothing left to do.
+      return json(baseResponse(current, stored));
+    }
   }
 
   let nextId: string | null = nextQuestion(fields, { afterFixed: request.question_id as never });
+  // A question that already has an accepted answer is never asked again.
+  if (nextId === request.question_id) nextId = null;
   if (!nextId) {
     nextId = await maybeAdaptiveQuestion(admin, session, fields, [...messages, {
       id: "", session_id: session.id, role: "patient", question_id: request.question_id,
@@ -947,12 +1010,10 @@ async function handleCorrectDraft(
 async function handleSubmitReport(
   admin: Admin,
   userId: string,
-  request: { session_id: string; report_id?: string },
+  request: { session_id: string; report_id?: string; partial?: boolean; preview?: boolean },
 ): Promise<Response> {
   const session = await loadSession(admin, request.session_id, userId);
   const messages = await loadMessages(admin, session.id);
-  const fields = rebuildFields(messages);
-  if (!isComplete(fields)) throw new AppError("invalid_state");
   if (session.status === "emergency") throw new AppError("invalid_state");
 
   const { data: existingReport } = await admin
@@ -966,10 +1027,8 @@ async function handleSubmitReport(
     throw new AppError("not_found");
   }
 
-  // Idempotent replay: the first call succeeded but the response was lost. Return the
-  // stored report as a normal success instead of `invalid_state`, so the client can never
-  // be left guessing whether the report reached the doctor.
-  if (existingReport?.status === "submitted") {
+  // Idempotent replay for either path: the first call succeeded but the response was lost.
+  if (existingReport && (existingReport.status === "submitted" || existingReport.status === "partial")) {
     const { data: row } = await admin
       .from("reports")
       .select("*")
@@ -982,6 +1041,16 @@ async function handleSubmitReport(
     replay.can_submit = false;
     return json(replay);
   }
+
+  if (request.partial === true) {
+    return await submitPartialReport(admin, userId, session, messages, {
+      reportId: request.report_id,
+      preview: request.preview === true,
+    });
+  }
+
+  const fields = rebuildFields(messages);
+  if (!isComplete(fields)) throw new AppError("invalid_state");
 
   let updateQuery = admin
     .from("reports")
@@ -1002,6 +1071,109 @@ async function handleSubmitReport(
 
   const response = baseResponse(await loadSession(admin, session.id, userId), messages);
   response.submitted_report = submitted as ReportRow;
+  response.can_submit = false;
+  return json(response);
+}
+
+/**
+ * v1.3 early finish. Builds the report only from persisted answers, marks it `partial`
+ * (never `urgent_partial`), and requires at least three accepted answers. Nothing is
+ * invented: every unanswered field keeps its explicit information status and
+ * `missing_information` lists it.
+ */
+async function submitPartialReport(
+  admin: Admin,
+  userId: string,
+  session: SessionRow,
+  messages: MessageRow[],
+  options: { reportId?: string; preview: boolean },
+): Promise<Response> {
+  const { reportId, preview } = options;
+  const answered = acceptedAnswerCount(messages);
+  if (answered < MIN_ANSWERS_FOR_PARTIAL) throw new AppError("invalid_state");
+
+  const fields = rebuildFields(messages);
+  const routing = await resolveFinishRouting(admin, session);
+  const summary = templateSummary(fields);
+  const document = buildReportDocument({
+    language: session.language,
+    fields,
+    routing,
+    status: "partial",
+    summary,
+  });
+  // Preview only: return the truthful document without persisting or sending anything.
+  if (preview) {
+    const response = baseResponse(session, messages);
+    response.draft_report = document;
+    response.can_submit = false;
+    consoleLogger.info("action_completed", {
+      action: "preview_partial_report",
+      answers: answered,
+      department: routing.department_key,
+    });
+    return json(response);
+  }
+
+  const submittedAt = new Date().toISOString();
+
+  const { data: existingDraft } = await admin
+    .from("reports")
+    .select("id")
+    .eq("session_id", session.id)
+    .eq("user_id", userId)
+    .eq("status", "draft")
+    .maybeSingle();
+
+  let stored: ReportRow | null = null;
+  if (existingDraft) {
+    const { data: promoted } = await admin
+      .from("reports")
+      .update({ status: "partial", submitted_at: submittedAt, report: document })
+      .eq("id", existingDraft.id)
+      .eq("user_id", userId)
+      .eq("status", "draft")
+      .select("*")
+      .maybeSingle();
+    stored = (promoted as ReportRow | null) ?? null;
+  } else {
+    const { data: inserted, error } = await admin
+      .from("reports")
+      .insert({
+        session_id: session.id,
+        user_id: userId,
+        status: "partial",
+        schema_version: 1,
+        department_key: routing.department_key,
+        doctor_id: routing.doctor_id,
+        intake_reference: generateIntakeReference(new Date()),
+        possible_urgent: false,
+        submitted_at: submittedAt,
+        report: document,
+      })
+      .select("*")
+      .maybeSingle();
+    if (error || !inserted) throw new AppError("internal", { cause: error });
+    stored = inserted as ReportRow;
+  }
+
+  if (!stored) throw new AppError("invalid_state");
+  if (reportId && stored.id !== reportId) throw new AppError("not_found");
+
+  await admin
+    .from("sessions")
+    .update({ status: "submitted", ended_at: submittedAt })
+    .eq("id", session.id)
+    .eq("user_id", userId);
+
+  consoleLogger.info("action_completed", {
+    action: "submit_partial_report",
+    answers: answered,
+    department: routing.department_key,
+  });
+
+  const response = baseResponse(await loadSession(admin, session.id, userId), messages);
+  response.submitted_report = stored;
   response.can_submit = false;
   return json(response);
 }

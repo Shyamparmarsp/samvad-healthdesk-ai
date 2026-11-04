@@ -242,10 +242,28 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
             {routing.department_name} (preliminary)
           </div>
           <div className="h-[29px] px-3.5 rounded-full bg-[#dcf3e6] text-[#176a3b] text-[10px] font-semibold flex items-center justify-center">
-            {report.status === 'urgent_partial' ? 'Urgent partial' : report.status === 'submitted' ? 'Submitted' : report.status}
+            {report.status === 'urgent_partial'
+              ? 'Urgent partial'
+              : report.status === 'submitted'
+              ? 'Submitted'
+              : report.status === 'partial'
+              ? 'Partial intake'
+              : report.status}
           </div>
         </div>
       </div>
+
+      {/* v1.3: make the incomplete nature impossible to miss. */}
+      {report.status === 'partial' && (
+        <div className="mx-0 mb-2 p-3.5 rounded-[16px] bg-[#fff7ec] border border-[#f2d3ad] text-xs text-[#8a4b12] leading-relaxed">
+          <p className="font-bold text-[12px]">Partial intake — early finish</p>
+          <p className="mt-1">
+            The patient ended the conversation early. Only the answers shown below were given.
+            Unanswered items are pending in-person review with the doctor; they are not negative
+            findings and this report is not a completed clinical assessment.
+          </p>
+        </div>
+      )}
 
       {/* Two-column layout matching Figma 82:277 (details) & 82:278 (summary) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

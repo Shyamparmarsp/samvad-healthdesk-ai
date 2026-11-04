@@ -65,6 +65,14 @@ export interface SubmitReportRequest {
   action: "submit_report";
   session_id: string;
   report_id?: string;
+  /** v1.3: build the partial preview from persisted answers without sending it. */
+  preview?: boolean;
+  /**
+   * v1.3 early finish: when true the backend sends a partial report built from the
+   * answers actually given (minimum three accepted answers). Omitted/false keeps the
+   * original complete-intake behaviour.
+   */
+  partial?: boolean;
 }
 
 export type ChatTurnRequest =
@@ -199,11 +207,21 @@ export function parseChatTurnRequest(raw: unknown): ParseResult<ChatTurnRequest>
     }
 
     case "submit_report": {
-      if (!hasOnlyKeys(raw, ["action", "session_id", "report_id"])) {
+      if (!hasOnlyKeys(raw, ["action", "session_id", "report_id", "partial", "preview"])) {
         return { ok: false, code: "invalid_request" };
       }
       if (!isSessionId(raw.session_id)) return { ok: false, code: "invalid_request" };
       if (raw.report_id !== undefined && !isSessionId(raw.report_id)) {
+        return { ok: false, code: "invalid_request" };
+      }
+      if (raw.partial !== undefined && typeof raw.partial !== "boolean") {
+        return { ok: false, code: "invalid_request" };
+      }
+      if (raw.preview !== undefined && typeof raw.preview !== "boolean") {
+        return { ok: false, code: "invalid_request" };
+      }
+      if (raw.preview === true && raw.partial !== true) {
+        // A preview is only meaningful for the early-finish report.
         return { ok: false, code: "invalid_request" };
       }
       return {
@@ -212,6 +230,8 @@ export function parseChatTurnRequest(raw: unknown): ParseResult<ChatTurnRequest>
           action: "submit_report",
           session_id: raw.session_id,
           ...(raw.report_id === undefined ? {} : { report_id: raw.report_id }),
+          ...(raw.partial === undefined ? {} : { partial: raw.partial }),
+          ...(raw.preview === undefined ? {} : { preview: raw.preview }),
         },
       };
     }

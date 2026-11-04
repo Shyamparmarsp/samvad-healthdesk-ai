@@ -30,7 +30,7 @@ export function filterReportsByTab(
     // 1. Tab filter per docs/report-design.md §15
     if (tab === 'urgent' && r.status !== 'urgent_partial') return false;
     if (tab === 'booked' && !bookedReportIds.has(r.id)) return false;
-    if (tab === 'not_booked' && (r.status !== 'submitted' || bookedReportIds.has(r.id))) return false;
+    if (tab === 'not_booked' && (!['submitted', 'partial'].includes(r.status) || bookedReportIds.has(r.id))) return false;
 
     // 2. Search query filter
     if (searchQuery.trim()) {
@@ -152,6 +152,7 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
               <tbody className="divide-y divide-[#dde3ee]/60">
                 {filteredReports.map((r) => {
                   const isUrgent = r.status === 'urgent_partial';
+                  const isPartial = r.status === 'partial';
                   const isBooked = bookedReportIds.has(r.id);
                   const patientName = r.report.patient.name.value || 'Anonymous Patient';
                   const patientAge = r.report.patient.age.value ? `${r.report.patient.age.value} yrs` : '';
@@ -192,6 +193,12 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
 
                           {/* Right: Status Pill + Time + Chevron */}
                           <div className="flex items-center gap-6 shrink-0">
+                            {/* v1.3 partial intake badge: never confusable with urgent. */}
+                            {isPartial && (
+                              <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold bg-[#fff0e6] text-[#b2651a]">
+                                PARTIAL INTAKE
+                              </span>
+                            )}
                             {/* Status badge matching Figma D3 */}
                             {isUrgent ? (
                               <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold bg-[#ffe2e5] text-[#d63031]">

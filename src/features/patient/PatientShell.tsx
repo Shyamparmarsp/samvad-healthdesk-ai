@@ -67,6 +67,8 @@ export const PatientShell: React.FC = () => {
   const [inputMode, setInputMode] = useState<'voice' | 'text'>('voice');
   const [pendingVoiceTranscript, setPendingVoiceTranscript] = useState('');
   const [exitDialogOpen, setExitDialogOpen] = useState(false);
+  /** v1.3: true while the screen shows a partial-report preview (not yet sent). */
+  const [partialPreview, setPartialPreview] = useState(false);
   /** Set when the patient leaves: late provider responses must not navigate afterwards. */
   const exitedRef = useRef(false);
 
@@ -433,6 +435,91 @@ export const PatientShell: React.FC = () => {
     }
   };
 
+  /**
+   * v1.3 early finish. The backend reports the accepted-answer count; the fallback below
+   * only exists for mock/offline mode (the backend value always wins).
+   */
+  const acceptedAnswerCount = (() => {
+    if (typeof chatState?.accepted_answer_count === 'number') return chatState.accepted_answer_count;
+    const seen = new Set<string>();
+    for (const message of chatState?.messages ?? []) {
+      if (message.role !== 'patient') continue;
+      const questionId = String(message.question_id ?? '');
+      if (questionId && (message.content ?? '').trim().length > 0) seen.add(questionId);
+    }
+    return seen.size;
+  })();
+
+  const canFinishPartial =
+    (chatState?.can_finish_partial ??
+      (acceptedAnswerCount >= 3 && chatState?.session_status !== 'emergency')) &&
+    !chatState?.submitted_report;
+
+  /** Build the partial preview from persisted answers (no report is created yet). */
+  const handleFinishPartial = async () => {
+    if (!sessionId || isProcessing) return;
+    if (chatState?.session_status === 'emergency') {
+      navigateToScreen('emergency');
+      return;
+    }
+    if (!canFinishPartial) return;
+    // Stop the voice loop before the screen changes.
+    voice.stop();
+    setPendingVoiceTranscript('');
+    setIsProcessing(true);
+    setErrorMessage(null);
+    try {
+      const res = await submitReport({
+        action: 'submit_report',
+        session_id: sessionId,
+        report_id: '',
+        partial: true,
+        preview: true,
+      });
+      setChatState((previous) => ({
+        ...(previous as ChatTurnResponse),
+        ...res,
+        messages: res.messages.length > 0 ? res.messages : previous?.messages ?? [],
+      }));
+      setPartialPreview(true);
+      navigateToScreen('review');
+    } catch (err: any) {
+      console.error('Failed to build the partial report preview', err);
+      setErrorMessage(sanitizeUserError(err));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  /** Send the reviewed partial report to the assigned doctor. */
+  const handleSendPartialReport = async () => {
+    if (!sessionId || isProcessing) return;
+    setIsProcessing(true);
+    setErrorMessage(null);
+    try {
+      const res = await submitReport({
+        action: 'submit_report',
+        session_id: sessionId,
+        report_id: '',
+        partial: true,
+      });
+      setChatState(res);
+      setPartialPreview(false);
+      navigateToScreen('booking');
+    } catch (err: any) {
+      console.error('Failed to send the partial report', err);
+      setErrorMessage(sanitizeUserError(err));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  /** Return from the preview to the conversation without sending anything. */
+  const handleContinueAnswering = () => {
+    setPartialPreview(false);
+    navigateToScreen('conversation');
+  };
+
   // 6. Submit report to hospital
   const handleSubmitReport = async () => {
     if (!sessionId || isProcessing) return;
@@ -650,6 +737,8 @@ export const PatientShell: React.FC = () => {
             onChangeMode={handleChangeInputMode}
             onDoneAnswer={() => void voice.done()}
             onRetryVoice={handleRetryVoice}
+            canFinish={canFinishPartial}
+            onFinish={handleFinishPartial}
             vadActive={voice.vadActive && voice.phase === 'listening'}
             speechActive={voice.speechActive}
             exitDialogOpen={exitDialogOpen}
@@ -677,13 +766,14 @@ export const PatientShell: React.FC = () => {
             canSubmit={hasSubmittedReport ? true : chatState?.can_submit}
             mode={reviewModeFor(hasSubmittedReport)}
             onCorrectField={handleCorrectField}
-            onSubmit={handleSubmitReport}
+            onSubmit={partialPreview ? handleSendPartialReport : handleSubmitReport}
             onDontSubmit={handleDontSubmit}
             onEndSessionCap={handleEndSessionCap}
-            onBack={handleBack}
+            onBack={partialPreview ? handleContinueAnswering : handleBack}
             onContinueBooking={hasSubmittedReport ? () => navigateToScreen('booking') : undefined}
             onFinish={hasSubmittedReport ? handleRestart : undefined}
             isSubmitting={isProcessing}
+            partial={partialPreview}
           />
         )}
 

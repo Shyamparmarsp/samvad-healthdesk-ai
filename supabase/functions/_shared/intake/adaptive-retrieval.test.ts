@@ -143,3 +143,37 @@ Deno.test("retrieval: candidate ceiling is eight and the adaptive cap is three",
   assert(many.length > 0 && many.length <= 8, "eight-candidate ceiling");
   assertEqual(MAX_ADAPTIVE_QUESTIONS, 3, "three-adaptive-question limit");
 });
+
+Deno.test("adaptive prompt: compact candidate catalogue only, strict id answer", async () => {
+  const candidates = retrieveCandidates({ department: "general_medicine", tags: ["fever"], limit: 6 });
+  const captured: Array<Record<string, unknown>> = [];
+  const fetchImpl = ((_input: RequestInfo | URL, init?: RequestInit) => {
+    captured.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: JSON.stringify({ question_id: candidates[0].id }) } }] }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+  }) as unknown as typeof fetch;
+
+  const picked = await selectAdaptiveQuestion(
+    { apiKey: "stub", fetchImpl },
+    candidates,
+    "fever and chills",
+  );
+  assertEqual(picked?.id, candidates[0].id, "model id accepted");
+
+  const body = captured[0] as { messages: Array<{ role: string; content: string }>; max_completion_tokens?: number; temperature?: number };
+  const user = body.messages.find((message) => message.role === "user")?.content ?? "";
+  for (const candidate of candidates) {
+    assert(user.includes(candidate.id), `catalogue lists ${candidate.id}`);
+  }
+  // Compact: only the supplied candidates, never the whole bank.
+  assert(!user.includes("GM-030") || candidates.some((candidate) => candidate.id === "GM-030"), "no extra ids");
+  assertEqual(body.temperature, 0, "deterministic decoding");
+  assertEqual(body.max_completion_tokens, 32, "small completion budget");
+  const schema = (body as { response_format?: { json_schema?: { schema?: { properties?: { question_id?: { enum?: string[] } } } } } })
+    .response_format?.json_schema?.schema;
+  assertEqual(schema?.properties?.question_id?.enum?.length, candidates.length, "enum equals the candidate set");
+});

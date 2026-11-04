@@ -56,6 +56,9 @@ Deno.test("schema: SECURITY DEFINER is confined to the reviewed RPCs", () => {
     // Added in M4-S16-B for a read the browser has no table grant for. It applies the
     // same controls below and is documented in docs/integration-contract.md.
     "20261102160000_doctor_appointment_reads.sql",
+    // v1.3 partial reports: re-creates the two reviewed RPCs with the added non-emergency
+    // `partial` status. Same definer controls, no new grant, no broadened read.
+    "20261104083818_partial_reports_v13.sql",
   ];
   assertEqual(definers.length, reviewed.length, "only reviewed migrations may declare SECURITY DEFINER");
   assertEqual(

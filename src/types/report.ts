@@ -3,7 +3,11 @@
  * Source: docs/report-design.md v1.2, backend _shared/contract.ts
  */
 
-export type ReportStatus = 'draft' | 'submitted' | 'urgent_partial';
+/**
+ * v1.3 adds `partial`: a truthful early-finish pre-visit intake sent to the assigned
+ * doctor. `urgent_partial` remains emergency-only and remains the urgent-queue predicate.
+ */
+export type ReportStatus = 'draft' | 'submitted' | 'partial' | 'urgent_partial';
 
 export type SessionStatus =
   | 'created'

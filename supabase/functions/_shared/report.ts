@@ -186,7 +186,7 @@ export interface BuildDocumentInput {
   emergency?: EmergencyBlock | null;
   /** Only used for a normal report; urgent_partial always stores null (RD-10). */
   summary?: SummaryInfo | null;
-  status: "draft" | "submitted" | "urgent_partial";
+  status: "draft" | "submitted" | "partial" | "urgent_partial";
 }
 
 export function buildReportDocument(input: BuildDocumentInput): ReportDocumentV1 {

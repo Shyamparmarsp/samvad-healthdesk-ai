@@ -21,8 +21,8 @@ const LOUD = 0.08;
 const QUIET = 0.001;
 
 describe('Voice activity detection', () => {
-  it('1. defaults match the approved behaviour (3.5 s of sustained silence)', () => {
-    assert.equal(DEFAULT_SILENCE_MS, 3500);
+  it('1. defaults match the approved behaviour (2.0 s of sustained silence)', () => {
+    assert.equal(DEFAULT_SILENCE_MS, 2000);
     assert.ok(DEFAULT_SPEECH_THRESHOLD > 0 && DEFAULT_SPEECH_THRESHOLD < 0.1);
   });
 
@@ -45,16 +45,16 @@ describe('Voice activity detection', () => {
     assert.equal(events[0].event, 'speech_started');
     assert.equal(events.at(-1)?.event, 'silence_detected');
     const silenceAt = events.at(-1)!.at;
-    assert.ok(silenceAt >= 1200 + 3500, `silence measured from the last voice frame (got ${silenceAt})`);
-    assert.ok(silenceAt < 1200 + 3500 + 400, 'fires promptly once 3.5 s have elapsed');
+    assert.ok(silenceAt >= 1200 + 2000, `silence measured from the last voice frame (got ${silenceAt})`);
+    assert.ok(silenceAt < 1200 + 2000 + 400, 'fires promptly once 2 s have elapsed');
   });
 
   it('4. short natural pauses do not finalise speech', () => {
     const timeline: Array<[number, number]> = [];
     for (let t = 0; t <= 800; t += 100) timeline.push([t, LOUD]);
-    // A 2 s thinking pause, then more speech.
-    for (let t = 900; t <= 2900; t += 100) timeline.push([t, QUIET]);
-    for (let t = 3000; t <= 4200; t += 100) timeline.push([t, LOUD]);
+    // A 1.4 s thinking pause (shorter than the 2 s window), then more speech.
+    for (let t = 900; t <= 2300; t += 100) timeline.push([t, QUIET]);
+    for (let t = 2400; t <= 3600; t += 100) timeline.push([t, LOUD]);
 
     const { events } = run(timeline);
     assert.equal(
@@ -104,6 +104,33 @@ describe('Voice activity detection', () => {
     ]);
     assert.equal(events[0].event, 'speech_started');
     assert.equal(events.at(-1)?.event, 'silence_detected');
+  });
+
+  it('9a. 1900 ms of silence does not finalise', () => {
+    const { events } = run([
+      [0, LOUD],
+      [300, LOUD],
+      [2200, QUIET], // 1900 ms after the last voice frame
+    ]);
+    assert.equal(events.some((e) => e.event === 'silence_detected'), false);
+  });
+
+  it('9b. 2000 ms of sustained silence finalises exactly once', () => {
+    const { events } = run([
+      [0, LOUD],
+      [300, LOUD],
+      [2300, QUIET], // 2000 ms after the last voice frame
+    ]);
+    assert.equal(events.filter((e) => e.event === 'silence_detected').length, 1);
+  });
+
+  it('9c. 2200 ms of silence still produces exactly one submission', () => {
+    const { events } = run([
+      [0, LOUD],
+      [300, LOUD],
+      [2500, QUIET], // 2200 ms
+    ]);
+    assert.equal(events.filter((e) => e.event === 'silence_detected').length, 1);
   });
 
   it('9. a custom silence window is honoured', () => {

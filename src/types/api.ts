@@ -98,6 +98,10 @@ export interface SubmitReportAction {
   action: 'submit_report';
   session_id: string;
   report_id: string;
+  /** v1.3: send the early-finish partial report instead of a complete one. */
+  partial?: boolean;
+  /** v1.3: build the partial preview from persisted answers without sending it. */
+  preview?: boolean;
 }
 
 export type ChatTurnAction =
@@ -118,6 +122,10 @@ export interface ChatTurnResponse {
   is_complete: boolean;
   is_cap_reached: boolean;
   can_submit: boolean;
+  /** v1.3: distinct accepted answers persisted for this session (backend-authoritative). */
+  accepted_answer_count?: number;
+  /** v1.3: the patient may finish early and send a partial report. */
+  can_finish_partial?: boolean;
   draft_report?: ReportDocumentV1;
   submitted_report?: ReportRow;
   emergency_triggered?: boolean;

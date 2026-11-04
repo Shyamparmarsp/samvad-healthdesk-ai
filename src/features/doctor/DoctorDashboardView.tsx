@@ -160,6 +160,9 @@ export const DoctorDashboardView: React.FC<DoctorDashboardViewProps> = ({
               if (isUrgent) {
                 statusLabel = 'Urgent';
                 statusClass = 'bg-[#fde2e2] text-[#a12626]';
+              } else if (r.status === 'partial') {
+                statusLabel = 'Partial intake';
+                statusClass = 'bg-[#fff0e6] text-[#b2651a]';
               } else if (r.possible_urgent || r.needs_human_review) {
                 statusLabel = 'Urgent review';
                 statusClass = 'bg-[#fde2e2] text-[#a12626]';

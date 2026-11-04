@@ -15,7 +15,7 @@
  */
 
 export interface SilenceDetectorOptions {
-  /** Sustained silence that finalises the take (owner-approved default: 3.5 s). */
+  /** Sustained silence that finalises the take (owner-approved default: 2.0 s). */
   silenceMs?: number;
   /** RMS threshold (0–1) above which a frame counts as voice. */
   speechThreshold?: number;
@@ -23,7 +23,7 @@ export interface SilenceDetectorOptions {
   minSpeechMs?: number;
 }
 
-export const DEFAULT_SILENCE_MS = 3500;
+export const DEFAULT_SILENCE_MS = 2000;
 export const DEFAULT_SPEECH_THRESHOLD = 0.012;
 export const DEFAULT_MIN_SPEECH_MS = 250;
 
@@ -92,7 +92,7 @@ export interface MicrophoneMonitor {
 
 interface MonitorOptions {
   onLevel: (level: number, atMs: number) => void;
-  /** Sampling interval; 100 ms resolves a 3.5 s silence comfortably. */
+  /** Sampling interval; 100 ms resolves a 2 s silence comfortably. */
   intervalMs?: number;
   now?: () => number;
 }

@@ -136,11 +136,17 @@ Deno.test("groq: request body carries no reasoning, tool or sampling parameters"
     REQUEST,
   );
   const body = JSON.parse(String(captured[0].init.body)) as Record<string, unknown>;
-  // The documented structured-output contract needs exactly these three top-level keys.
-  // qwen/qwen3.8-27b is documented as supporting strict json_schema without any extra
-  // reasoning parameter, so none is sent. Adding one is an owner-approved change only.
-  assertDeepEqual(Object.keys(body).sort(), ["messages", "model", "response_format"], "top-level keys");
-  for (const forbidden of ["reasoning_effort", "reasoning_format", "temperature", "top_p", "max_tokens", "tools", "tool_choice", "stream"]) {
+  // The structured-output contract needs messages/model/response_format plus the two
+  // deterministic decoding controls: temperature 0 and a small completion budget (the
+  // answer is one short id). No reasoning, tool or free-form sampling parameter is sent.
+  assertDeepEqual(
+    Object.keys(body).sort(),
+    ["max_completion_tokens", "messages", "model", "response_format", "temperature"],
+    "top-level keys",
+  );
+  assertEqual(body.temperature, 0, "deterministic decoding");
+  assertEqual(body.max_completion_tokens, 32, "small completion budget");
+  for (const forbidden of ["reasoning_effort", "reasoning_format", "top_p", "max_tokens", "tools", "tool_choice", "stream", "presence_penalty", "frequency_penalty"]) {
     assert(!(forbidden in body), `${forbidden} is not sent`);
   }
 });

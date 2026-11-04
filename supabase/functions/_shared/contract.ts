@@ -15,7 +15,7 @@
  *   ReportStatus, SessionStatus, InfoStatus, FieldValue, ReportDocumentV1, ReportRow.
  */
 
-export type ReportStatus = "draft" | "submitted" | "urgent_partial";
+export type ReportStatus = "draft" | "submitted" | "partial" | "urgent_partial";
 
 export type SessionStatus =
   | "created"
@@ -209,6 +209,13 @@ export interface ChatTurnResponse {
   is_complete: boolean;
   is_cap_reached: boolean;
   can_submit: boolean;
+  /**
+   * v1.3: number of distinct accepted answers in this session, and whether the patient may
+   * finish early and send a partial report (>= 3 accepted answers, no report sent yet).
+   * Computed from persisted rows, never from the client's message list.
+   */
+  accepted_answer_count?: number;
+  can_finish_partial?: boolean;
   draft_report?: ReportDocumentV1;
   submitted_report?: ReportRow;
   emergency_triggered?: boolean;

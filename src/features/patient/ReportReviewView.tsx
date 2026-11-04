@@ -23,6 +23,11 @@ interface ReportReviewViewProps {
   onFinish?: () => void;
   /** D-28: disable the actions while a request is in flight. */
   isSubmitting?: boolean;
+  /**
+   * v1.3 early finish: the preview is built from persisted answers only, so it is
+   * read-only (a correction needs a stored draft row) and clearly marked partial.
+   */
+  partial?: boolean;
 }
 
 export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
@@ -38,12 +43,15 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
   onContinueBooking,
   onFinish,
   isSubmitting = false,
+  partial = false,
 }) => {
   const { t, language } = useI18n();
   const [editingField, setEditingField] = useState<CorrectableField | null>(null);
   const [editValue, setEditValue] = useState<string>('');
 
   const isReadOnly = mode === 'submitted';
+  /** Corrections require a persisted draft row; a partial preview has none. */
+  const canEditFields = !isReadOnly && !partial;
 
   const EditIcon = () => (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-4 h-4">
@@ -163,15 +171,27 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
               {isReadOnly ? t.review.submittedNote : t.review.subtitle}
             </p>
           </div>
-          {!isReadOnly && (
+          {partial ? (
+            <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[#fff0e6] text-[#e67e22] font-bold uppercase tracking-wider flex-shrink-0 mt-1">
+              {t.review.partialBadge}
+            </span>
+          ) : !isReadOnly ? (
             <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold uppercase tracking-wider flex-shrink-0 mt-1">
               {t.review.draftBadge}
             </span>
-          )}
+          ) : null}
         </div>
 
+        {/* v1.3 partial preview: state exactly what this report is and is not. */}
+        {partial && (
+          <div className="p-3.5 rounded-[18px] bg-[#fff7ec] border border-[#f2d3ad] text-xs text-[#8a4b12] shadow-sm leading-relaxed">
+            <p className="font-bold text-sm mb-1">{t.review.partialBannerTitle}</p>
+            <p>{t.review.partialBanner}</p>
+          </div>
+        )}
+
         {/* Incomplete 15-Turn Cap Banner (D9 Copy) */}
-        {!isReadOnly && isCapReached && !canSubmit && (
+        {!isReadOnly && !partial && isCapReached && !canSubmit && (
           <div className="p-3.5 rounded-[18px] bg-amber-50/90 border border-amber-200 text-xs text-amber-900 shadow-sm leading-relaxed">
             <p className="font-bold text-sm mb-1">{t.review.incompleteCapTitle}</p>
             <p>{t.review.incompleteCapMessage}</p>
@@ -193,7 +213,7 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
                 >
                   {row.text}
                 </span>
-                {!isReadOnly && (
+                {canEditFields && (
                   <button
                     type="button"
                     onClick={() => startEdit(row.field, row.value)}
@@ -301,12 +321,27 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
               type="button"
               onClick={onSubmit}
               disabled={isSubmitting}
-              aria-label={t.review.submitToHospital}
+              aria-label={partial ? t.review.sendPartial : t.review.submitToHospital}
               aria-busy={isSubmitting}
               className="w-full h-[52px] rounded-full bg-[#1f2a44] border border-[#1f2a44] text-white font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.22)] hover:bg-[#2a3a5c] active:scale-[0.99] transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-[#1f2a44] disabled:opacity-50"
             >
-              <span>{isSubmitting ? t.common.loading : t.review.submitToHospital}</span>
+              <span>
+                {isSubmitting ? t.common.loading : partial ? t.review.sendPartial : t.review.submitToHospital}
+              </span>
             </button>
+
+            {/* v1.3: the patient may go back to answering instead of sending. */}
+            {partial && onBack && (
+              <button
+                type="button"
+                onClick={onBack}
+                disabled={isSubmitting}
+                aria-label={t.review.continueAnswering}
+                className="w-full h-[52px] rounded-full bg-[rgba(255,255,255,0.74)] backdrop-blur-[9px] border border-white text-[#1d2433] font-semibold text-[14px] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.1)] hover:bg-white active:scale-[0.99] transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#1f2a44] disabled:opacity-50"
+              >
+                {t.review.continueAnswering}
+              </button>
+            )}
 
             {/* Don't submit frosted pill button (Figma P6 / 81:367) */}
             <button

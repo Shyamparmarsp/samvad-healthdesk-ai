@@ -35,7 +35,7 @@ const DEFAULT_BASE_URL = "https://api.groq.com/openai/v1";
  * `docs/provider-notes.md` §1.2. Max completion tokens: 16,384 (requests here are tiny).
  */
 export const GROQ_MODEL = "qwen/qwen3.8-27b";
-const DEFAULT_TIMEOUT_MS = 8_000;
+const DEFAULT_TIMEOUT_MS = 6_000;
 
 export type GroqFailureKind =
   | "config"
@@ -48,8 +48,8 @@ export type GroqFailureKind =
   | "invalid_output";
 
 export type GroqResult<T> =
-  | { ok: true; value: T; model: string }
-  | { ok: false; kind: GroqFailureKind; status?: number };
+  | { ok: true; value: T; model: string; durationMs: number }
+  | { ok: false; kind: GroqFailureKind; status?: number; durationMs: number };
 
 export interface GroqOptions {
   apiKey: string;
@@ -96,8 +96,10 @@ export async function requestStructured<T>(
   options: GroqOptions,
   request: StructuredRequest<T>,
 ): Promise<GroqResult<T>> {
-  if (!options.apiKey) return { ok: false, kind: "config" };
+  if (!options.apiKey) return { ok: false, kind: "config", durationMs: 0 };
 
+  const startedAt = performance.now();
+  const elapsed = () => Math.round(performance.now() - startedAt);
   const model = GROQ_MODEL;
   const doFetch = options.fetchImpl ?? fetch;
   const baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "");
@@ -119,6 +121,11 @@ export async function requestStructured<T>(
           { role: "system", content: request.system },
           { role: "user", content: request.user },
         ],
+        // The answer is one short id, so a small completion budget is enough and keeps
+        // the model from spending time on extra tokens. Deterministic decoding keeps the
+        // selection stable for identical inputs.
+        temperature: 0,
+        max_completion_tokens: 32,
         response_format: {
           type: "json_schema",
           json_schema: {
@@ -130,7 +137,7 @@ export async function requestStructured<T>(
       }),
     });
   } catch (error) {
-    return { ok: false, kind: isAbortError(error) ? "timeout" : "network" };
+    return { ok: false, kind: isAbortError(error) ? "timeout" : "network", durationMs: elapsed() };
   } finally {
     clearTimeout(timer);
   }
@@ -138,35 +145,35 @@ export async function requestStructured<T>(
   if (!response.ok) {
     // Drain the body without reading it into the result.
     await response.body?.cancel().catch(() => {});
-    return { ok: false, kind: statusToKind(response.status), status: response.status };
+    return { ok: false, kind: statusToKind(response.status), status: response.status, durationMs: elapsed() };
   }
 
   let payload: unknown;
   try {
     payload = await response.json();
   } catch {
-    return { ok: false, kind: "invalid_output", status: response.status };
+    return { ok: false, kind: "invalid_output", status: response.status, durationMs: elapsed() };
   }
 
   const content = extractContent(payload);
-  if (content === null) return { ok: false, kind: "invalid_output", status: response.status };
+  if (content === null) return { ok: false, kind: "invalid_output", status: response.status, durationMs: elapsed() };
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(content);
   } catch {
-    return { ok: false, kind: "invalid_output", status: response.status };
+    return { ok: false, kind: "invalid_output", status: response.status, durationMs: elapsed() };
   }
 
   let value: T | null;
   try {
     value = request.validate(parsed);
   } catch {
-    return { ok: false, kind: "invalid_output", status: response.status };
+    return { ok: false, kind: "invalid_output", status: response.status, durationMs: elapsed() };
   }
-  if (value === null) return { ok: false, kind: "invalid_output", status: response.status };
+  if (value === null) return { ok: false, kind: "invalid_output", status: response.status, durationMs: elapsed() };
 
-  return { ok: true, value, model };
+  return { ok: true, value, model, durationMs: elapsed() };
 }
 
 function extractContent(payload: unknown): string | null {
