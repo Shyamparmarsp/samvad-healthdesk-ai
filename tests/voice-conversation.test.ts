@@ -93,6 +93,7 @@ function createHarness(script: Script = {}) {
   const errors: VoiceErrorCode[] = [];
   const audioFailures: string[] = [];
   const phases: VoicePhase[] = [];
+  const speechStarts: string[] = [];
   const elapsed: number[] = [];
   const completions: string[] = [];
 
@@ -105,9 +106,12 @@ function createHarness(script: Script = {}) {
   let cancels = 0;
 
   const ports: VoicePorts = {
-    async speak(question) {
+    async speak(question, onStart) {
       spoken.push(question);
-      return speech.shift() ?? { spoken: true };
+      const outcome = speech.shift() ?? { spoken: true };
+      // Playback start is only announced when audio really played.
+      if (outcome.spoken) onStart?.();
+      return outcome;
     },
     async startListening() {
       if (script.startListeningError) throw script.startListeningError;
@@ -138,6 +142,7 @@ function createHarness(script: Script = {}) {
     ports,
     {
       onPhase: (phase) => phases.push(phase),
+      onSpeechStart: (question) => speechStarts.push(question.id),
       onTranscript: (text) => transcripts.push(text),
       onError: (code) => errors.push(code),
       onAudioFailure: (reason) => audioFailures.push(reason),
@@ -156,6 +161,7 @@ function createHarness(script: Script = {}) {
     errors,
     audioFailures,
     phases,
+    speechStarts,
     elapsed,
     completions,
     get recordings() {
@@ -440,5 +446,69 @@ describe('Voice phase transitions', () => {
     assert.equal(canTransition('transcribing', 'listening'), false);
     assert.equal(canTransition('submitting', 'listening'), false);
     assert.equal(canTransition('processing', 'listening'), false);
+  });
+});
+
+
+describe('Voice activity detection integration', () => {
+  it('18. detected silence finalises the take through the same path as Done', async () => {
+    const h = createHarness({
+      transcription: [{ ok: true, text: 'knee pain for two weeks' }],
+      turns: [{ kind: 'next', question: AGE, turnAdvanced: true }],
+    });
+    await h.conversation.start(NAME);
+    await flush();
+
+    h.conversation.notifySilenceDetected();
+    await flush(12);
+
+    assert.ok(h.phases.includes('silence_detected'), 'silence phase reported');
+    assert.equal(h.stops, 1, 'recording stopped once');
+    assert.deepEqual(h.submitted, ['knee pain for two weeks'], 'submitted automatically');
+    assert.deepEqual(h.spoken.map((q) => q.id), ['name', 'age'], 'next question spoken');
+    assert.equal(h.conversation.currentPhase, 'listening', 'listening resumed');
+  });
+
+  it('19. VAD and Done cannot double-submit the same answer', async () => {
+    const h = createHarness({ transcription: [{ ok: true, text: 'answer' }], turns: [{ kind: 'complete' }] });
+    await h.conversation.start(NAME);
+    await flush();
+
+    // Both fire in the same tick: the first wins, the second is ignored.
+    h.conversation.notifySilenceDetected();
+    const done = h.conversation.finishAnswer();
+    await done;
+    await flush(10);
+
+    assert.equal(h.stops, 1, 'one recorder stop');
+    assert.equal(h.submitted.length, 1, 'one submission');
+  });
+
+  it('20. silence before any listening phase is ignored', async () => {
+    const h = createHarness();
+    await h.conversation.start(NAME);
+    await flush();
+    // Still fine while listening.
+    h.conversation.notifySilenceDetected();
+    await flush(6);
+    assert.equal(h.conversation.currentPhase, 'completed');
+
+    // A late callback after completion must not restart anything.
+    h.conversation.notifySilenceDetected();
+    await flush(4);
+    assert.equal(h.stops, 1, 'no second stop');
+  });
+
+  it('21. playback start is reported only when audio actually played', async () => {
+    const h = createHarness({ speech: [{ spoken: false, reason: 'missing' }] });
+    await h.conversation.start(NAME);
+    await flush();
+    assert.deepEqual(h.speechStarts, [], 'no highlight when audio never started');
+    assert.deepEqual(h.audioFailures, ['missing']);
+
+    const good = createHarness();
+    await good.conversation.start(NAME);
+    await flush();
+    assert.deepEqual(good.speechStarts, ['name'], 'highlight announced after playback starts');
   });
 });

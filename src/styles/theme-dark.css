@@ -1,0 +1,256 @@
+/*
+ * Dark palette — palette swap only.
+ *
+ * The approved Figma design uses literal colour utilities (`bg-[#dde3ee]`,
+ * `text-[#1d2433]`, translucent white glass, …) rather than theme tokens. Rewriting every
+ * component to variables would be a redesign-sized change, so the alternate palette is
+ * expressed here as a scoped override layer keyed on the exact utility tokens that are in
+ * use. Selectors use the class *attribute* (`[class*="…"]`), which matches Tailwind's
+ * arbitrary-value utilities without needing to escape brackets, and `.dark …` raises the
+ * specificity above the single-class utility.
+ *
+ * Nothing here changes geometry, spacing, typography, order or component structure: only
+ * colours, borders and the base surface. Light mode is untouched.
+ */
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* ------------------------------------------------------------------ surfaces */
+.dark,
+.dark body {
+  background-color: #0b1220;
+  color: #e7edf8;
+}
+
+.dark [class*="bg-[#dde3ee]"] {
+  background-color: #0b1220;
+}
+
+.dark [class*="bg-[rgba(221,227,238,0.45)]"] {
+  background-color: rgba(13, 20, 35, 0.55);
+}
+
+.dark [class*="bg-[rgba(221,227,238,0.7)]"] {
+  background-color: rgba(8, 13, 24, 0.82);
+}
+
+.dark [class*="bg-[rgba(255,255,255,0.55)]"],
+.dark [class*="bg-[rgba(255,255,255,0.65)]"],
+.dark [class*="bg-[rgba(255,255,255,0.7)]"],
+.dark [class*="bg-[rgba(255,255,255,0.74)]"],
+.dark [class*="bg-[rgba(255,255,255,0.76)]"],
+.dark [class*="bg-[rgba(255,255,255,0.6)]"] {
+  background-color: rgba(24, 34, 54, 0.82);
+}
+
+.dark [class*="bg-[rgba(255,255,255,0.85)]"],
+.dark [class*="bg-[rgba(255,255,255,0.8)]"] {
+  background-color: rgba(30, 41, 63, 0.92);
+}
+
+.dark [class*="bg-white/85"],
+.dark [class*="bg-white/80"],
+.dark [class*="bg-white/70"],
+.dark [class*="bg-white/60"],
+.dark [class*="bg-white/50"],
+.dark [class*="bg-white/40"],
+.dark .bg-white {
+  background-color: rgba(30, 41, 63, 0.94);
+}
+
+.dark [class*="bg-[#e4e8f2]"],
+.dark [class*="bg-[#e0e5f0]"],
+.dark [class*="bg-slate-200/60"] {
+  background-color: #26314a;
+}
+
+.dark [class*="bg-[#c7d1e5]"] {
+  background-color: #33405f;
+}
+
+/* patient bubble / info surfaces */
+.dark [class*="bg-[rgba(225,235,253,0.92)]"],
+.dark [class*="bg-[#e1ebfd]"] {
+  background-color: #1b2947;
+}
+
+/* ------------------------------------------------------------------- borders */
+.dark .border-white,
+.dark [class*="border-white/60"] {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.dark [class*="border-[#d1def5]"],
+.dark [class*="border-[#dde3ee]"],
+.dark [class*="border-slate-200"],
+.dark [class*="border-slate-300"],
+.dark [class*="divide-[#dde3ee]"],
+.dark [class*="divide-slate-200"] {
+  border-color: #2a3652;
+}
+
+.dark [class*="border-[#1f2a44]"] {
+  border-color: #46608f;
+}
+
+/* ---------------------------------------------------------------------- text */
+.dark [class*="text-[#1d2433]"] {
+  color: #e7edf8;
+}
+
+.dark [class*="text-[#3a4468]"] {
+  color: #c6d1e6;
+}
+
+.dark [class*="text-[#4a5470]"] {
+  color: #a9b5cb;
+}
+
+.dark [class*="text-[#6b7590]"] {
+  color: #93a0b8;
+}
+
+/* icons and labels painted with the brand navy */
+.dark [class*="text-[#1f2a44]"] {
+  color: #c9d7f0;
+}
+
+.dark [class*="ring-[#1f2a44]"] {
+  --tw-ring-color: #6f8fd8;
+}
+
+.dark [class*="placeholder:text-[#4a5470]"]::placeholder {
+  color: rgba(169, 181, 203, 0.7);
+}
+
+/* primary filled controls keep a solid, high-contrast surface */
+.dark [class*="bg-[#1f2a44]"] {
+  background-color: #24365c;
+}
+
+.dark [class*="bg-[#2a3a5c]"] {
+  background-color: #2f4470;
+}
+
+.dark [class*="bg-[#2b3a5d]"] {
+  background-color: #2f4470;
+}
+
+/* --------------------------------------------------------------- status: red */
+.dark [class*="bg-red-50"],
+.dark [class*="bg-red-100"],
+.dark [class*="bg-[#fde2e2]"],
+.dark [class*="bg-[rgba(253,226,226,0.85)]"] {
+  background-color: #3a1519;
+}
+
+.dark [class*="border-red-200"],
+.dark [class*="border-red-300"] {
+  border-color: #6e2a30;
+}
+
+.dark [class*="text-red-950"],
+.dark [class*="text-red-900"] {
+  color: #ffc9c9;
+}
+
+.dark [class*="text-red-700"],
+.dark [class*="text-red-600"],
+.dark [class*="text-[#a12626]"] {
+  color: #ff9d9d;
+}
+
+/* ------------------------------------------------------------- status: amber */
+.dark [class*="bg-amber-50"],
+.dark [class*="bg-amber-100"] {
+  background-color: #3a2f12;
+}
+
+.dark [class*="border-amber-200"] {
+  border-color: #6b571f;
+}
+
+.dark [class*="text-amber-900"] {
+  color: #f6dca0;
+}
+
+.dark [class*="text-amber-700"],
+.dark [class*="text-amber-800"] {
+  color: #f0cd85;
+}
+
+/* ----------------------------------------------------------- status: emerald */
+.dark [class*="bg-[#dcf3e6]"] {
+  background-color: #12301f;
+}
+
+.dark [class*="border-emerald-200"] {
+  border-color: #22553a;
+}
+
+.dark [class*="text-[#176a3b]"],
+.dark [class*="text-emerald-600"],
+.dark [class*="text-emerald-700"] {
+  color: #8fe0b0;
+}
+
+/* ---------------------------------------------------------- info blues/slate */
+.dark [class*="text-[#284c91]"] {
+  color: #a9c6ff;
+}
+
+.dark [class*="text-slate-500"],
+.dark [class*="text-slate-600"] {
+  color: #9aa7bd;
+}
+
+.dark [class*="text-slate-700"],
+.dark [class*="text-slate-900"] {
+  color: #dde6f5;
+}
+
+/* native inputs and selects */
+.dark input,
+.dark select,
+.dark textarea {
+  color-scheme: dark;
+}
+
+/* svg artwork that hardcodes the light-mode brand navy */
+.dark svg [stroke="#1F2A44"],
+.dark svg[stroke="#1F2A44"] {
+  stroke: #c9d7f0;
+}
+
+.dark svg [stroke="#4A5470"],
+.dark svg[stroke="#4A5470"] {
+  stroke: #a9b5cb;
+}
+
+.dark svg [fill="#1F2A44"] {
+  fill: #c9d7f0;
+}
+
+/* --------------------------------------------------------------- ambient glow */
+.dark .glow-lilac {
+  background: radial-gradient(circle, rgba(96, 120, 190, 0.35) 0%, rgba(96, 120, 190, 0.12) 45%, rgba(96, 120, 190, 0) 70%);
+}
+
+.dark .glow-sand {
+  background: radial-gradient(circle, rgba(170, 140, 90, 0.28) 0%, rgba(170, 140, 90, 0.1) 45%, rgba(170, 140, 90, 0) 70%);
+}
+
+/* frosted helpers defined in index.css */
+.dark .frosted-card,
+.dark .frosted-card-sub,
+.dark .frosted-glass {
+  background: rgba(24, 34, 54, 0.82);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* accent bars/underlines that use the brand navy */
+.dark [class*="border-[#1f2a44]/"] {
+  border-color: rgba(111, 143, 216, 0.6);
+}

@@ -15,6 +15,8 @@ import { createAudioPlayback, type AudioPlayback } from '../../lib/audio/playbac
 import { planAssistantSpeech } from '../../lib/audio/assistant-speech';
 import { createPromptAudioCache } from '../../lib/audio/prompt-audio';
 import { convertBlobToVoiceAnswer } from '../../lib/audio/voice';
+import { createMicrophoneMonitor, createSilenceDetector, isVadSupported, type MicrophoneMonitor } from '../../lib/audio/vad';
+import { preconnect, warmUrl } from '../../lib/net';
 import { chatTurn } from '../../lib/api';
 import type { ChatTurnResponse, QuestionId } from '../../types/api';
 import {
@@ -30,7 +32,8 @@ import {
 export type VoiceNotice =
   | VoiceErrorCode
   | 'audio_blocked'
-  | 'audio_unavailable';
+  | 'audio_unavailable'
+  | 'vad_unavailable';
 
 export interface UseVoiceConversationOptions {
   /** The conversation screen is showing. */
@@ -54,6 +57,10 @@ export interface VoiceConversationApi {
   micDenied: boolean;
   isListening: boolean;
   isSpeaking: boolean;
+  /** Playback actually started for the current question (drives the spoken highlight). */
+  speechActive: boolean;
+  /** Automatic silence detection is running for the current take. */
+  vadActive: boolean;
   dismissNotice: () => void;
   /** Unlocks audio + asks for microphone permission inside the Start Talking gesture. */
   unlock: (options?: { microphone?: boolean }) => void;
@@ -74,6 +81,8 @@ export function useVoiceConversation(options: UseVoiceConversationOptions): Voic
   const [transcript, setTranscript] = useState('');
   const [notice, setNotice] = useState<VoiceNotice | null>(null);
   const [micDenied, setMicDenied] = useState(false);
+  const [speechActive, setSpeechActive] = useState(false);
+  const [vadActive, setVadActive] = useState(false);
 
   const playbackRef = useRef<AudioPlayback | null>(null);
   const recorderRef = useRef<AudioRecorder | null>(null);
@@ -83,6 +92,9 @@ export function useVoiceConversation(options: UseVoiceConversationOptions): Voic
   const turnCountRef = useRef(0);
   /** Text mode must survive a controller re-creation (screen changes dispose it). */
   const suspendedRef = useRef(false);
+  const monitorRef = useRef<MicrophoneMonitor | null>(null);
+  const detectorRef = useRef(createSilenceDetector());
+  const vadNoticeShownRef = useRef(false);
 
   const playback = useCallback((): AudioPlayback => {
     if (!playbackRef.current) playbackRef.current = createAudioPlayback();
@@ -102,15 +114,30 @@ export function useVoiceConversation(options: UseVoiceConversationOptions): Voic
   }, []);
 
   /** Speaks one question through the approved channel for that id. */
+  /** The fixed questions are asked in a known order, so the next static clip can be
+   *  cached while the current one is still speaking (no provider call). */
+  const prefetchNextCachedPrompt = useCallback((questionId: string, language: 'en' | 'hi') => {
+    const order = ['name', 'age', 'gender', 'primary_concern'];
+    const index = order.indexOf(questionId);
+    if (index < 0 || index === order.length - 1) return;
+    const next = order[index + 1];
+    const plan = planAssistantSpeech(next, language);
+    if (plan.kind !== 'cached') return;
+    for (const source of plan.sources) warmUrl(source);
+  }, []);
+
   const speakQuestion = useCallback(
-    async (question: QuestionRef): Promise<SpeechOutcome> => {
+    async (question: QuestionRef, onStart?: () => void): Promise<SpeechOutcome> => {
       const { language } = optionsRef.current;
       const plan = planAssistantSpeech(question.id, language);
 
       if (plan.kind === 'cached') {
         for (const source of plan.sources) {
-          const result = await playback().play(source);
-          if (result.ok) return { spoken: true };
+          const result = await playback().play(source, { onStart });
+          if (result.ok) {
+            prefetchNextCachedPrompt(question.id, language);
+            return { spoken: true };
+          }
           if (result.reason === 'blocked') return { spoken: false, reason: 'blocked' };
         }
         return { spoken: false, reason: 'missing' };
@@ -121,7 +148,7 @@ export function useVoiceConversation(options: UseVoiceConversationOptions): Voic
         const url = cached ?? (await optionsRef.current.speakAdaptive(question.id));
         if (!url) return { spoken: false, reason: 'missing' };
         if (!cached) cacheRef.current.set(language, question.id, url);
-        const result = await playback().play(url);
+        const result = await playback().play(url, { onStart });
         if (result.ok) return { spoken: true };
         return { spoken: false, reason: result.reason === 'blocked' ? 'blocked' : 'error' };
       }
@@ -130,8 +157,41 @@ export function useVoiceConversation(options: UseVoiceConversationOptions): Voic
       // clarification): say so instead of playing placeholder silence.
       return { spoken: false, reason: 'missing' };
     },
-    [playback],
+    [playback, prefetchNextCachedPrompt],
   );
+
+  /** Starts sampling the open take so sustained silence can finalise it. */
+  const beginVad = useCallback(() => {
+    endVadRef.current?.();
+    const stream = recorderRef.current?.stream;
+    if (!stream || !isVadSupported()) {
+      setVadActive(false);
+      if (!vadNoticeShownRef.current) {
+        vadNoticeShownRef.current = true;
+        setNotice('vad_unavailable');
+      }
+      return;
+    }
+    const detector = createSilenceDetector();
+    detectorRef.current = detector;
+    const monitor = createMicrophoneMonitor(stream, {
+      onLevel: (level, atMs) => {
+        const event = detector.push(level, atMs);
+        if (event === 'silence_detected') controllerRef.current?.notifySilenceDetected();
+      },
+    });
+    monitorRef.current = monitor;
+    setVadActive(monitor.supported);
+  }, []);
+
+  const endVad = useCallback(() => {
+    monitorRef.current?.stop();
+    monitorRef.current = null;
+    detectorRef.current.reset();
+    setVadActive(false);
+  }, []);
+  const endVadRef = useRef<(() => void) | null>(null);
+  endVadRef.current = endVad;
 
   const startListening = useCallback(async (): Promise<void> => {
     cancelRecording();
@@ -156,6 +216,7 @@ export function useVoiceConversation(options: UseVoiceConversationOptions): Voic
   }, [cancelRecording]);
 
   const stopListening = useCallback(async (): Promise<RecordedAnswer> => {
+    endVad();
     const recorder = recorderRef.current;
     recorderRef.current = null;
     if (!recorder) throw new Error('No active recording');
@@ -176,7 +237,7 @@ export function useVoiceConversation(options: UseVoiceConversationOptions): Voic
       duration_ms: result.durationMs,
       has_audio: hasAudio,
     };
-  }, []);
+  }, [endVad]);
 
   const transcribe = useCallback(async (answer: RecordedAnswer) => {
     const { sessionId, question } = optionsRef.current;
@@ -246,14 +307,24 @@ export function useVoiceConversation(options: UseVoiceConversationOptions): Voic
     const controller = new VoiceConversation(
       {
         speak: speakQuestion,
-        startListening,
+        startListening: async () => {
+          await startListening();
+          beginVad();
+        },
         stopListening,
-        cancelListening: cancelRecording,
+        cancelListening: () => {
+          endVad();
+          cancelRecording();
+        },
         transcribe,
         submit,
       },
       {
-        onPhase: (next) => setPhase(next),
+        onPhase: (next) => {
+          setPhase(next);
+          if (next !== 'assistant_speaking') setSpeechActive(false);
+        },
+        onSpeechStart: () => setSpeechActive(true),
         onTranscript: (text) => {
           setTranscript(text);
           setNotice(null);
@@ -276,7 +347,7 @@ export function useVoiceConversation(options: UseVoiceConversationOptions): Voic
     controller.setSuspended(suspendedRef.current);
     controllerRef.current = controller;
     return controller;
-  }, [cancelRecording, playback, speakQuestion, startListening, stopListening, submit, transcribe]);
+  }, [beginVad, cancelRecording, endVad, playback, speakQuestion, startListening, stopListening, submit, transcribe]);
 
   const unlock = useCallback((options: { microphone?: boolean } = {}) => {
     void playback().unlock();
@@ -320,12 +391,21 @@ export function useVoiceConversation(options: UseVoiceConversationOptions): Voic
   const stop = useCallback(() => {
     controllerRef.current?.dispose();
     controllerRef.current = null;
+    endVad();
     cancelRecording();
     playback().stop();
+    setSpeechActive(false);
     setElapsedSeconds(0);
   }, [cancelRecording, playback]);
 
   const dismissNotice = useCallback(() => setNotice(null), []);
+
+  // Warm the Supabase origin once so the first `speak` request does not pay for a new
+  // TLS/DNS handshake. Static hints only — no request, no data, no provider cost.
+  useEffect(() => {
+    const url = typeof import.meta !== 'undefined' ? import.meta.env?.VITE_SUPABASE_URL : '';
+    if (url) preconnect(url);
+  }, []);
 
   // Start the loop once per session, the first time the conversation screen shows a
   // question. Later questions are handled inside the controller.
@@ -345,6 +425,7 @@ export function useVoiceConversation(options: UseVoiceConversationOptions): Voic
       controllerRef.current?.dispose();
       controllerRef.current = null;
       startedRef.current = '';
+      endVadRef.current?.();
       cancelRecording();
       playbackRef.current?.stop();
       cacheRef.current.clear();
@@ -359,6 +440,8 @@ export function useVoiceConversation(options: UseVoiceConversationOptions): Voic
     micDenied,
     isListening: phase === 'listening',
     isSpeaking: phase === 'assistant_speaking',
+    speechActive,
+    vadActive,
     dismissNotice,
     unlock,
     done,

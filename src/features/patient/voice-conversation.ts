@@ -15,6 +15,7 @@ export type VoicePhase =
   | 'initializing'
   | 'assistant_speaking'
   | 'listening'
+  | 'silence_detected'
   | 'transcribing'
   | 'submitting'
   | 'processing'
@@ -30,7 +31,10 @@ export const VOICE_TRANSITIONS: Readonly<Record<VoicePhase, readonly VoicePhase[
   assistant_speaking: ['listening', 'completed', 'idle', 'error'],
   // listening → assistant_speaking is the explicit "Replay audio" path; it cancels the
   // take first so speech and recording never overlap.
-  listening: ['transcribing', 'assistant_speaking', 'idle', 'error', 'completed'],
+  // listening → silence_detected is VAD deciding the patient finished; it finalises through
+  // the same idempotent path as Done.
+  listening: ['transcribing', 'silence_detected', 'assistant_speaking', 'idle', 'error', 'completed'],
+  silence_detected: ['transcribing', 'idle', 'error', 'completed'],
   transcribing: ['submitting', 'idle', 'error', 'completed'],
   submitting: ['processing', 'idle', 'error', 'completed'],
   processing: ['assistant_speaking', 'idle', 'error', 'completed'],
@@ -88,7 +92,8 @@ export type TurnOutcome =
 
 /** Everything the machine needs from the world. Injected so tests use fakes. */
 export interface VoicePorts {
-  speak(question: QuestionRef): Promise<SpeechOutcome>;
+  /** `onStart` fires when audio playback actually begins, never before. */
+  speak(question: QuestionRef, onStart?: () => void): Promise<SpeechOutcome>;
   startListening(): Promise<void>;
   stopListening(): Promise<RecordedAnswer>;
   cancelListening(): void;
@@ -99,6 +104,8 @@ export interface VoicePorts {
 export interface VoiceObserver {
   onPhase?(phase: VoicePhase): void;
   onQuestion?(question: QuestionRef): void;
+  /** Playback really started for this question (used for text/audio highlighting). */
+  onSpeechStart?(question: QuestionRef): void;
   onTranscript?(text: string): void;
   onElapsed?(seconds: number): void;
   onAudioFailure?(reason: SpeechFailure): void;
@@ -163,6 +170,7 @@ export class VoiceConversation {
       this.phase === 'initializing' ||
       this.phase === 'assistant_speaking' ||
       this.phase === 'listening' ||
+      this.phase === 'silence_detected' ||
       this.phase === 'transcribing' ||
       this.phase === 'submitting' ||
       this.phase === 'processing'
@@ -187,10 +195,21 @@ export class VoiceConversation {
     await this.speakThenListen(question);
   }
 
-  /** Done pressed, or the 30-second cap fired. Idempotent. */
+  /**
+   * VAD reported sustained silence after speech. It converges on the same idempotent
+   * finalisation as the manual Done button, so the two paths can never double-submit.
+   */
+  notifySilenceDetected(): void {
+    if (this.disposed || this.finishing) return;
+    if (this.phase !== 'listening') return;
+    if (!this.setPhase('silence_detected')) return;
+    void this.finishAnswer();
+  }
+
+  /** Done pressed, the 30-second cap fired, or VAD detected silence. Idempotent. */
   async finishAnswer(): Promise<void> {
     if (this.disposed) return;
-    if (this.phase !== 'listening') return;
+    if (this.phase !== 'listening' && this.phase !== 'silence_detected') return;
     if (this.finishing) return;
     this.finishing = true;
 
@@ -345,7 +364,7 @@ export class VoiceConversation {
 
     let speech: SpeechOutcome = { spoken: false, reason: 'missing' };
     try {
-      speech = await this.ports.speak(question);
+      speech = await this.ports.speak(question, () => this.observer.onSpeechStart?.(question));
     } catch {
       speech = { spoken: false, reason: 'error' };
     }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { doctorLogin, FICTIONAL_DOCTORS, getAppMode } from '../../lib/api';
 import { DoctorProfile } from '../../types/doctor';
 import { BackButton } from '../common/BackButton';
+import { ThemeToggle } from '../common/ThemeToggle';
 
 interface DoctorLoginProps {
   onLoginSuccess: (doctor: DoctorProfile) => void;
@@ -38,6 +39,9 @@ export const DoctorLogin: React.FC<DoctorLoginProps> = ({ onLoginSuccess }) => {
         {/* Figma Ambient Glow Orbs (82:2 & 82:3) */}
         <div className="absolute w-[420px] h-[400px] right-[-100px] bottom-[-100px] rounded-full glow-lilac z-0" aria-hidden="true" />
         <div className="absolute w-[420px] h-[380px] left-[-160px] bottom-[-100px] rounded-full glow-sand z-0" aria-hidden="true" />
+        <div className="absolute top-5 right-5 z-20">
+          <ThemeToggle />
+        </div>
 
         {/* Left Hero Area (Figma 82:5 - 82:9) */}
         <div className="relative z-10 max-w-md space-y-4">

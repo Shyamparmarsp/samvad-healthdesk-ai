@@ -49,7 +49,11 @@ export const SILENT_UNLOCK_SOURCE =
 export interface AudioPlayback {
   /** Must be called from a user gesture. Unlocks every later play() call. */
   unlock(): Promise<void>;
-  play(url: string): Promise<PlaybackResult>;
+  /**
+   * Plays one URL. `onStart` fires when the browser actually begins playback (the
+   * `play()` promise resolves), which is what the text highlight is allowed to follow.
+   */
+  play(url: string, options?: { onStart?: () => void }): Promise<PlaybackResult>;
   stop(): void;
   readonly isPlaying: boolean;
   /** True once unlock() ran inside a gesture. */
@@ -130,7 +134,7 @@ export function createAudioPlayback(options: AudioPlaybackOptions = {}): AudioPl
       unlocked = true;
     },
 
-    async play(url: string): Promise<PlaybackResult> {
+    async play(url: string, options: { onStart?: () => void } = {}): Promise<PlaybackResult> {
       if (!url) return { ok: false, reason: 'missing' };
       stop();
       const target = ensure();
@@ -166,9 +170,14 @@ export function createAudioPlayback(options: AudioPlaybackOptions = {}): AudioPl
           settle({ ok: false, reason: nameOf(error) === 'NotAllowedError' ? 'blocked' : 'error' });
           return;
         }
-        Promise.resolve(played).catch((error: unknown) => {
-          settle({ ok: false, reason: nameOf(error) === 'NotAllowedError' ? 'blocked' : 'error' });
-        });
+        Promise.resolve(played)
+          .then(() => {
+            // Real playback start, not the request start: highlight may follow this.
+            if (token === attempt) options.onStart?.();
+          })
+          .catch((error: unknown) => {
+            settle({ ok: false, reason: nameOf(error) === 'NotAllowedError' ? 'blocked' : 'error' });
+          });
       });
     },
 

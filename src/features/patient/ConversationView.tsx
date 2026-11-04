@@ -4,6 +4,7 @@ import { ChatMessage, QuestionId } from '../../types/api';
 import { PatientHeader } from './PatientHeader';
 import { BackButton } from '../common/BackButton';
 import { isConversationDeadEnd } from '../../lib/navigation';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 export type AnswerType = 'free_text' | 'yes_no' | 'single_choice';
 
@@ -13,6 +14,7 @@ export type ConversationVoicePhase =
   | 'initializing'
   | 'assistant_speaking'
   | 'listening'
+  | 'silence_detected'
   | 'transcribing'
   | 'submitting'
   | 'processing'
@@ -161,6 +163,15 @@ interface ConversationViewProps {
   onDoneAnswer?: () => void;
   /** Re-open the microphone after an error, denial or empty transcription. */
   onRetryVoice?: () => void;
+  /** Back/Exit: the confirmation dialog is owned by the shell. */
+  exitDialogOpen?: boolean;
+  onRequestExit?: () => void;
+  onCancelExit?: () => void;
+  onConfirmExit?: () => void;
+  /** True when automatic silence detection is running for this take. */
+  vadActive?: boolean;
+  /** Playback actually started for the current question. */
+  speechActive?: boolean;
 }
 
 export const ConversationView: React.FC<ConversationViewProps> = ({
@@ -185,6 +196,12 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   onChangeMode,
   onDoneAnswer,
   onRetryVoice,
+  exitDialogOpen = false,
+  onRequestExit,
+  onCancelExit,
+  onConfirmExit,
+  vadActive = false,
+  speechActive = false,
 }) => {
   const { t, language } = useI18n();
 
@@ -235,10 +252,15 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
       const elapsedSecs = elapsedSeconds % 60;
       const formattedElapsed = `${String(elapsedMinutes).padStart(2, '0')}:${String(elapsedSecs).padStart(2, '0')}`;
       const prefix = language === 'hi' ? 'सुन रहे हैं...' : 'Listening...';
-      return `${prefix} ${formattedElapsed} / 00:30`;
+      const autoSend = vadActive ? (language === 'hi' ? ' · स्वतः भेजें' : ' · auto-send') : '';
+      return `${prefix} ${formattedElapsed} / 00:30${autoSend}`;
+    }
+    if (isSpeaking && speechActive) {
+      return language === 'hi' ? 'सहायक बोल रहे हैं...' : 'Assistant is speaking...';
     }
     if (isSpeaking) {
-      return language === 'hi' ? 'सहायक बोल रहे हैं...' : 'Assistant is speaking...';
+      // The turn is ready but playback has not started yet; do not claim speech.
+      return t.chat.preparingAudio;
     }
     if (isVoiceStarting) {
       return language === 'hi' ? 'तैयार हो रहे हैं...' : 'Getting ready...';
@@ -277,7 +299,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         <PatientHeader />
         {onBack && (
           <div className="pt-0.5 pb-1">
-            <BackButton onClick={onBack} />
+            <BackButton onClick={() => (onRequestExit ?? onBack)?.()} />
           </div>
         )}
 
@@ -354,7 +376,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           <PatientHeader progress={progressFraction} />
           {onBack && (
             <div className="pt-0.5 pb-1">
-              <BackButton onClick={onBack} />
+              <BackButton onClick={() => (onRequestExit ?? onBack)?.()} />
             </div>
           )}
           <div className="my-auto backdrop-blur-[9px] bg-[rgba(255,255,255,0.75)] border border-white rounded-[28px] p-8 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.12)] text-center max-w-[350px] mx-auto w-full">
@@ -373,8 +395,10 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         </div>
       )}
 
-      {/* Top Header with Progress Bar (Figma 81:60 - 81:68) */}
-      <PatientHeader progress={progressFraction} />
+      {/* Top Header with Progress Bar (Figma 81:60 - 81:68). The chevron is the persistent
+          top-left exit control; it opens the confirmation dialog instead of leaving
+          silently. */}
+      <PatientHeader progress={progressFraction} onBack={onBack ? (onRequestExit ?? onBack) : undefined} />
 
       {/* Turn info & Replay audio bar */}
       <div className="flex items-center justify-between px-5 py-1 text-[11px] text-[#4a5470] z-10">
@@ -426,16 +450,14 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         aria-live="polite"
         className="flex-1 overflow-y-auto px-5 py-2 space-y-3 z-10"
       >
-        {onBack && (
-          <div className="pt-0.5 pb-1">
-            <BackButton onClick={onBack} />
-          </div>
-        )}
-
         {messages.map((msg) => {
           const isAssistant = msg.role === 'assistant';
+          // A stored assistant question for the active id (mock/demo sessions store them)
+          // is highlighted exactly like the synthesized bubble below.
+          const isActiveQuestion =
+            isAssistant && Boolean(msg.question_id) && msg.question_id === currentQuestion?.id;
           const displayedContent =
-            isAssistant && msg.question_id && msg.question_id === currentQuestion?.id && language === 'hi' && currentQuestion.text_hi
+            isActiveQuestion && language === 'hi' && currentQuestion?.text_hi
               ? currentQuestion.text_hi
               : msg.content;
           return (
@@ -474,9 +496,12 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                 </div>
               )}
               <div
-                className={`max-w-[82%] rounded-[20px] px-4 py-3 text-[13px] leading-relaxed ${
+                data-speaking={isActiveQuestion ? (speechActive ? 'true' : 'false') : undefined}
+                className={`max-w-[82%] rounded-[20px] px-4 py-3 text-[13px] leading-relaxed transition-colors duration-200 ${
                   isAssistant
-                    ? 'backdrop-blur-[9px] bg-[rgba(255,255,255,0.7)] border border-white text-[#1d2433] shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.1)] rounded-bl-sm'
+                    ? isActiveQuestion && speechActive
+                      ? 'backdrop-blur-[9px] bg-[rgba(255,255,255,0.92)] border border-[#1f2a44]/40 ring-1 ring-[#1f2a44]/25 text-[#1d2433] shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.1)] rounded-bl-sm'
+                      : 'backdrop-blur-[9px] bg-[rgba(255,255,255,0.7)] border border-white text-[#1d2433] shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.1)] rounded-bl-sm'
                     : 'bg-[rgba(225,235,253,0.92)] border border-[#d1def5] text-[#1d2433] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.08)] rounded-br-sm'
                 }`}
               >
@@ -541,7 +566,14 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                   <path d="M12 4v4m-3-4h6" strokeWidth={1.8} strokeLinecap="round" />
                 </svg>
               </div>
-              <div className="max-w-[82%] rounded-[20px] px-4 py-3 text-[13px] leading-relaxed backdrop-blur-[9px] bg-[rgba(255,255,255,0.7)] border border-white text-[#1d2433] shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.1)] rounded-bl-sm">
+              <div
+                data-speaking={speechActive ? 'true' : 'false'}
+                className={`max-w-[82%] rounded-[20px] px-4 py-3 text-[13px] leading-relaxed backdrop-blur-[9px] border text-[#1d2433] shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.1)] rounded-bl-sm transition-colors duration-200 ${
+                  speechActive
+                    ? 'bg-[rgba(255,255,255,0.92)] border-[#1f2a44]/40 ring-1 ring-[#1f2a44]/25'
+                    : 'bg-[rgba(255,255,255,0.7)] border-white'
+                }`}
+              >
                 {language === 'hi' && currentQuestion.text_hi ? currentQuestion.text_hi : currentQuestion.text}
               </div>
             </div>
@@ -748,7 +780,10 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
             </div>
 
             {/* Status caption (Figma 81:141) */}
-            <p className="text-[11px] font-medium text-[#4a5470] text-center mb-1 h-[20px] leading-[20px] select-none">
+            <p
+              className="text-[11px] font-medium text-[#4a5470] text-center mb-1 h-[20px] leading-[20px] select-none"
+              title={vadActive ? t.chat.vadHint : undefined}
+            >
               {getTimerStatusText()}
             </p>
           </div>
@@ -804,6 +839,17 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
           {t.welcome.disclaimer}
         </p>
       </div>
+
+      <ConfirmDialog
+        open={exitDialogOpen}
+        title={t.chat.exitTitle}
+        description={t.chat.exitMessage}
+        confirmLabel={t.chat.exitConfirm}
+        cancelLabel={t.chat.exitCancel}
+        tone="danger"
+        onConfirm={() => onConfirmExit?.()}
+        onCancel={() => onCancelExit?.()}
+      />
     </div>
   );
 };
