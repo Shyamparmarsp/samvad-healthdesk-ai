@@ -69,6 +69,11 @@ export interface StructuredRequest<T> {
   system: string;
   user: string;
   /**
+   * Completion budget. The patient paths answer with one short id (default 32); the
+   * doctor assistant writes a short Hindi briefing and asks for its own budget.
+   */
+  maxCompletionTokens?: number;
+  /**
    * Runtime validation of the parsed payload. Return the narrowed value, or null
    * to reject the whole response (unknown field, invented fact, bad enum).
    */
@@ -121,11 +126,12 @@ export async function requestStructured<T>(
           { role: "system", content: request.system },
           { role: "user", content: request.user },
         ],
-        // The answer is one short id, so a small completion budget is enough and keeps
-        // the model from spending time on extra tokens. Deterministic decoding keeps the
-        // selection stable for identical inputs.
+        // The patient paths answer with one short id, so a small completion budget is
+        // enough and keeps the model from spending time on extra tokens. The doctor
+        // assistant passes its own budget for a short Hindi briefing. Deterministic
+        // decoding keeps the wording stable for identical facts.
         temperature: 0,
-        max_completion_tokens: 32,
+        max_completion_tokens: request.maxCompletionTokens ?? 32,
         response_format: {
           type: "json_schema",
           json_schema: {

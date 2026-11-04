@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
 import { Appointment, DoctorAppointmentsTab } from '../../types/doctor';
 import { formatIstDate, formatIstTime, parseInstant } from '../../lib/booking-time';
-import { BackButton } from '../common/BackButton';
+import { DoctorPageHeader } from './DoctorPageHeader';
 
 interface DoctorAppointmentsViewProps {
   appointments: Appointment[];
   onSelectReport?: (reportId: string) => void;
   onBack?: () => void;
+  /** Tab state is lifted so the assistant can summarise what is on screen. */
+  activeTab?: DoctorAppointmentsTab;
+  onActiveTabChange?: (tab: DoctorAppointmentsTab) => void;
+  /** Upper-right header slot: the shared Samwad Assistant. */
+  assistant?: React.ReactNode;
 }
 
 export function getIstDateStr(date: Date): string {
@@ -42,8 +47,13 @@ export const DoctorAppointmentsView: React.FC<DoctorAppointmentsViewProps> = ({
   appointments,
   onSelectReport,
   onBack,
+  activeTab: controlledTab,
+  onActiveTabChange,
+  assistant,
 }) => {
-  const [activeTab, setActiveTab] = useState<DoctorAppointmentsTab>('upcoming');
+  const [internalTab, setInternalTab] = useState<DoctorAppointmentsTab>('upcoming');
+  const activeTab = controlledTab ?? internalTab;
+  const setActiveTab = onActiveTabChange ?? setInternalTab;
   const now = new Date();
 
   // Derive Today, Upcoming, Past based on slot_start in Asia/Kolkata
@@ -57,18 +67,13 @@ export const DoctorAppointmentsView: React.FC<DoctorAppointmentsViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Header matching Figma D6 */}
-      <div className="flex items-center gap-3">
-        {onBack && <BackButton onClick={onBack} label="Back to Dashboard" />}
-        <div>
-          <h1 className="text-[26px] font-bold text-[#1d2433] tracking-tight">
-            Appointments
-          </h1>
-          <p className="text-[12px] text-[#4a5470] mt-0.5">
-            Patient consultations scheduled via Samvad HealthDesk AI referral.
-          </p>
-        </div>
-      </div>
+      {/* Header matching Figma D6, with the Samwad Assistant upper-right */}
+      <DoctorPageHeader
+        title="Appointments"
+        subtitle="Patient consultations scheduled via Samvad HealthDesk AI referral."
+        back={onBack ? { onClick: onBack, label: 'Back to Dashboard' } : undefined}
+        assistant={assistant}
+      />
 
       {/* Frosted Table Card matching Figma 82:416 */}
       <div className="rounded-[24px] bg-[rgba(255,255,255,0.55)] backdrop-blur-[9px] border border-white p-6 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.13)] space-y-6">

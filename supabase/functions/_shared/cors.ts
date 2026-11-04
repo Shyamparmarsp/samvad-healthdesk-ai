@@ -35,6 +35,8 @@ export interface CorsDecision {
 
 const ALLOW_METHODS = "POST, OPTIONS";
 const ALLOW_HEADERS = "authorization, x-client-info, apikey, content-type";
+/** Non-secret response headers the browser may read (summary text + its source). */
+export const EXPOSED_HEADERS = "x-summary-text, x-summary-source, content-type";
 
 /** Decides the CORS response headers for one request origin. */
 export function resolveCors(origin: string | null, configured: string | null | undefined): CorsDecision {
@@ -54,6 +56,9 @@ export function resolveCors(origin: string | null, configured: string | null | u
       "Access-Control-Allow-Origin": origin,
       "Access-Control-Allow-Methods": ALLOW_METHODS,
       "Access-Control-Allow-Headers": ALLOW_HEADERS,
+      // The doctor assistant reads the validated Hindi text (the exact text that was
+      // spoken) from these response headers; they are not credentials.
+      "Access-Control-Expose-Headers": EXPOSED_HEADERS,
       "Access-Control-Max-Age": "600",
       Vary: "Origin",
     },

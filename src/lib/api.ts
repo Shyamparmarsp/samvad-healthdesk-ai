@@ -33,6 +33,8 @@ import {
   Appointment,
   DoctorDashboardStats,
 } from '../types/doctor';
+import type { SummaryFacts } from '../../supabase/functions/_shared/doctor-summary';
+import { renderHindiSummary } from '../../supabase/functions/_shared/doctor-summary';
 import { formatIstTime, istDateKey, parseInstant, addMinutes } from './booking-time';
 
 import { CONSENT_VERSION } from '../types/consent';
@@ -1740,6 +1742,55 @@ export async function speak(
   questionId: string | null,
   messageId?: SystemMessageId,
 ): Promise<{ audioUrl?: string; text?: string }> {
+  return requestSpeech({
+    session_id: sessionId,
+    ...(messageId ? { message_id: messageId } : { question_id: questionId }),
+  });
+}
+
+/** Where a doctor summary sentence came from. */
+export type SummarySource = 'qwen' | 'fallback';
+
+export interface SpokenSummary {
+  audioUrl?: string;
+  /** The exact validated sentence the server spoke (and displayed). */
+  text?: string;
+  source?: SummarySource;
+}
+
+/**
+ * Speaks the doctor assistant summary.
+ *
+ * The browser sends the same validated fact object the Hindi sentence is generated from —
+ * never the sentence itself — so `speak` stays unable to synthesise arbitrary text.
+ * The server asks the existing Groq Qwen model to phrase those facts, validates the
+ * answer, and returns the accepted sentence in `x-summary-text`. The panel displays that
+ * returned sentence and nothing else, so an unvalidated model answer is never shown and
+ * screen text can never disagree with the audio.
+ */
+export async function speakDoctorSummary(facts: SummaryFacts): Promise<SpokenSummary> {
+  return requestSpeech({ summary_facts: facts }, true);
+}
+
+/** Decodes the base64url `x-summary-text` header (Hindi is not header-safe raw). */
+function decodeSummaryHeader(value: string | null): string | undefined {
+  if (!value) return undefined;
+  try {
+    const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return undefined;
+  }
+}
+
+/** One transport for every `speak` target, so error handling cannot drift. */
+async function requestSpeech(
+  body: Record<string, unknown>,
+  isSummary = false,
+): Promise<SpokenSummary> {
   if (currentAppMode === 'supabase') {
     const client = getSupabaseClient();
     const { data: sessionData } = await client.auth.getSession();
@@ -1753,28 +1804,40 @@ export async function speak(
         apikey: SUPABASE_KEY,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({
-        session_id: sessionId,
-        ...(messageId ? { message_id: messageId } : { question_id: questionId }),
-      }),
+      body: JSON.stringify(body),
     });
+
+    const summaryText = isSummary ? decodeSummaryHeader(response.headers.get('x-summary-text')) : undefined;
+    const summarySource = isSummary
+      ? (response.headers.get('x-summary-source') as SummarySource | null) ?? undefined
+      : undefined;
 
     const contentType = (response.headers.get('content-type') || '').toLowerCase();
     if (!response.ok || contentType.includes('application/json')) {
       // `{ text }` fallback, or an error body. Never claim audio.
       try {
-        const body = (await response.json()) as { text?: string };
-        return { audioUrl: undefined, text: typeof body?.text === 'string' ? body.text : undefined };
+        const payload = (await response.json()) as { text?: string; source?: SummarySource };
+        return {
+          audioUrl: undefined,
+          text: typeof payload?.text === 'string' ? payload.text : summaryText,
+          source: payload?.source ?? summarySource,
+        };
       } catch {
-        return { audioUrl: undefined };
+        return { audioUrl: undefined, text: summaryText, source: summarySource };
       }
     }
 
     const blob = await response.blob();
-    if (blob.size === 0) return { audioUrl: undefined };
-    return { audioUrl: URL.createObjectURL(blob) };
+    if (blob.size === 0) return { audioUrl: undefined, text: summaryText, source: summarySource };
+    return { audioUrl: URL.createObjectURL(blob), text: summaryText, source: summarySource };
   }
 
+  // Mock mode has no backend, so there is no provider call and no audio. The sentence is
+  // the deterministic renderer's output, which is exactly what a fallback would produce.
+  if (isSummary) {
+    const facts = body.summary_facts as SummaryFacts;
+    return { text: renderHindiSummary(facts), source: 'fallback' };
+  }
   return { audioUrl: undefined };
 }
 

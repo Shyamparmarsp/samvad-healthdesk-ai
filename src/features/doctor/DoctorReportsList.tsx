@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { DoctorReportsTab } from '../../types/doctor';
 import { ReportRow } from '../../types/report';
 import { formatIstTime } from '../../lib/booking-time';
-import { BackButton } from '../common/BackButton';
+import { DoctorPageHeader } from './DoctorPageHeader';
 
 interface DoctorReportsListProps {
   reports: ReportRow[];
@@ -18,6 +18,8 @@ interface DoctorReportsListProps {
   searchQuery?: string;
   onActiveTabChange?: (tab: DoctorReportsTab) => void;
   onSearchChange?: (query: string) => void;
+  /** Upper-right header slot: the shared Samwad Assistant. */
+  assistant?: React.ReactNode;
 }
 
 export function filterReportsByTab(
@@ -63,6 +65,7 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
   searchQuery: controlledSearch,
   onActiveTabChange,
   onSearchChange,
+  assistant,
 }) => {
   const [internalTab, setInternalTab] = useState<DoctorReportsTab>('all');
   const [internalSearch, setInternalSearch] = useState('');
@@ -90,34 +93,28 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Header matching Figma D3 */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          {onBack && <BackButton onClick={onBack} label="Back to Dashboard" />}
-          <div>
-            <h1 className="text-[26px] font-bold text-[#1d2433] tracking-tight">
-              Reports
-            </h1>
-            <p className="text-[12px] text-[#4a5470] mt-0.5">
-              Patient Intake Reports · Triage, filter and review submitted clinical statements
-            </p>
+      {/* Top Header matching Figma D3, with the Samwad Assistant upper-right */}
+      <DoctorPageHeader
+        title="Reports"
+        subtitle="Patient Intake Reports · Triage, filter and review submitted clinical statements"
+        back={onBack ? { onClick: onBack, label: 'Back to Dashboard' } : undefined}
+        assistant={assistant}
+        toolbar={
+          <div className="relative w-full sm:w-72">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search patient or ref..."
+              aria-label="Search reports by patient, reference or concern"
+              className="h-10 w-full rounded-full border border-white bg-white/70 pl-9 pr-3 text-xs text-[#1d2433] placeholder-[#4a5470]/60 shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.08)] backdrop-blur-[6px] focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
+            />
+            <svg className="absolute left-3 top-3 h-4 w-4 text-[#4a5470]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
           </div>
-        </div>
-
-        {/* Search input with frosted glass */}
-        <div className="relative w-full sm:w-72">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search patient or ref..."
-            className="w-full h-10 pl-9 pr-3 rounded-full border border-white bg-white/70 backdrop-blur-[6px] text-xs text-[#1d2433] placeholder-[#4a5470]/60 shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.08)] focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
-          />
-          <svg className="w-4 h-4 text-[#4a5470] absolute left-3 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </div>
-      </div>
+        }
+      />
 
       {/* Frosted Reports Card matching Figma 82:166 */}
       <div className="rounded-[24px] bg-[rgba(255,255,255,0.55)] backdrop-blur-[9px] border border-white p-6 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.13)] space-y-6">

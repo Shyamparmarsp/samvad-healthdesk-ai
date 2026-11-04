@@ -9,13 +9,15 @@ import {
   presentGender,
   presentMissingInformation,
 } from '../../lib/report-presentation';
-import { BackButton } from '../common/BackButton';
+import { DoctorPageHeader } from './DoctorPageHeader';
 import { WarningFlags } from './WarningFlags';
 
 interface DoctorReportDetailProps {
   report: ReportRow;
   onBack: () => void;
   onRefreshReport: () => void;
+  /** Upper-right header slot: the shared Samwad Assistant. */
+  assistant?: React.ReactNode;
 }
 
 function getInitials(name?: string): string {
@@ -52,6 +54,7 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
   report,
   onBack,
   onRefreshReport,
+  assistant,
 }) => {
   const [isMarking, setIsMarking] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
@@ -179,37 +182,34 @@ export const DoctorReportDetail: React.FC<DoctorReportDetailProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Navigation & Status Bar matching Figma D4 */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <BackButton onClick={onBack} label="Back to Reports" />
-          <div>
-            <h1 className="text-[25px] font-bold text-[#1d2433] tracking-tight">
-              Patient Report
-            </h1>
-            <p className="text-[11px] text-[#4a5470] mt-0.5">
-              {report.intake_reference || 'Reference unavailable'}
-              {submittedLabel ? ` · Submitted ${submittedLabel} IST` : ' · Submitted time unavailable'}
-            </p>
-          </div>
-        </div>
-
-        {/* Source & Review status chips */}
-        <div className="flex items-center gap-2">
-          <div className="h-[28px] px-3.5 rounded-full bg-[#e1ebfd] text-[#284c91] text-[10px] font-semibold flex items-center justify-center">
-            {sourceChip}
-          </div>
-          {isReviewed ? (
-            <div className="h-[28px] px-3.5 rounded-full bg-[#dcf3e6] text-[#176a3b] text-[10px] font-semibold flex items-center justify-center">
-              Reviewed
+      {/* Top Navigation & Status Bar matching Figma D4, with the Samwad Assistant upper-right */}
+      <DoctorPageHeader
+        title="Patient Report"
+        subtitle={
+          <>
+            {report.intake_reference || 'Reference unavailable'}
+            {submittedLabel ? ` · Submitted ${submittedLabel} IST` : ' · Submitted time unavailable'}
+          </>
+        }
+        back={{ onClick: onBack, label: 'Back to Reports' }}
+        assistant={assistant}
+        meta={
+          <>
+            <div className="flex h-[28px] items-center justify-center rounded-full bg-[#e1ebfd] px-3.5 text-[10px] font-semibold text-[#284c91]">
+              {sourceChip}
             </div>
-          ) : (
-            <div className="h-[28px] px-3.5 rounded-full bg-[#e4e8f2] text-[#3a4468] text-[10px] font-semibold flex items-center justify-center">
-              Pending review
-            </div>
-          )}
-        </div>
-      </div>
+            {isReviewed ? (
+              <div className="flex h-[28px] items-center justify-center rounded-full bg-[#dcf3e6] px-3.5 text-[10px] font-semibold text-[#176a3b]">
+                Reviewed
+              </div>
+            ) : (
+              <div className="flex h-[28px] items-center justify-center rounded-full bg-[#e4e8f2] px-3.5 text-[10px] font-semibold text-[#3a4468]">
+                Pending review
+              </div>
+            )}
+          </>
+        }
+      />
 
       {/* Review Error Alert */}
       {reviewError && (

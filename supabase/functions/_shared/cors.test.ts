@@ -15,6 +15,16 @@ Deno.test("cors: configured production origin is allowed, wildcard is ignored", 
   assert(resolveCors("https://samvad.example.app", configured).allowed, "allowed");
 });
 
+Deno.test("cors: the doctor summary text headers are exposed to the allowed origin", () => {
+  const d = resolveCors("http://localhost:5173", null);
+  assert(d.allowed, "allowed");
+  const exposed = d.headers["Access-Control-Expose-Headers"];
+  assert(typeof exposed === "string", "expose header present");
+  assert(exposed.includes("x-summary-text"), "validated Hindi sentence is readable by the browser");
+  assert(exposed.includes("x-summary-source"), "summary source is readable by the browser");
+  assert(!exposed.toLowerCase().includes("authorization"), "no credential header is exposed");
+});
+
 Deno.test("cors: unknown origin gets no permissive header", () => {
   const d = resolveCors("https://evil.example", "https://samvad.example.app");
   assert(!d.allowed, "refused");

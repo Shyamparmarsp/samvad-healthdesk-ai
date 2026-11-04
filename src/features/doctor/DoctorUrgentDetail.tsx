@@ -8,7 +8,7 @@ import {
   presentGender,
   presentMissingInformation,
 } from '../../lib/report-presentation';
-import { BackButton } from '../common/BackButton';
+import { DoctorPageHeader } from './DoctorPageHeader';
 import { WarningFlags } from './WarningFlags';
 
 interface DoctorUrgentDetailProps {
@@ -16,6 +16,8 @@ interface DoctorUrgentDetailProps {
   currentDoctor?: DoctorProfile | null;
   onBack: () => void;
   onRefreshReport: () => void;
+  /** Upper-right header slot: the shared Samwad Assistant. */
+  assistant?: React.ReactNode;
 }
 
 function getInitials(name?: string): string {
@@ -32,6 +34,7 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
   currentDoctor,
   onBack,
   onRefreshReport,
+  assistant,
 }) => {
   const [isMarking, setIsMarking] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
@@ -69,30 +72,23 @@ export const DoctorUrgentDetail: React.FC<DoctorUrgentDetailProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Navigation & Status Bar matching Figma D5 */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <BackButton onClick={onBack} label="Back to Urgent List" />
-          <div>
-            <h1 className="text-[25px] font-bold text-[#1d2433] tracking-tight">
-              Patient Report
-            </h1>
-            <p className="text-[11px] text-[#4a5470] mt-0.5">
-              {report.intake_reference || 'Reference unavailable'} · Urgent Triage Case
-            </p>
-          </div>
-        </div>
-
-        {/* Source & Status Chips matching Figma 84:8, 84:10 */}
-        <div className="flex items-center gap-2">
-          <div className="h-[28px] px-3.5 rounded-full bg-[rgba(225,235,253,0.8)] border border-white text-[#1f2a44] text-[10px] font-semibold flex items-center justify-center">
-            {sourceChip}
-          </div>
-          <div className="h-[28px] px-3.5 rounded-full bg-[rgba(228,232,242,0.75)] border border-white text-[#3a4468] text-[10px] font-semibold flex items-center justify-center">
-            {isReviewed ? 'Reviewed' : 'Pending review'}
-          </div>
-        </div>
-      </div>
+      {/* Top Navigation & Status Bar matching Figma D5, with the Samwad Assistant upper-right */}
+      <DoctorPageHeader
+        title="Patient Report"
+        subtitle={<>{report.intake_reference || 'Reference unavailable'} · Urgent Triage Case</>}
+        back={{ onClick: onBack, label: 'Back to Urgent List' }}
+        assistant={assistant}
+        meta={
+          <>
+            <div className="flex h-[28px] items-center justify-center rounded-full border border-white bg-[rgba(225,235,253,0.8)] px-3.5 text-[10px] font-semibold text-[#1f2a44]">
+              {sourceChip}
+            </div>
+            <div className="flex h-[28px] items-center justify-center rounded-full border border-white bg-[rgba(228,232,242,0.75)] px-3.5 text-[10px] font-semibold text-[#3a4468]">
+              {isReviewed ? 'Reviewed' : 'Pending review'}
+            </div>
+          </>
+        }
+      />
 
       {/* Review Error Alert */}
       {reviewError && (

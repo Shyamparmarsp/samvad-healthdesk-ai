@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { DoctorProfile, DoctorDashboardStats, Appointment, DoctorReportsTab } from '../../types/doctor';
+import React, { useState, useEffect, useRef } from 'react';
+import { DoctorProfile, DoctorDashboardStats, Appointment, DoctorReportsTab, DoctorAppointmentsTab } from '../../types/doctor';
 import { ReportRow } from '../../types/report';
 import {
   getDoctorReports,
@@ -16,6 +16,7 @@ import { DoctorReportDetail } from './DoctorReportDetail';
 import { DoctorUrgentDetail } from './DoctorUrgentDetail';
 import { DoctorAppointmentsView } from './DoctorAppointmentsView';
 import { DoctorUrgentList } from './DoctorUrgentList';
+import { SamwadAssistant } from './SamwadAssistant';
 
 type DoctorView =
   | 'dashboard'
@@ -46,10 +47,35 @@ export const DoctorShell: React.FC = () => {
   // D-25: loading/error are surfaced instead of being swallowed into empty lists.
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // The assistant must stay silent until the dashboard data has actually arrived.
+  const [hasLoadedData, setHasLoadedData] = useState(false);
 
   // D-29: report list filter state survives opening a report and coming back.
   const [reportsTab, setReportsTab] = useState<DoctorReportsTab>('all');
   const [reportsSearch, setReportsSearch] = useState('');
+  // Appointment tab lives here too, so the assistant summarises the visible tab.
+  const [appointmentsTab, setAppointmentsTab] = useState<DoctorAppointmentsTab>('upcoming');
+
+  /**
+   * One dashboard entry = one Hindi briefing. The token increments when the doctor logs in
+   * and every time they navigate back to the dashboard, and never on a re-render.
+   */
+  const [dashboardEntryToken, setDashboardEntryToken] = useState(0);
+  const wasOnDashboard = useRef(false);
+
+  useEffect(() => {
+    if (!currentDoctor) {
+      wasOnDashboard.current = false;
+      return;
+    }
+    if (currentView !== 'dashboard') {
+      wasOnDashboard.current = false;
+      return;
+    }
+    if (wasOnDashboard.current) return;
+    wasOnDashboard.current = true;
+    setDashboardEntryToken((token) => token + 1);
+  }, [currentView, currentDoctor]);
 
   const loadData = async (docId?: string) => {
     setIsLoadingData(true);
@@ -63,6 +89,7 @@ export const DoctorShell: React.FC = () => {
       setReports(reps);
       setAppointments(apts);
       setStats(st);
+      setHasLoadedData(true);
     } catch (err: any) {
       // Keep the last good data on screen; report the failure explicitly.
       setLoadError(
@@ -94,6 +121,8 @@ export const DoctorShell: React.FC = () => {
     setAppointments([]);
     setSelectedReportId(null);
     setCurrentView('dashboard');
+    setHasLoadedData(false);
+    setDashboardEntryToken(0);
   };
 
   if (!currentDoctor) {
@@ -364,6 +393,16 @@ export const DoctorShell: React.FC = () => {
               bookedReportIds={bookedReportIds}
               onSelectReport={handleSelectReport}
               onNavigateTab={(tab) => setCurrentView(tab)}
+              assistant={
+                <SamwadAssistant
+                  doctorId={currentDoctor.id}
+                  page={{ kind: 'dashboard' }}
+                  autoGreet
+                  greetingToken={dashboardEntryToken}
+                  dataReady={hasLoadedData && !isLoadingData}
+                  dataFailed={Boolean(loadError)}
+                />
+              }
             />
           )}
 
@@ -377,6 +416,9 @@ export const DoctorShell: React.FC = () => {
               searchQuery={reportsSearch}
               onActiveTabChange={setReportsTab}
               onSearchChange={setReportsSearch}
+              assistant={
+                <SamwadAssistant doctorId={currentDoctor.id} page={{ kind: 'reports', tab: reportsTab, searchQuery: reportsSearch }} />
+              }
             />
           )}
 
@@ -385,6 +427,9 @@ export const DoctorShell: React.FC = () => {
               appointments={appointments}
               onSelectReport={handleSelectReport}
               onBack={() => setCurrentView('dashboard')}
+              activeTab={appointmentsTab}
+              onActiveTabChange={setAppointmentsTab}
+              assistant={<SamwadAssistant doctorId={currentDoctor.id} page={{ kind: 'appointments', tab: appointmentsTab }} />}
             />
           )}
 
@@ -393,6 +438,7 @@ export const DoctorShell: React.FC = () => {
               urgentReports={urgentReports}
               onSelectReport={handleSelectReport}
               onBack={() => setCurrentView('dashboard')}
+              assistant={<SamwadAssistant doctorId={currentDoctor.id} page={{ kind: 'urgent_review' }} />}
             />
           )}
 
@@ -403,12 +449,18 @@ export const DoctorShell: React.FC = () => {
                 currentDoctor={currentDoctor}
                 onBack={() => setCurrentView(previousView || 'urgent')}
                 onRefreshReport={() => loadData(currentDoctor.id)}
+                assistant={
+                  <SamwadAssistant doctorId={currentDoctor.id} page={{ kind: 'urgent_detail', report: selectedReport }} />
+                }
               />
             ) : (
               <DoctorReportDetail
                 report={selectedReport}
                 onBack={() => setCurrentView(previousView || 'reports')}
                 onRefreshReport={() => loadData(currentDoctor.id)}
+                assistant={
+                  <SamwadAssistant doctorId={currentDoctor.id} page={{ kind: 'report_detail', report: selectedReport }} />
+                }
               />
             )
           )}

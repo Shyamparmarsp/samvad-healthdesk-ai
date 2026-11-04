@@ -2,6 +2,7 @@ import React from 'react';
 import { DoctorDashboardStats, DoctorProfile } from '../../types/doctor';
 import { ReportRow } from '../../types/report';
 import { formatIstTime } from '../../lib/booking-time';
+import { DoctorPageHeader } from './DoctorPageHeader';
 
 interface DoctorDashboardViewProps {
   doctor: DoctorProfile;
@@ -10,6 +11,8 @@ interface DoctorDashboardViewProps {
   bookedReportIds?: Set<string>;
   onSelectReport: (reportId: string) => void;
   onNavigateTab: (tab: 'reports' | 'appointments' | 'urgent') => void;
+  /** Upper-right header slot: the shared Samwad Assistant (Figma 140:8 placement). */
+  assistant?: React.ReactNode;
 }
 
 export const DoctorDashboardView: React.FC<DoctorDashboardViewProps> = ({
@@ -19,6 +22,7 @@ export const DoctorDashboardView: React.FC<DoctorDashboardViewProps> = ({
   bookedReportIds,
   onSelectReport,
   onNavigateTab,
+  assistant,
 }) => {
   // D-08: dashboard figures are always derived from the loaded report data.
   const effectiveStats: DoctorDashboardStats = stats;
@@ -27,16 +31,18 @@ export const DoctorDashboardView: React.FC<DoctorDashboardViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Welcome Header (Figma 82:62 & 82:63) */}
-      <div>
-        <h1 className="text-[26px] font-bold text-[#1d2433] tracking-tight leading-tight">
-          Welcome, {doctor.name.split(' ')[0] === 'Dr.' ? doctor.name : `Dr. ${doctor.name}`}
-        </h1>
-        <p className="text-[13px] text-[#4a5470] mt-0.5 font-normal">
-          {doctor.department_name}
-          <span className="sr-only"> · Dashboard Overview</span>
-        </p>
-      </div>
+      {/* Page header: title left, Samwad Assistant in the upper-right corner
+          (Figma 82:62 title, 140:8 assistant). */}
+      <DoctorPageHeader
+        title={`Welcome, ${doctor.name.split(' ')[0] === 'Dr.' ? doctor.name : `Dr. ${doctor.name}`}`}
+        subtitle={
+          <>
+            {doctor.department_name}
+            <span className="sr-only"> · Dashboard Overview</span>
+          </>
+        }
+        assistant={assistant}
+      />
 
       {/* 4 Stat Metric Cards (Figma 82:64 - 82:74: 210x102 each) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

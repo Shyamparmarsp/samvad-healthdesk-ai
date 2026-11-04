@@ -1,14 +1,21 @@
 /**
- * speak — text to speech for the current approved adaptive question only.
+ * speak — text to speech for server-known text only.
  *
  * Security contract (AGENTS.md, MILESTONES M3-S7):
  *   - requires a valid user JWT (withSupabase auth: "user")
- *   - the session must belong to the caller
- *   - the client sends a session id and a question id, never text
- *   - the question must be the session's current question and must be adaptive;
- *     cached scripted prompts are never synthesised
- *   - one Timbre call is reserved before the attempt; no call is made at the turn cap
- *   - any failure, cap or provider error returns the approved question as text
+ *   - the client sends one of: a session id + question id, an allowlisted system message
+ *     id, or a validated doctor-assistant `summary_facts` object. It never sends text.
+ *   - a session question must belong to the caller and must be the session's current
+ *     question; cached scripted prompts are never synthesised
+ *   - doctor summary facts are phrased by the existing Groq Qwen model and validated
+ *     against those facts (`_shared/doctor-summary-llm.ts`); if the model is unavailable,
+ *     times out, or produces anything unsupported, the deterministic Hindi renderer in
+ *     `_shared/doctor-summary.ts` is used instead
+ *   - the validated text is returned to the browser in `x-summary-text`, so the shown and
+ *     spoken sentences are byte-identical and an unvalidated model answer is never shown
+ *   - one Groq attempt and one Timbre call are reserved before use; no provider call is
+ *     made at a daily cap
+ *   - any failure, cap or provider error returns the approved text instead of audio
  */
 
 import { withSupabase } from "@supabase/server";
@@ -16,23 +23,35 @@ import { preflight, withCors } from "../_shared/cors.ts";
 import { AppError, toErrorCode } from "../_shared/errors.ts";
 import { consoleLogger } from "../_shared/logging.ts";
 import { synthesize } from "../_shared/timbre.ts";
-import { QUESTIONS, isQuestionId } from "../_shared/questions.ts";
+import { QUESTIONS } from "../_shared/questions.ts";
 import { getQuestion as getBankQuestion } from "../_shared/intake/question-bank.ts";
 import { reserveUsage } from "../_shared/usage.ts";
 import type { RpcClient } from "../_shared/usage.ts";
 import { MAX_ANSWER_TURNS } from "../_shared/conversation.ts";
-import { isUuid, requireOwnedRow } from "../_shared/auth.ts";
+import { requireOwnedRow } from "../_shared/auth.ts";
 import { isSystemMessageId, systemMessageText, type SystemMessageId } from "../_shared/messages.ts";
+import { MAX_SUMMARY_CHARACTERS, renderHindiSummary } from "../_shared/doctor-summary.ts";
+import { phraseDoctorSummary } from "../_shared/doctor-summary-llm.ts";
+import { resolveSpeakTarget } from "../_shared/speak-target.ts";
 
 interface SpeakRequest {
   session_id?: unknown;
   question_id?: unknown;
   /**
    * Owner-approved system message id (completion acknowledgement, report-section
-   * instruction, send confirmation). Exactly one of `question_id` / `message_id` is
-   * accepted; free text is never accepted.
+   * instruction, send confirmation). Exactly one of `question_id` / `message_id` /
+   * `summary_facts` is accepted; free text is never accepted.
    */
   message_id?: unknown;
+  /**
+   * Doctor-assistant summary facts (see `_shared/doctor-summary.ts`).
+   *
+   * The browser cannot send text: it sends the same fixed, validated fact shape that the
+   * summary screen is rendered from, and this function renders the Hindi sentence itself.
+   * That keeps the endpoint useful for the doctor assistant without turning `speak` into
+   * an arbitrary text-to-speech proxy.
+   */
+  summary_facts?: unknown;
 }
 
 function corsConfig(): string | null {
@@ -41,6 +60,19 @@ function corsConfig(): string | null {
 
 function textFallback(message: string, status = 200): Response {
   return Response.json({ text: message }, { status });
+}
+
+/** Text-only response for a summary: the browser shows exactly this sentence. */
+function summaryFallback(text: string, source: "qwen" | "fallback", status = 200): Response {
+  return Response.json({ text, source }, { status });
+}
+
+/** Header-safe encoding of the Hindi sentence (HTTP headers are not UTF-8 safe). */
+function encodeSummaryHeader(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 export default {
@@ -62,35 +94,76 @@ export default {
       return textFallback("", 400);
     }
 
-    if (!isUuid(body.session_id)) {
-      return textFallback("", 400);
-    }
-    // Exactly one target: a session question, or one allowlisted system message id.
-    const hasMessage = body.message_id !== undefined;
-    const hasQuestion = body.question_id !== undefined;
-    if (hasMessage === hasQuestion) return textFallback("", 400);
-    if (hasMessage && !isSystemMessageId(body.message_id)) return textFallback("", 400);
-    const messageId: SystemMessageId | null = hasMessage ? (body.message_id as SystemMessageId) : null;
-
-    // Core ids and adaptive bank ids (GM-001 … CARD-030) are both valid here. Bank ids
-    // are exactly the adaptive questions Timbre exists for, so rejecting them made the
-    // paid path unreachable in the shipped flow.
-    const rawQuestionId = body.question_id;
-    if (!hasMessage) {
-      if (typeof rawQuestionId !== "string") return textFallback("", 400);
-      if (!isQuestionId(rawQuestionId) && !getBankQuestion(rawQuestionId)) {
-        return textFallback("", 400);
-      }
-    }
-    const questionId: string = hasMessage ? "" : (rawQuestionId as string);
+    // Exactly one target: a session question, one allowlisted system message id, or one
+    // validated doctor-summary fact set. Free text is never one of the targets.
+    const target = resolveSpeakTarget(body);
+    if (!target) return textFallback("", 400);
 
     try {
       const admin = ctx.supabaseAdmin;
 
+      if (target.kind === "summary") {
+        const facts = target.facts;
+
+        // Doctor-only: an account without a `doctor_profiles` mapping gets no audio.
+        const { data: mapping } = await admin
+          .from("doctor_profiles")
+          .select("doctor_id")
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (!mapping || typeof mapping.doctor_id !== "string" || mapping.doctor_id.length === 0) {
+          return textFallback("", 403);
+        }
+
+        // Stage B: the model only phrases Stage A facts. Anything unsupported is rejected
+        // and the deterministic renderer below becomes the authoritative sentence.
+        let summaryText = renderHindiSummary(facts);
+        let summarySource: "qwen" | "fallback" = "fallback";
+        let modelAttempts = 0;
+
+        const groqKey = Deno.env.get("GROQ_API_KEY") ?? "";
+        if (groqKey) {
+          const reservation = await reserveUsage(admin, "groq");
+          if (!reservation.allowed) {
+            consoleLogger.info("usage_capped", { counter: "groq", provider: "groq" });
+          } else {
+            const phrasing = await phraseDoctorSummary(facts, {
+              apiKey: groqKey,
+              baseUrl: Deno.env.get("GROQ_BASE_URL") ?? undefined,
+              timeoutMs: 8_000,
+            });
+            modelAttempts = phrasing.attempts;
+            if (phrasing.ok) {
+              summaryText = phrasing.text;
+              summarySource = "qwen";
+            }
+            consoleLogger.info("provider_attempt", { provider: "groq", ok: phrasing.ok });
+          }
+        }
+
+        // Metadata only: never the sentence, a patient field or a provider body.
+        consoleLogger.info("action_completed", {
+          action: "doctor_summary",
+          context: facts.context,
+          source: summarySource,
+          attempts: modelAttempts,
+          ...(facts.context === "dashboard" ? { intent: facts.intent } : {}),
+        });
+
+        if (!summaryText || summaryText.length > MAX_SUMMARY_CHARACTERS) {
+          return summaryFallback(summaryText, summarySource, 200);
+        }
+        // The assistant is Hindi-only, so the language is fixed here, never client-supplied.
+        return await synthesizeOrFallback(admin, "doctor-summary", summaryText, "hi", {
+          text: summaryText,
+          source: summarySource,
+        });
+      }
+
       const { data: session } = await admin
         .from("sessions")
         .select("id, user_id, status, answer_turn_count, current_question_id, language")
-        .eq("id", body.session_id)
+        .eq("id", target.sessionId)
         .maybeSingle();
 
       requireOwnedRow(session, userId);
@@ -102,15 +175,22 @@ export default {
         language: "en" | "hi";
       };
 
-      if (messageId) {
+      if (target.kind === "message") {
         // System messages are independent of the current question and of the turn cap;
         // they are only refused for an emergency session, which has its own guidance.
         const language = row.language ?? "en";
         if (row.status === "emergency") {
-          return textFallback(systemMessageText(messageId, language), 200);
+          return textFallback(systemMessageText(target.messageId, language), 200);
         }
-        return await synthesizeOrFallback(admin, `msg-${messageId}`, systemMessageText(messageId, language), language);
+        return await synthesizeOrFallback(
+          admin,
+          `msg-${target.messageId}`,
+          systemMessageText(target.messageId, language),
+          language,
+        );
       }
+
+      const questionId = target.questionId;
 
       if (row.status !== "in_progress" && row.status !== "consented") {
         return textFallback(questionTextFor(questionId, "en"), 200);
@@ -172,17 +252,19 @@ async function synthesizeOrFallback(
   questionId: string,
   text: string,
   language: "en" | "hi",
+  /** Doctor summary only: the exact validated sentence and where it came from. */
+  summary?: { text: string; source: "qwen" | "fallback" },
 ): Promise<Response> {
   const reservation = await reserveUsage(admin, "timbre");
   if (!reservation.allowed) {
     consoleLogger.info("usage_capped", { counter: "timbre", provider: "timbre" });
-    return textFallback(text, 200);
+    return summary ? summaryFallback(summary.text, summary.source, 200) : textFallback(text, 200);
   }
 
   const apiKey = Deno.env.get("GNANI_API_KEY") ?? "";
   if (!apiKey) {
     consoleLogger.error("provider_failure", { provider: "timbre", reason: "missing_key" });
-    return textFallback(text, 200);
+    return summary ? summaryFallback(summary.text, summary.source, 200) : textFallback(text, 200);
   }
 
   const result = await synthesize(
@@ -192,16 +274,24 @@ async function synthesizeOrFallback(
 
   consoleLogger.info("provider_attempt", { provider: "timbre", ok: result.ok });
 
-  if (!result.ok) return textFallback(text, 200);
+  if (!result.ok) {
+    return summary ? summaryFallback(summary.text, summary.source, 200) : textFallback(text, 200);
+  }
 
   const audioBuffer = result.audio.buffer.slice(
     result.audio.byteOffset,
     result.audio.byteOffset + result.audio.byteLength,
   ) as ArrayBuffer;
-  return new Response(audioBuffer, {
-    status: 200,
-    headers: { "Content-Type": result.contentType, "Cache-Control": "no-store" },
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": result.contentType,
+    "Cache-Control": "no-store",
+  };
+  if (summary) {
+    // The browser displays exactly this sentence, so audio and screen cannot disagree.
+    headers["x-summary-text"] = encodeSummaryHeader(summary.text);
+    headers["x-summary-source"] = summary.source;
+  }
+  return new Response(audioBuffer, { status: 200, headers });
 }
 
 function questionTextFor(questionId: string, language: "en" | "hi"): string {

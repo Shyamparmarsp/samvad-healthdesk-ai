@@ -533,11 +533,13 @@ begin
     raise exception 'FAIL: authenticated can read sessions';
   end if;
 
-  -- Report status is still the three-value lifecycle enum.
+  -- Report status is still the lifecycle enum: the three original values plus the
+  -- v1.3 `partial` early-finish value (migration 20261104083816). Anything else, and in
+  -- particular a "reviewed"/"cancelled" status, is a regression.
   select string_agg(e.enumlabel, ',' order by e.enumsortorder) into labels
     from pg_enum e join pg_type t on t.oid = e.enumtypid join pg_namespace n on n.oid = t.typnamespace
    where n.nspname = 'public' and t.typname = 'report_status';
-  if labels <> 'draft,submitted,urgent_partial' then
+  if labels <> 'draft,submitted,urgent_partial,partial' then
     raise exception 'FAIL: report_status labels changed: %', labels;
   end if;
 
