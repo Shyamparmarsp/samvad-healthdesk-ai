@@ -763,7 +763,7 @@ export const PatientShell: React.FC = () => {
           <ReportReviewView
             report={reviewDocument}
             isCapReached={chatState?.is_cap_reached}
-            canSubmit={hasSubmittedReport ? true : chatState?.can_submit}
+            canSubmit={hasSubmittedReport || partialPreview ? true : chatState?.can_submit}
             mode={reviewModeFor(hasSubmittedReport)}
             onCorrectField={handleCorrectField}
             onSubmit={partialPreview ? handleSendPartialReport : handleSubmitReport}
