@@ -339,19 +339,42 @@ export function validateModelSummary(raw: string, facts: SummaryFacts): SummaryV
     if (!allowed.counts.has(value)) return { ok: false, reason: "unsupported_number" };
   }
 
-  // Status claims must be backed by the fact that enables them.
-  if (text.includes("अत्यावश्यक") && !allowed.allowUrgent) return { ok: false, reason: "unsupported_claim" };
-  if (/(समीक्षा पूरी|समीक्षा कर ली|समीक्षा हो चुकी)/.test(text) && !allowed.allowReviewed) {
-    return { ok: false, reason: "unsupported_claim" };
+  /**
+   * Status claims must be backed by the fact that enables them.
+   *
+   * A *negative* statement ("कोई अत्यावश्यक रिपोर्ट नहीं है") is allowed because it is
+   * true when the count is zero; only a positive assertion without the supporting fact
+   * is rejected. Sentences are checked individually so a negation elsewhere in the
+   * briefing cannot excuse an unsupported claim.
+   */
+  const sentences = text
+    .split(/[।!?]+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 0);
+  const isNegated = (sentence: string) => sentence.includes("नहीं");
+
+  for (const sentence of sentences) {
+    if (isNegated(sentence)) continue;
+
+    if (!allowed.allowUrgent && sentence.includes("अत्यावश्यक")) {
+      return { ok: false, reason: "unsupported_claim" };
+    }
+    if (!allowed.allowReviewed && /(समीक्षा पूरी|समीक्षा कर ली|समीक्षा हो चुकी)/.test(sentence)) {
+      return { ok: false, reason: "unsupported_claim" };
+    }
+    if (!allowed.allowPendingReview && /(समीक्षा बाकी|समीक्षा की प्रतीक्षा|समीक्षा के लिए उपलब्ध)/.test(sentence)) {
+      return { ok: false, reason: "unsupported_claim" };
+    }
+    if (!allowed.allowPartial && /(अधूरा|अधूरी|अपूर्ण)/.test(sentence)) {
+      return { ok: false, reason: "unsupported_claim" };
+    }
+    if (!allowed.allowNextAppointment && sentence.includes("अगला अपॉइंटमेंट")) {
+      return { ok: false, reason: "unsupported_claim" };
+    }
+    if (!allowed.allowUpcoming && /(आने वाले|आगामी)/.test(sentence)) {
+      return { ok: false, reason: "unsupported_claim" };
+    }
   }
-  if (/(समीक्षा बाकी|समीक्षा की प्रतीक्षा|समीक्षा के लिए उपलब्ध)/.test(text) && !allowed.allowPendingReview) {
-    return { ok: false, reason: "unsupported_claim" };
-  }
-  if (/(अधूरा|अधूरी|अपूर्ण)/.test(text) && !allowed.allowPartial) return { ok: false, reason: "unsupported_claim" };
-  if (text.includes("अगला अपॉइंटमेंट") && !allowed.allowNextAppointment) {
-    return { ok: false, reason: "unsupported_claim" };
-  }
-  if (/(आने वाले|आगामी)/.test(text) && !allowed.allowUpcoming) return { ok: false, reason: "unsupported_claim" };
 
   return { ok: true };
 }

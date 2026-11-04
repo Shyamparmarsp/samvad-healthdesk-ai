@@ -140,6 +140,39 @@ Deno.test("qwen summary: a status the facts do not support is rejected", () => {
   );
 });
 
+Deno.test("qwen summary: honest negative statements are accepted", () => {
+  const empty: SummaryFacts = {
+    v: 1,
+    context: "dashboard",
+    intent: "greeting",
+    time_of_day: "morning",
+    reports: { total: 0, today: 0, awaiting_review: 0, complete: 0, partial: 0, reviewed: 0, urgent: 0 },
+    appointments: {
+      today: 0,
+      today_upcoming: 0,
+      today_completed: 0,
+      future: 0,
+      past: 0,
+      cancelled: 0,
+      next_starts: [],
+      next_is_today: false,
+    },
+  };
+
+  for (const text of [
+    "सुप्रभात डॉक्टर! इस समय कोई अत्यावश्यक रिपोर्ट नहीं है। आपका दिन शुभ हो।",
+    "डॉक्टर, आने वाले समय में कोई अपॉइंटमेंट निर्धारित नहीं है।",
+    "डॉक्टर, इस समय कोई रिपोर्ट समीक्षा की प्रतीक्षा में नहीं है।",
+  ]) {
+    const result = validateModelSummary(text, empty);
+    assert(result.ok, `expected acceptance for a true negative, got ${result.reason}`);
+  }
+
+  // A positive claim in a different sentence is still refused.
+  const mixed = "डॉक्टर, कोई अपॉइंटमेंट नहीं है। 1 रिपोर्ट अत्यावश्यक श्रेणी में है।";
+  assertEqual(validateModelSummary(mixed, empty).reason, "report_count", "an unsupported count in another sentence is still refused");
+});
+
 Deno.test("qwen summary: length bounds are enforced", () => {
   assertEqual(validateModelSummary("", dashboardFacts).reason, "empty", "empty");
   assertEqual(validateModelSummary("डॉक्टर", dashboardFacts).reason, "too_short", "too short");

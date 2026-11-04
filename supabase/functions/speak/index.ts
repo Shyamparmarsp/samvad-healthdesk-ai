@@ -106,12 +106,17 @@ export default {
         const facts = target.facts;
 
         // Doctor-only: an account without a `doctor_profiles` mapping gets no audio.
-        const { data: mapping } = await admin
+        //
+        // This read uses the caller-scoped client, not the elevated one: the
+        // `doctor_profiles_read_self` policy is the authority, and `service_role`
+        // deliberately holds no SELECT grant on this table (migration
+        // 20261103205132). Using RLS here also means a failed read refuses the request.
+        const { data: mapping, error: mappingError } = await ctx.supabase
           .from("doctor_profiles")
           .select("doctor_id")
           .eq("user_id", userId)
           .maybeSingle();
-        if (!mapping || typeof mapping.doctor_id !== "string" || mapping.doctor_id.length === 0) {
+        if (mappingError || !mapping || typeof mapping.doctor_id !== "string" || mapping.doctor_id.length === 0) {
           return textFallback("", 403);
         }
 
@@ -137,7 +142,8 @@ export default {
               summaryText = phrasing.text;
               summarySource = "qwen";
             }
-            consoleLogger.info("provider_attempt", { provider: "groq", ok: phrasing.ok });
+            // Reason codes only: never the rejected sentence or any patient content.
+            consoleLogger.info("provider_attempt", { provider: "groq", ok: phrasing.ok, reason: phrasing.ok ? "ok" : phrasing.reason });
           }
         }
 
