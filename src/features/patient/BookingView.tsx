@@ -16,6 +16,8 @@ interface BookingViewProps {
   onBookAppointment: (slotId: string, slotStart: string) => Promise<void>;
   onNotNow: () => void;
   onBack?: () => void;
+  /** Owner-approved acknowledgement shown (and spoken) after a confirmed submission. */
+  submittedNotice?: string;
 }
 
 export const BookingView: React.FC<BookingViewProps> = ({
@@ -23,6 +25,7 @@ export const BookingView: React.FC<BookingViewProps> = ({
   onBookAppointment,
   onNotNow,
   onBack,
+  submittedNotice,
 }) => {
   const { t, language } = useI18n();
 
@@ -173,6 +176,16 @@ export const BookingView: React.FC<BookingViewProps> = ({
                 {report.report.routing_snapshot.doctor_name} · {report.report.routing_snapshot.department_name}
               </p>
             </div>
+
+            {submittedNotice && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="rounded-[18px] bg-[#dcf3e6] border border-[#bfe7cf] p-3.5 text-[12px] text-[#176a3b] leading-relaxed"
+              >
+                {submittedNotice}
+              </div>
+            )}
 
             {/* Slot Taken Error Banner (Figma P8a) */}
             {slotTakenError && (

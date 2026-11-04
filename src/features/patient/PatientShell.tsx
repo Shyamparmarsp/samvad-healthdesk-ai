@@ -16,6 +16,7 @@ import { Appointment } from '../../types/doctor';
 import { CONSENT_VERSION } from '../../types/consent';
 import { PatientScreen, resolveBackNavigation, reviewModeFor } from '../../lib/navigation';
 import { useVoiceConversation, type VoiceNotice } from './useVoiceConversation';
+import { useSystemSpeech } from './useSystemSpeech';
 
 import { WelcomeView } from './WelcomeView';
 import { ConsentView } from './ConsentView';
@@ -107,6 +108,8 @@ export const PatientShell: React.FC = () => {
   const voiceActive =
     currentScreen === 'conversation' &&
     (chatState?.session_status === 'consented' || chatState?.session_status === 'in_progress');
+
+  const systemSpeech = useSystemSpeech(sessionId, language);
 
   const voice = useVoiceConversation({
     active: voiceActive,
@@ -455,7 +458,7 @@ export const PatientShell: React.FC = () => {
       (acceptedAnswerCount >= 3 && chatState?.session_status !== 'emergency')) &&
     !chatState?.submitted_report;
 
-  /** Build the partial preview from persisted answers (no report is created yet). */
+  /** Patient-initiated Finish & Send (available from the third accepted answer). */
   const handleFinishPartial = async () => {
     if (!sessionId || isProcessing) return;
     if (chatState?.session_status === 'emergency') {
@@ -463,9 +466,50 @@ export const PatientShell: React.FC = () => {
       return;
     }
     if (!canFinishPartial) return;
-    // Stop the voice loop before the screen changes.
+    await openReportReview(chatState?.is_complete ? 'complete' : 'partial');
+  };
+
+  /**
+   * Automatic completion: the assistant explains that the summary is ready and the report
+   * review opens. Triggered by the backend when the question pool is exhausted or the
+   * 15-answer cap is reached. Nothing is sent without explicit confirmation.
+   */
+  const completionHandledRef = useRef<string>('');
+  useEffect(() => {
+    if (currentScreen !== 'conversation') return;
+    if (!chatState) return;
+    if (isProcessing) return;
+    const answered = chatState.accepted_answer_count ?? 0;
+    if (answered < 3) return;
+    const finished =
+      Boolean(chatState.intake_complete) ||
+      chatState.is_cap_reached ||
+      chatState.is_complete ||
+      // No question left and enough answers: the report is ready even if the flag is absent.
+      (!chatState.current_question && answered >= 3);
+    if (!finished) return;
+    const key = `${sessionId}:${chatState.turn_count}`;
+    if (completionHandledRef.current === key) return;
+    completionHandledRef.current = key;
+    void openReportReview(chatState.is_complete ? 'complete' : 'partial');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentScreen, chatState?.intake_complete, chatState?.is_cap_reached, chatState?.is_complete, chatState?.turn_count, isProcessing]);
+
+  /**
+   * Stops the voice loop, speaks the completion acknowledgement and opens the report
+   * review. Used for intake completion at turn 15, when the question pool is exhausted,
+   * and when the patient chooses Finish & Send. Never sends anything by itself.
+   */
+  const openReportReview = async (mode: 'partial' | 'complete') => {
+    if (!sessionId) return;
     voice.stop();
     setPendingVoiceTranscript('');
+    void systemSpeech.speak('complete_intake');
+    if (mode === 'complete' && chatState?.draft_report) {
+      setPartialPreview(false);
+      navigateToScreen('review');
+      return;
+    }
     setIsProcessing(true);
     setErrorMessage(null);
     try {
@@ -484,7 +528,8 @@ export const PatientShell: React.FC = () => {
       setPartialPreview(true);
       navigateToScreen('review');
     } catch (err: any) {
-      console.error('Failed to build the partial report preview', err);
+      // Fewer than three accepted answers cannot produce a report; say so honestly.
+      console.error('Failed to build the report preview', err);
       setErrorMessage(sanitizeUserError(err));
     } finally {
       setIsProcessing(false);
@@ -505,6 +550,8 @@ export const PatientShell: React.FC = () => {
       });
       setChatState(res);
       setPartialPreview(false);
+      // Only after the backend confirmed the submission.
+      void systemSpeech.speak('report_sent');
       navigateToScreen('booking');
     } catch (err: any) {
       console.error('Failed to send the partial report', err);
@@ -513,6 +560,13 @@ export const PatientShell: React.FC = () => {
       setIsProcessing(false);
     }
   };
+
+  // The report-section instruction is spoken (and shown) when the review section opens.
+  useEffect(() => {
+    if (currentScreen !== 'review') return;
+    void systemSpeech.speak('report_ready');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentScreen]);
 
   /** Return from the preview to the conversation without sending anything. */
   const handleContinueAnswering = () => {
@@ -536,6 +590,7 @@ export const PatientShell: React.FC = () => {
         report_id: '',
       });
       setChatState(res);
+      void systemSpeech.speak('report_sent');
       navigateToScreen('booking');
     } catch (err: any) {
       console.error('Failed to submit report', err);
@@ -774,6 +829,7 @@ export const PatientShell: React.FC = () => {
             onFinish={hasSubmittedReport ? handleRestart : undefined}
             isSubmitting={isProcessing}
             partial={partialPreview}
+            instruction={t.review.reportReadyInstruction}
           />
         )}
 
@@ -787,6 +843,7 @@ export const PatientShell: React.FC = () => {
             onBookAppointment={handleBookAppointment}
             onNotNow={handleNotNowBooking}
             onBack={handleBack}
+            submittedNotice={t.review.sendAck}
           />
         )}
 

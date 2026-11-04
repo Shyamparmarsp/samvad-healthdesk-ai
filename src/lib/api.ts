@@ -1729,7 +1729,17 @@ export async function submitReport(action: SubmitReportAction): Promise<ChatTurn
  * corrupts audio/mpeg — so the binary path uses a direct authenticated fetch and turns
  * the bytes into an object URL. Cached scripted prompts never reach this function.
  */
-export async function speak(sessionId: string, questionId: string): Promise<{ audioUrl?: string; text?: string }> {
+export type SystemMessageId = 'complete_intake' | 'report_ready' | 'report_sent';
+
+/**
+ * Speaks either the session's current adaptive question or an allowlisted system message.
+ * Exactly one target is sent; the backend rejects anything else and never accepts free text.
+ */
+export async function speak(
+  sessionId: string,
+  questionId: string | null,
+  messageId?: SystemMessageId,
+): Promise<{ audioUrl?: string; text?: string }> {
   if (currentAppMode === 'supabase') {
     const client = getSupabaseClient();
     const { data: sessionData } = await client.auth.getSession();
@@ -1743,7 +1753,10 @@ export async function speak(sessionId: string, questionId: string): Promise<{ au
         apikey: SUPABASE_KEY,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ session_id: sessionId, question_id: questionId }),
+      body: JSON.stringify({
+        session_id: sessionId,
+        ...(messageId ? { message_id: messageId } : { question_id: questionId }),
+      }),
     });
 
     const contentType = (response.headers.get('content-type') || '').toLowerCase();

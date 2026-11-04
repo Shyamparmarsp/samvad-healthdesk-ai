@@ -157,6 +157,79 @@ export function validateBank(questions: readonly BankQuestion[] = QUESTIONS): st
   return problems;
 }
 
+/**
+ * Report fields that the intake core already fills. Everything else in the bank is
+ * conversation-level context (`clinical_details.context`, `lifestyle`, …).
+ */
+export const REPORT_FIELD_KEYS: readonly string[] = [
+  "patient.name", "patient.age", "patient.gender", "primary_concern",
+  "clinical_details.duration", "clinical_details.severity", "clinical_details.conditions",
+  "clinical_details.medications", "clinical_details.allergies", "clinical_details.other_symptoms",
+];
+
+/** Stable 32-bit string hash (FNV-1a) used for deterministic per-session rotation. */
+function stableHash(value: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash;
+}
+
+export interface ContinuationInput {
+  department: BankDepartment;
+  /** Words from the patient's own answers, used for relevance only. */
+  tags?: readonly string[];
+  /** Report fields the session already handled (provided/declined/unknown/unclear). */
+  handledFields?: readonly string[];
+  askedIds?: readonly string[];
+  askedTopics?: readonly string[];
+  /** Session id: makes the equal-score order stable per session but varied across sessions. */
+  seed?: string;
+  limit?: number;
+}
+
+/**
+ * Candidates for continuing the conversation after the scripted core.
+ *
+ * The previous selector only offered questions for report fields that were not `provided`
+ * and then removed every field that had been asked, so a declined core field (for example
+ * "duration: prefer not to say") left zero candidates and the conversation stopped at the
+ * tenth answer. This selector keeps the anti-repetition rules but always leaves the
+ * department's conversation-level questions available, which is what actually lets the
+ * intake continue to the 15-answer maximum with questions that still help the summary.
+ */
+export function retrieveContinuationCandidates(input: ContinuationInput): BankQuestion[] {
+  const handled = new Set(input.handledFields ?? []);
+  const asked = new Set(input.askedIds ?? []);
+  const topics = new Set((input.askedTopics ?? []).filter((topic) => topic.length > 0));
+  const wanted = new Set((input.tags ?? []).map((tag) => tag.toLowerCase()));
+  const seed = input.seed ?? "";
+  const limit = Math.min(Math.max(input.limit ?? 6, 1), 8);
+
+  return QUESTIONS
+    .filter((question) => question.department === input.department)
+    .filter((question) => !asked.has(question.id))
+    .filter((question) => !topics.has(question.topic))
+    // A report field that was already handled is never re-asked; conversation-level
+    // questions are always allowed because they cannot repeat a report field.
+    .filter((question) => !REPORT_FIELD_KEYS.includes(question.field) || !handled.has(question.field))
+    .map((question) => {
+      const tagScore = question.tags.reduce((sum, tag) => sum + (wanted.has(tag) ? 2 : 0), 0);
+      // Report fields that are still unanswered are slightly more valuable than context.
+      const fieldScore = REPORT_FIELD_KEYS.includes(question.field) ? 1 : 0;
+      return {
+        question,
+        score: tagScore + fieldScore,
+        order: stableHash(`${seed}:${question.id}`),
+      };
+    })
+    .sort((a, b) => (b.score - a.score) || (a.order - b.order) || a.question.id.localeCompare(b.question.id))
+    .slice(0, limit)
+    .map((entry) => entry.question);
+}
+
 export interface RetrieveInput {
   department: BankDepartment;
   tags?: readonly string[];

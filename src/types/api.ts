@@ -126,6 +126,8 @@ export interface ChatTurnResponse {
   accepted_answer_count?: number;
   /** v1.3: the patient may finish early and send a partial report. */
   can_finish_partial?: boolean;
+  /** v1.4: no further question is available, so the report is ready for review. */
+  intake_complete?: boolean;
   draft_report?: ReportDocumentV1;
   submitted_report?: ReportRow;
   emergency_triggered?: boolean;

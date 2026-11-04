@@ -115,7 +115,7 @@ Deno.test("workflow: adaptive selection refuses emergency and submitted sessions
     body.includes('if (session.status === "emergency" || session.status === "submitted") return null;'),
     "emergency guard missing from adaptive selection",
   );
-  assertEqual(MAX_ADAPTIVE_QUESTIONS, 3, "adaptive budget unchanged");
+  assertEqual(MAX_ADAPTIVE_QUESTIONS, 5, "adaptive budget: five bank follow-ups after the ten-answer core");
 });
 
 Deno.test("workflow: urgent report creation is emergency-scoped and never submitted", () => {

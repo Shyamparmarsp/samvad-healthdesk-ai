@@ -22,10 +22,17 @@ import { reserveUsage } from "../_shared/usage.ts";
 import type { RpcClient } from "../_shared/usage.ts";
 import { MAX_ANSWER_TURNS } from "../_shared/conversation.ts";
 import { isUuid, requireOwnedRow } from "../_shared/auth.ts";
+import { isSystemMessageId, systemMessageText, type SystemMessageId } from "../_shared/messages.ts";
 
 interface SpeakRequest {
   session_id?: unknown;
   question_id?: unknown;
+  /**
+   * Owner-approved system message id (completion acknowledgement, report-section
+   * instruction, send confirmation). Exactly one of `question_id` / `message_id` is
+   * accepted; free text is never accepted.
+   */
+  message_id?: unknown;
 }
 
 function corsConfig(): string | null {
@@ -58,15 +65,24 @@ export default {
     if (!isUuid(body.session_id)) {
       return textFallback("", 400);
     }
+    // Exactly one target: a session question, or one allowlisted system message id.
+    const hasMessage = body.message_id !== undefined;
+    const hasQuestion = body.question_id !== undefined;
+    if (hasMessage === hasQuestion) return textFallback("", 400);
+    if (hasMessage && !isSystemMessageId(body.message_id)) return textFallback("", 400);
+    const messageId: SystemMessageId | null = hasMessage ? (body.message_id as SystemMessageId) : null;
+
     // Core ids and adaptive bank ids (GM-001 … CARD-030) are both valid here. Bank ids
     // are exactly the adaptive questions Timbre exists for, so rejecting them made the
     // paid path unreachable in the shipped flow.
     const rawQuestionId = body.question_id;
-    if (typeof rawQuestionId !== "string") return textFallback("", 400);
-    if (!isQuestionId(rawQuestionId) && !getBankQuestion(rawQuestionId)) {
-      return textFallback("", 400);
+    if (!hasMessage) {
+      if (typeof rawQuestionId !== "string") return textFallback("", 400);
+      if (!isQuestionId(rawQuestionId) && !getBankQuestion(rawQuestionId)) {
+        return textFallback("", 400);
+      }
     }
-    const questionId: string = rawQuestionId;
+    const questionId: string = hasMessage ? "" : (rawQuestionId as string);
 
     try {
       const admin = ctx.supabaseAdmin;
@@ -85,6 +101,16 @@ export default {
         current_question_id: string | null;
         language: "en" | "hi";
       };
+
+      if (messageId) {
+        // System messages are independent of the current question and of the turn cap;
+        // they are only refused for an emergency session, which has its own guidance.
+        const language = row.language ?? "en";
+        if (row.status === "emergency") {
+          return textFallback(systemMessageText(messageId, language), 200);
+        }
+        return await synthesizeOrFallback(admin, `msg-${messageId}`, systemMessageText(messageId, language), language);
+      }
 
       if (row.status !== "in_progress" && row.status !== "consented") {
         return textFallback(questionTextFor(questionId, "en"), 200);

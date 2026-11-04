@@ -160,7 +160,7 @@ Deno.test("selection: the model can never supply question text", async () => {
   const result = await selectAdaptiveQuestion({ ...OPTS, fetchImpl: groqStub(JSON.stringify({ question_id: CANDIDATES[0].id })) }, CANDIDATES, "chest");
   const question = getQuestion(result!.id)!;
   assertEqual(questionText(question.id, "en"), question.en, "text comes from the bank, not the model");
-  assertEqual(MAX_ADAPTIVE_QUESTIONS, 3, "adaptive cap");
+  assertEqual(MAX_ADAPTIVE_QUESTIONS, 5, "adaptive cap");
 });
 
 Deno.test("safety: the bank never carries diagnosis or advice wording", () => {

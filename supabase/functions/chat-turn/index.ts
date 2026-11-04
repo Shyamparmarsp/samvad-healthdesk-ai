@@ -55,14 +55,13 @@ import { suggestDepartment } from "../_shared/groq-routing.ts";
 import { transcribe } from "../_shared/prisma.ts";
 import {
   getQuestion as getBankQuestion,
-  retrieveCandidates,
+  retrieveContinuationCandidates,
   type BankDepartment,
   type BankQuestion,
 } from "../_shared/intake/question-bank.ts";
 import {
   MAX_ADAPTIVE_QUESTIONS,
   canAskAdaptiveQuestion,
-  eligibleCandidates,
   selectAdaptiveQuestion,
 } from "../_shared/intake/select.ts";
 
@@ -318,6 +317,13 @@ function baseResponse(session: SessionRow, messages: MessageRow[]): ChatTurnResp
     is_cap_reached: state.is_cap_reached,
     can_submit: state.can_submit,
     accepted_answer_count: answered,
+    // True when there is nothing left to ask and a report can be built from what exists,
+    // so the patient is taken to review instead of a dead-end screen.
+    intake_complete:
+      answered >= MIN_ANSWERS_FOR_PARTIAL &&
+      (state.is_complete ||
+        state.is_cap_reached ||
+        (session.current_question_id === null && session.status !== "emergency")),
     can_finish_partial:
       answered >= MIN_ANSWERS_FOR_PARTIAL &&
       session.status !== "emergency" &&
@@ -370,19 +376,9 @@ async function maybeAdaptiveQuestion(
     : [];
   const missingFields = (Object.keys(fields) as Array<keyof FieldMap>).filter((key) => fields[key].status !== "provided");
 
-  const candidates: BankQuestion[] = retrieveCandidates({
-    department: department as BankDepartment,
-    tags,
-    missingFields: missingFields as string[],
-    askedIds: asked,
-    // A compact candidate set keeps the model prompt small and the answer fast.
-    limit: 6,
-  });
-  if (candidates.length === 0) return null;
-
-  // Repetition safeguard: never ask again about a field this session already handled, and
-  // never cover the same topic twice. Retrieval only excludes exact ids, so the v2 bank
-  // could otherwise re-ask "duration" with a different wording.
+  // Repetition safeguards: never re-ask an id, a covered topic or an already-handled
+  // report field. Conversation-level questions stay available, so a declined core field
+  // can no longer empty the pool and stop the conversation at the tenth answer.
   const handledFields = (Object.keys(fields) as Array<keyof FieldMap>)
     .filter((key) => fields[key].status !== "not_asked")
     .map(String);
@@ -390,12 +386,18 @@ async function maybeAdaptiveQuestion(
     .map((id) => getBankQuestion(id)?.topic ?? "")
     .filter((topic) => topic.length > 0);
 
-  const eligible = eligibleCandidates(candidates, { handledFields, askedTopics });
+  const eligible = retrieveContinuationCandidates({
+    department: department as BankDepartment,
+    tags,
+    handledFields,
+    askedIds: asked,
+    askedTopics,
+    seed: session.id,
+    // A compact candidate set keeps the model prompt small and the answer fast.
+    limit: 6,
+  });
   if (eligible.length === 0) {
-    consoleLogger.info("action_completed", {
-      action: "adaptive_exhausted",
-      considered: candidates.length,
-    });
+    consoleLogger.info("action_completed", { action: "intake_questions_exhausted" });
     return null;
   }
 

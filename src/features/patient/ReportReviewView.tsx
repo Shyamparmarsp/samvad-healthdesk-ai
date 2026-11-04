@@ -28,6 +28,8 @@ interface ReportReviewViewProps {
    * read-only (a correction needs a stored draft row) and clearly marked partial.
    */
   partial?: boolean;
+  /** Owner-approved report-section instruction, shown and spoken on entry. */
+  instruction?: string;
 }
 
 export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
@@ -44,6 +46,7 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
   onFinish,
   isSubmitting = false,
   partial = false,
+  instruction,
 }) => {
   const { t, language } = useI18n();
   const [editingField, setEditingField] = useState<CorrectableField | null>(null);
@@ -170,6 +173,9 @@ export const ReportReviewView: React.FC<ReportReviewViewProps> = ({
             <p className="text-[12px] text-[#4a5470] mt-0.5">
               {isReadOnly ? t.review.submittedNote : t.review.subtitle}
             </p>
+            {instruction && (
+              <p className="text-[12px] text-[#1d2433] mt-2 leading-snug">{instruction}</p>
+            )}
           </div>
           {partial ? (
             <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[#fff0e6] text-[#e67e22] font-bold uppercase tracking-wider flex-shrink-0 mt-1">

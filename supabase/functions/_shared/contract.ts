@@ -216,6 +216,8 @@ export interface ChatTurnResponse {
    */
   accepted_answer_count?: number;
   can_finish_partial?: boolean;
+  /** v1.4 response flag: no further question is available, so the report is ready. */
+  intake_complete?: boolean;
   draft_report?: ReportDocumentV1;
   submitted_report?: ReportRow;
   emergency_triggered?: boolean;

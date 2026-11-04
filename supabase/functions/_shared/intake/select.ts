@@ -9,7 +9,15 @@
 import { requestStructured, type GroqOptions } from "../groq.ts";
 import type { BankQuestion } from "./question-bank.ts";
 
-export const MAX_ADAPTIVE_QUESTIONS = 3;
+/**
+ * Bank follow-ups allowed after the scripted core.
+ *
+ * Owner-authorized 4 Nov 2026: the previous cap of 3 made the conversation stop at the
+ * tenth answer. The core is ten answers, so five bank questions let the intake reach the
+ * 15-answer maximum. `MAX_ANSWER_TURNS` (15) stays the hard limit and is enforced
+ * independently in `canAcceptAnswer`.
+ */
+export const MAX_ADAPTIVE_QUESTIONS = 5;
 
 /**
  * The adaptive budget gate.

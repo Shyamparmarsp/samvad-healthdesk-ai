@@ -96,11 +96,11 @@ Deno.test("repetition: already-asked ids stay excluded after filtering", () => {
   assert(!eligible.some((q) => q.id === "GM-003"), "asked id excluded");
 });
 
-Deno.test("repetition: the adaptive (bank) budget is unchanged at three", () => {
-  assertEqual(MAX_ADAPTIVE_QUESTIONS, 3, "still at most three adaptive questions");
+Deno.test("repetition: the adaptive (bank) budget is five, inside the 15-turn cap", () => {
+  assertEqual(MAX_ADAPTIVE_QUESTIONS, 5, "ten core answers + five bank questions = the 15-turn maximum");
   assertEqual(canAskAdaptiveQuestion(0), true, "first bank question allowed");
-  assertEqual(canAskAdaptiveQuestion(2), true, "third bank question allowed");
-  assertEqual(canAskAdaptiveQuestion(3), false, "no fourth bank question");
+  assertEqual(canAskAdaptiveQuestion(4), true, "fifth bank question allowed");
+  assertEqual(canAskAdaptiveQuestion(5), false, "no sixth bank question");
   assertEqual(canAskAdaptiveQuestion(9), false, "never beyond the budget");
 });
 

@@ -135,13 +135,13 @@ Deno.test("retrieval: the fallback always stays inside the candidate set", async
   assertEqual(picked!.source, "fallback", "deterministic source");
 });
 
-Deno.test("retrieval: candidate ceiling is eight and the adaptive cap is three", () => {
+Deno.test("retrieval: candidate ceiling is eight and the adaptive cap is five", () => {
   const many = retrieveCandidates({
     department: "cardiology",
     tags: ["chest", "pain", "breathing"],
   });
   assert(many.length > 0 && many.length <= 8, "eight-candidate ceiling");
-  assertEqual(MAX_ADAPTIVE_QUESTIONS, 3, "three-adaptive-question limit");
+  assertEqual(MAX_ADAPTIVE_QUESTIONS, 5, "five bank follow-ups keep the core plus bank within 15 turns");
 });
 
 Deno.test("adaptive prompt: compact candidate catalogue only, strict id answer", async () => {

@@ -172,6 +172,12 @@ interface ConversationViewProps {
   vadActive?: boolean;
   /** Playback actually started for the current question. */
   speechActive?: boolean;
+  /**
+   * Question texts for already-answered turns (id → English/Hindi). The view also learns
+   * them as the conversation progresses; supplying them lets a resumed or re-rendered
+   * transcript show each answer under its question.
+   */
+  questionTexts?: Record<string, { en: string; hi: string }>;
   /** v1.3: at least three accepted answers exist, so the patient may finish early. */
   canFinish?: boolean;
   /** Opens the partial-report preview (stops the voice loop first). */
@@ -208,6 +214,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   speechActive = false,
   canFinish = false,
   onFinish,
+  questionTexts,
 }) => {
   const { t, language } = useI18n();
 
@@ -216,6 +223,13 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
   const [selectedChip, setSelectedChip] = useState<string | null>(null);
 
   const chatScrollContainerRef = useRef<HTMLDivElement>(null);
+  /**
+   * Question texts seen in this conversation. Assistant questions are not persisted by the
+   * backend, so without this the transcript rendered patient answers back to back and two
+   * similar answers looked like a duplicated message. With it, every answer is shown under
+   * the question it answered.
+   */
+  const questionTextsRef = useRef<Map<string, { en: string; hi: string }>>(new Map());
 
   const isListening = voicePhase === 'listening';
   const isSpeaking = voicePhase === 'assistant_speaking';
@@ -238,6 +252,17 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
     });
 
   const progressFraction = Math.min(1, Math.max(0.08, turnCount / (maxTurns || 15)));
+
+  if (currentQuestion?.id) {
+    const id = String(currentQuestion.id);
+    questionTextsRef.current.set(id, {
+      en: currentQuestion.text,
+      hi: currentQuestion.text_hi ?? currentQuestion.text,
+    });
+  }
+  if (questionTexts) {
+    for (const [id, text] of Object.entries(questionTexts)) questionTextsRef.current.set(id, text);
+  }
 
   // Keep the newest turn visible.
   useEffect(() => {
@@ -456,8 +481,17 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
         aria-live="polite"
         className="flex-1 overflow-y-auto px-5 py-2 space-y-3 z-10"
       >
-        {messages.map((msg) => {
+        {messages.map((msg, index) => {
           const isAssistant = msg.role === 'assistant';
+          const previous = index > 0 ? messages[index - 1] : undefined;
+          const answeredQuestionId = !isAssistant ? String(msg.question_id ?? '') : '';
+          const answeredText = answeredQuestionId
+            ? questionTextsRef.current.get(answeredQuestionId)
+            : undefined;
+          const previousWasSameAssistant =
+            previous?.role === 'assistant' &&
+            String(previous.question_id ?? '') === answeredQuestionId;
+          const showAnsweredQuestion = Boolean(answeredText) && !previousWasSameAssistant;
           // A stored assistant question for the active id (mock/demo sessions store them)
           // is highlighted exactly like the synthesized bubble below.
           const isActiveQuestion =
@@ -467,6 +501,22 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
               ? currentQuestion.text_hi
               : msg.content;
           return (
+            <React.Fragment key={msg.id}>
+            {showAnsweredQuestion && answeredText && (
+              <div className="flex items-center gap-2.5 justify-start" data-history-question={answeredQuestionId}>
+                <div className="w-[30px] h-[30px] rounded-full bg-white/80 border border-white text-[#1f2a44] flex items-center justify-center flex-shrink-0 shadow-sm" aria-hidden="true">
+                  <svg className="w-4 h-4 text-[#1f2a44]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <rect x="4" y="8" width="16" height="12" rx="4" strokeWidth={1.8} />
+                    <circle cx="9" cy="14" r="1.5" fill="currentColor" />
+                    <circle cx="15" cy="14" r="1.5" fill="currentColor" />
+                    <path d="M12 4v4m-3-4h6" strokeWidth={1.8} strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div className="max-w-[82%] rounded-[20px] px-4 py-3 text-[13px] leading-relaxed backdrop-blur-[9px] bg-[rgba(255,255,255,0.55)] border border-white text-[#4a5470] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.08)] rounded-bl-sm">
+                  {language === 'hi' ? answeredText.hi : answeredText.en}
+                </div>
+              </div>
+            )}
             <div
               key={msg.id}
               className={`flex items-center gap-2.5 ${isAssistant ? 'justify-start' : 'justify-end'}`}
@@ -544,12 +594,13 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
                 </div>
               )}
             </div>
+            </React.Fragment>
           );
         })}
 
         {/* Optimistic patient bubble: the transcript the assistant heard, shown before the
             answer is accepted by the backend (D-41 still gates navigation on acceptance). */}
-        {pendingTranscript && (
+        {pendingTranscript && !messages.some((message) => message.role === 'patient' && message.content.trim() === pendingTranscript.trim()) && (
           <div className="flex items-end gap-2.5 justify-end" aria-live="polite">
             <div className="max-w-[82%] rounded-[20px] px-4 py-3 text-[13px] leading-relaxed bg-[rgba(225,235,253,0.92)] border border-[#d1def5] text-[#1d2433] shadow-[0px_4px_12px_-3px_rgba(41,51,79,0.08)] rounded-br-sm opacity-80">
               {pendingTranscript}
@@ -595,9 +646,20 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 
         {/* D-39: explicit terminal state instead of a silent dead end */}
         {isDeadEnd && (
-          <div role="alert" className="mx-1 my-2 p-3.5 rounded-[18px] bg-amber-50/90 border border-amber-200 text-xs text-amber-900">
-            <p className="font-bold text-[12px]">{t.chat.deadEndTitle}</p>
-            <p className="mt-1 text-[11px] leading-snug">{t.chat.deadEndMessage}</p>
+          <div
+            role="status"
+            className={`mx-1 my-2 p-3.5 rounded-[18px] border text-xs ${
+              canFinish
+                ? 'bg-[rgba(255,255,255,0.75)] border-white text-[#1d2433]'
+                : 'bg-amber-50/90 border-amber-200 text-amber-900'
+            }`}
+          >
+            <p className="font-bold text-[12px]">
+              {canFinish ? t.review.reportReadyTitle : t.chat.deadEndTitle}
+            </p>
+            <p className="mt-1 text-[11px] leading-snug">
+              {canFinish ? t.review.reportReadyInstruction : t.chat.deadEndMessage}
+            </p>
             {canFinish && onFinish ? (
               <button
                 type="button"
@@ -626,7 +688,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({
 
       {/* v1.3 early finish: available from the third accepted answer onwards and never
           forced — the patient may keep answering instead. */}
-      {canFinish && onFinish && (
+      {canFinish && onFinish && !isDeadEnd && (
         <div className="px-5 pb-1 z-10">
           <button
             type="button"
