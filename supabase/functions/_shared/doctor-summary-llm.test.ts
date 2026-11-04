@@ -97,8 +97,11 @@ Deno.test("qwen summary: English, number words and clinical claims are rejected"
   const mixed = "सुप्रभात डॉक्टर! You have 4 अपॉइंटमेंट.";
   assertEqual(validateModelSummary(mixed, dashboardFacts).reason, "latin_text", "latin letters");
 
-  const words = validHindi.replace("कुल 4 अपॉइंटमेंट", "कुल चार अपॉइंटमेंट");
-  assertEqual(validateModelSummary(words, dashboardFacts).reason, "number_words", "spelled-out counts");
+  // A spelled-out count is normalised and checked like any other number.
+  const wordsOk = validHindi.replace("कुल 4 अपॉइंटमेंट", "कुल चार अपॉइंटमेंट");
+  assert(validateModelSummary(wordsOk, dashboardFacts).ok, "a true spelled-out count is accepted");
+  const wordsWrong = validHindi.replace("कुल 4 अपॉइंटमेंट", "कुल सात अपॉइंटमेंट");
+  assertEqual(validateModelSummary(wordsWrong, dashboardFacts).reason, "appointment_count", "an untrue spelled-out count is rejected");
 
   const diagnosis = `${validHindi} संभवतः यह निमोनिया है।`;
   assertEqual(validateModelSummary(diagnosis, dashboardFacts).reason, "clinical_claim", "diagnosis");

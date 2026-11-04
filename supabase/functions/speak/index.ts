@@ -63,8 +63,13 @@ function textFallback(message: string, status = 200): Response {
 }
 
 /** Text-only response for a summary: the browser shows exactly this sentence. */
-function summaryFallback(text: string, source: "qwen" | "fallback", status = 200): Response {
-  return Response.json({ text, source }, { status });
+function summaryFallback(
+  text: string,
+  source: "qwen" | "fallback",
+  status = 200,
+  reason?: string,
+): Response {
+  return Response.json({ text, source, ...(reason ? { reason } : {}) }, { status });
 }
 
 /** Header-safe encoding of the Hindi sentence (HTTP headers are not UTF-8 safe). */
@@ -125,6 +130,8 @@ export default {
         let summaryText = renderHindiSummary(facts);
         let summarySource: "qwen" | "fallback" = "fallback";
         let modelAttempts = 0;
+        // Stable rejection/provider code (never model text). Returned only as a diagnostic.
+        let modelReason: string | undefined;
 
         const groqKey = Deno.env.get("GROQ_API_KEY") ?? "";
         if (groqKey) {
@@ -141,6 +148,8 @@ export default {
             if (phrasing.ok) {
               summaryText = phrasing.text;
               summarySource = "qwen";
+            } else {
+              modelReason = phrasing.reason;
             }
             // Reason codes only: never the rejected sentence or any patient content.
             consoleLogger.info("provider_attempt", { provider: "groq", ok: phrasing.ok, reason: phrasing.ok ? "ok" : phrasing.reason });
@@ -157,12 +166,13 @@ export default {
         });
 
         if (!summaryText || summaryText.length > MAX_SUMMARY_CHARACTERS) {
-          return summaryFallback(summaryText, summarySource, 200);
+          return summaryFallback(summaryText, summarySource, 200, modelReason);
         }
         // The assistant is Hindi-only, so the language is fixed here, never client-supplied.
         return await synthesizeOrFallback(admin, "doctor-summary", summaryText, "hi", {
           text: summaryText,
           source: summarySource,
+          reason: modelReason,
         });
       }
 
@@ -259,7 +269,7 @@ async function synthesizeOrFallback(
   text: string,
   language: "en" | "hi",
   /** Doctor summary only: the exact validated sentence and where it came from. */
-  summary?: { text: string; source: "qwen" | "fallback" },
+  summary?: { text: string; source: "qwen" | "fallback"; reason?: string },
 ): Promise<Response> {
   const reservation = await reserveUsage(admin, "timbre");
   if (!reservation.allowed) {
@@ -296,6 +306,7 @@ async function synthesizeOrFallback(
     // The browser displays exactly this sentence, so audio and screen cannot disagree.
     headers["x-summary-text"] = encodeSummaryHeader(summary.text);
     headers["x-summary-source"] = summary.source;
+    if (summary.reason) headers["x-summary-reason"] = summary.reason;
   }
   return new Response(audioBuffer, { status: 200, headers });
 }

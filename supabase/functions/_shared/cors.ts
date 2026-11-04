@@ -36,7 +36,7 @@ export interface CorsDecision {
 const ALLOW_METHODS = "POST, OPTIONS";
 const ALLOW_HEADERS = "authorization, x-client-info, apikey, content-type";
 /** Non-secret response headers the browser may read (summary text + its source). */
-export const EXPOSED_HEADERS = "x-summary-text, x-summary-source, content-type";
+export const EXPOSED_HEADERS = "x-summary-text, x-summary-source, x-summary-reason, content-type";
 
 /** Decides the CORS response headers for one request origin. */
 export function resolveCors(origin: string | null, configured: string | null | undefined): CorsDecision {

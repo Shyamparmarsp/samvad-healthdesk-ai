@@ -134,6 +134,7 @@ async function speak(body, token) {
     bytes,
     text: response.headers.get('x-summary-text'),
     source: response.headers.get('x-summary-source'),
+    reason: response.headers.get('x-summary-reason'),
   };
 }
 
@@ -183,7 +184,7 @@ async function main() {
     record(
       `doctor summary (${doctor.department}) returns Hindi audio`,
       answer.status === 200 && looksLikeMp3 && hindi,
-      `HTTP ${answer.status}, ${answer.bytes?.length ?? 0} bytes, source=${answer.source}, ${text?.length ?? 0} chars`,
+      `HTTP ${answer.status}, ${answer.bytes?.length ?? 0} bytes, source=${answer.source}${answer.reason ? ` (${answer.reason})` : ''}, ${text?.length ?? 0} chars`,
     );
     if (text) console.log(`      "${text}"`);
     summaries.push({ doctor, text });

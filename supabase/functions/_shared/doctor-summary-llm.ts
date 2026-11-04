@@ -44,41 +44,45 @@ const HINDI_MONTHS = [
   "दिसंबर",
 ] as const;
 
-/** Number words are banned: a spelled-out count could not be checked against a fact. */
-const HINDI_NUMBER_WORDS = [
-  "शून्य",
-  "एक",
-  "दो",
-  "तीन",
-  "चार",
-  "पांच",
-  "पाँच",
-  "छह",
-  "सात",
-  "आठ",
-  "नौ",
-  "दस",
-  "ग्यारह",
-  "बारह",
-  "तेरह",
-  "चौदह",
-  "पंद्रह",
-  "सोलह",
-  "सत्रह",
-  "अठारह",
-  "उन्नीस",
-  "बीस",
-  "तीस",
-  "चालीस",
-  "पचास",
-  "साठ",
-  "सत्तर",
-  "अस्सी",
-  "नब्बे",
-  "सौ",
-  "हज़ार",
-  "हजार",
-] as const;
+/**
+ * Hindi number words mapped to their value.
+ *
+ * The briefing prefers digits, but Hindi models slip into words ("एक रिपोर्ट"). A count
+ * written as a word is still a count, so it is normalised to its digit and validated like
+ * any other number instead of being rejected outright.
+ */
+const HINDI_NUMBER_WORDS: Readonly<Record<string, number>> = {
+  शून्य: 0,
+  एक: 1,
+  दो: 2,
+  तीन: 3,
+  चार: 4,
+  पांच: 5,
+  पाँच: 5,
+  छह: 6,
+  सात: 7,
+  आठ: 8,
+  नौ: 9,
+  दस: 10,
+  ग्यारह: 11,
+  बारह: 12,
+  तेरह: 13,
+  चौदह: 14,
+  पंद्रह: 15,
+  सोलह: 16,
+  सत्रह: 17,
+  अठारह: 18,
+  उन्नीस: 19,
+  बीस: 20,
+  तीस: 30,
+  चालीस: 40,
+  पचास: 50,
+  साठ: 60,
+  सत्तर: 70,
+  अस्सी: 80,
+  नब्बे: 90,
+  सौ: 100,
+};
 
 /** Clinical or contact claims the assistant must never make. */
 const FORBIDDEN_PHRASES = [
@@ -133,7 +137,12 @@ const DEVANAGARI_DIGITS = /[\u0966-\u096F]/g;
 const ASCII_DIGITS = "0123456789";
 
 function normaliseDigits(text: string): string {
-  return text.replace(DEVANAGARI_DIGITS, (digit) => ASCII_DIGITS[digit.charCodeAt(0) - 0x0966]);
+  let normalised = text.replace(DEVANAGARI_DIGITS, (digit) => ASCII_DIGITS[digit.charCodeAt(0) - 0x0966]);
+  // Number words become digits so a spelled-out count is checked against the facts too.
+  for (const [word, value] of Object.entries(HINDI_NUMBER_WORDS)) {
+    normalised = normalised.replace(new RegExp(`(^|[^\\u0900-\\u097F])${word}(?=[^\\u0900-\\u097F]|$)`, "g"), `$1${value}`);
+  }
+  return normalised;
 }
 
 /** Every number the supplied facts can justify, and the per-noun subsets. */
@@ -297,10 +306,12 @@ export function validateModelSummary(raw: string, facts: SummaryFacts): SummaryV
   if (!DEVANAGARI_TEXT.test(text)) return { ok: false, reason: "not_hindi" };
   if (LATIN_LETTER.test(text)) return { ok: false, reason: "latin_text" };
 
-  for (const word of HINDI_NUMBER_WORDS) {
-    if (new RegExp(`(^|[^\\u0900-\\u097F])${word}([^\\u0900-\\u097F]|$)`).test(` ${text} `)) {
-      return { ok: false, reason: "number_words" };
-    }
+  // A number word outside the mapped set ("इक्कीस") cannot be verified, so it is refused.
+  const unmappedNumberWord = /(इक्कीस|बाईस|तेईस|चौबीस|पच्चीस|छब्बीस|सत्ताईस|अट्ठाईस|उनतीस|इकतीस|बत्तीस|तैंतीस|चौंतीस|पैंतीस|छत्तीस|सैंतीस|अड़तीस|उनतालीस|इकतालीस|बयालीस|तैंतालीस|चवालीस|पैंतालीस|छियालीस|सैंतालीस|अड़तालीस|उनचास|इक्यावन|बावन|तिरपन|चौवन|पचपन|छप्पन|सत्तावन|अट्ठावन|उनसठ|इकसठ|बासठ|तिरसठ|चौंसठ|पैंसठ|छियासठ|सड़सठ|अड़सठ|उनहत्तर|इकहत्तर|बहत्तर|तिहत्तर|चौहत्तर|पचहत्तर|छिहत्तर|सतहत्तर|अठहत्तर|उनासी|इक्यासी|बयासी|तिरासी|चौरासी|पचासी|छियासी|सत्तासी|अट्ठासी|नवासी|हज़ार|हजार)/;
+  const wordMatch = text.match(unmappedNumberWord);
+  if (wordMatch) {
+    // Mapped words such as "सौ" are normalised above; only unmapped ones remain.
+    return { ok: false, reason: "number_words" };
   }
 
   for (const phrase of FORBIDDEN_PHRASES) {

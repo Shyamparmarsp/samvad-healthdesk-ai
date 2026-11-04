@@ -275,7 +275,8 @@ function appointmentSentences(appointments: AppointmentCounts): string[] {
   } else {
     let line = `आज आपके कुल ${appointments.today} अपॉइंटमेंट निर्धारित ${hai(appointments.today)}।`;
     if (appointments.today_upcoming > 0) {
-      line += ` इनमें ${appointments.today_upcoming} अपॉइंटमेंट अभी आने वाले ${hai(
+      const upcomingWord = appointments.today_upcoming === 1 ? "वाला" : "वाले";
+      line += ` इनमें ${appointments.today_upcoming} अपॉइंटमेंट अभी आने ${upcomingWord} ${hai(
         appointments.today_upcoming,
       )}।`;
     } else if (appointments.today_completed > 0) {
