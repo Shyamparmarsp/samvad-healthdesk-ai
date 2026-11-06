@@ -220,7 +220,7 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full table-fixed text-left text-xs">
               <tbody className="divide-y divide-[#dde3ee]/60">
                 {filteredReports.map((r) => {
                   const isUrgent = r.status === 'urgent_partial';
@@ -247,7 +247,7 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
                       className="hover:bg-white/60 transition-colors cursor-pointer rounded-[14px] focus:outline-none focus:ring-2 focus:ring-[#1f2a44]"
                     >
                       <td className="py-4 px-3" colSpan={6}>
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           {/* Left: Avatar + Name / Age + Primary Concern */}
                           <div className="flex items-center gap-4 min-w-0 pr-4">
                             <div className="size-[42px] rounded-full bg-[#e5eaf4] text-[#1f2a44] font-semibold text-[13px] flex items-center justify-center shrink-0">
@@ -263,8 +263,9 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
                             </div>
                           </div>
 
-                          {/* Right: Status Pill + Time + Chevron */}
-                          <div className="flex items-center gap-6 shrink-0">
+                          {/* Right: status, time, permanent delete, open arrow. On phones this
+                              wraps to its own row so the delete control stays visible. */}
+                          <div className="flex shrink-0 items-center gap-3 sm:justify-end sm:gap-4 lg:gap-6">
                             {/* v1.3 partial intake badge: never confusable with urgent. */}
                             {isPartial && (
                               <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold bg-[#fff0e6] text-[#b2651a]">
@@ -290,8 +291,9 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
                               </span>
                             )}
 
-                            {/* Time */}
-                            <span className="text-[12px] text-[#4a5470] w-16 text-right font-medium">
+                            {/* Time — the row is tight on phones; the list still shows it
+                                from the tablet breakpoint up. */}
+                            <span className="hidden w-16 text-right text-[12px] font-medium text-[#4a5470] lg:block">
                               {timeFormatted}
                             </span>
 
