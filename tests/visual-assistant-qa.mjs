@@ -295,6 +295,20 @@ async function main() {
     await sleep(600);
     await cdp.shot('7-dashboard-dark.png');
 
+    // Dark palette on the reports page, including the delete control and its dialog.
+    await cdp.eval(closePanel);
+    await cdp.eval(clickStartsWith('Reports'));
+    await cdp.waitFor('Patient Intake Reports');
+    await sleep(350);
+    await cdp.shot('8-reports-dark.png');
+    await cdp.eval(`(() => {
+      const trash = document.querySelector('button[aria-label^="रिपोर्ट हटाएँ"]');
+      if (trash) trash.click();
+      return trash ? 'opened' : 'none';
+    })()`);
+    await sleep(400);
+    await cdp.shot('9-delete-dialog-dark.png');
+
     console.log(
       JSON.stringify(
         {

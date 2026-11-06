@@ -6,6 +6,7 @@ import {
   getDoctorAppointments,
   getDoctorDashboardStats,
   doctorLogout,
+  deleteDoctorReport,
 } from '../../lib/api';
 
 import { ThemeToggle } from '../common/ThemeToggle';
@@ -107,6 +108,22 @@ export const DoctorShell: React.FC = () => {
       void loadData(currentDoctor.id);
     }
   }, [currentDoctor]);
+
+  /**
+   * Deletes one report and refreshes every derived view.
+   *
+   * The delete itself is a single authorised database call; only after it resolves does
+   * the shell leave the detail view and re-read reports/appointments/stats, so the list,
+   * the dashboard counters and the queues can never show a stale row.
+   */
+  const handleDeleteReport = async (reportId: string) => {
+    await deleteDoctorReport(reportId, currentDoctor?.id);
+    if (selectedReportId === reportId) {
+      setSelectedReportId(null);
+      setCurrentView('reports');
+    }
+    await loadData(currentDoctor?.id);
+  };
 
   const handleSelectReport = (reportId: string) => {
     setSelectedReportId(reportId);
@@ -419,6 +436,7 @@ export const DoctorShell: React.FC = () => {
               assistant={
                 <SamwadAssistant doctorId={currentDoctor.id} page={{ kind: 'reports', tab: reportsTab, searchQuery: reportsSearch }} />
               }
+              onDeleteReport={handleDeleteReport}
             />
           )}
 

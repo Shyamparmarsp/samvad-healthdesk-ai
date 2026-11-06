@@ -105,6 +105,63 @@ describe('Audio playback channel — unlock race', () => {
   });
 });
 
+describe('Audio playback channel — click-to-speak regression', () => {
+  it('9. a cancelled unlock never leaves the channel muted (silent playback bug)', async () => {
+    const element = new FakeAudio();
+    const playback = createAudioPlayback({ createAudio: () => element });
+
+    // The assistant does this on every click: start the unlock, then immediately cancel
+    // the previous sentence before the silent clip has resolved.
+    const unlocking = playback.unlock();
+    playback.stop();
+    await unlocking;
+
+    assert.equal(element.muted, false, 'the element is audible after an interrupted unlock');
+
+    let started = false;
+    const pending = playback.play('/audio/hi/summary.mp3', { onStart: () => { started = true; } });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(element.muted, false, 'playback is not muted');
+    assert.equal(element.volume, 1, 'playback is at full volume');
+    assert.equal(element.src, '/audio/hi/summary.mp3');
+    element.onended?.();
+    assert.deepEqual(await pending, { ok: true });
+    assert.equal(started, true, 'onStart fired for real playback');
+  });
+
+  it('10. play() clears a muted element left by another code path', async () => {
+    const element = new FakeAudio();
+    element.muted = true;
+    element.volume = 0.3;
+    const playback = createAudioPlayback({ createAudio: () => element });
+
+    const pending = playback.play('/audio/hi/summary.mp3');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(element.muted, false, 'unmuted before playing');
+    assert.equal(element.volume, 1, 'volume restored');
+    element.onended?.();
+    assert.deepEqual(await pending, { ok: true });
+  });
+
+  it('11. a blocked play is reported, and the channel stays usable for the retry gesture', async () => {
+    const element = new FakeAudio();
+    const playback = createAudioPlayback({ createAudio: () => element });
+    await playback.unlock();
+    playback.stop();
+
+    element.playMode = 'blocked';
+    const blocked = await playback.play('/audio/hi/summary.mp3');
+    assert.deepEqual(blocked, { ok: false, reason: 'blocked' });
+
+    element.playMode = 'ok';
+    const retry = playback.play('/audio/hi/summary.mp3');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(element.muted, false, 'retry is audible');
+    element.onended?.();
+    assert.deepEqual(await retry, { ok: true }, 'the retry gesture plays');
+  });
+});
+
 describe('Audio playback channel', () => {
   it('4. unlock() and play() reuse one element so the gesture permission survives', async () => {
     const elements: FakeAudio[] = [];

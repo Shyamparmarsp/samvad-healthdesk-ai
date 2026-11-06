@@ -32,6 +32,7 @@ const SUITES = [
   { name: 'Emergency authorization', file: 'supabase/tests/emergency_authorization.sql' },
   { name: 'Service-role server grants', file: 'supabase/tests/service_role_grants.sql' },
   { name: 'Doctor assistant data paths', file: 'tests/security/doctor-assistant-rls.sql' },
+  { name: 'Report deletion authorization', file: 'tests/security/delete-report-rls.sql' },
 ];
 
 function run(command, args, options = {}) {

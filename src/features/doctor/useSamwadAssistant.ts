@@ -43,6 +43,8 @@ export type AssistantStatus = 'idle' | 'loading' | 'ready' | 'error';
 export type AssistantAudioState =
   | 'idle'
   | 'loading'
+  /** Audio received; waiting for the browser to confirm playback actually started. */
+  | 'starting'
   | 'playing'
   | 'blocked'
   | 'ended'
@@ -155,6 +157,8 @@ export function useSamwadAssistant(options: Options): UseSamwadAssistant {
 
   const pageRef = useRef(page);
   pageRef.current = page;
+  /** Synchronously true while a summary request is in flight. */
+  const busyRef = useRef(false);
   const doctorIdRef = useRef(doctorId);
   doctorIdRef.current = doctorId;
 
@@ -227,8 +231,13 @@ export function useSamwadAssistant(options: Options): UseSamwadAssistant {
 
       releaseAudioUrl();
       audioUrlRef.current = result.audioUrl;
-      setAudio('playing');
-      const played = await getPlayback().play(result.audioUrl);
+      // "Speaking" is only claimed once play() resolves (audio really started).
+      setAudio('starting');
+      const played = await getPlayback().play(result.audioUrl, {
+        onStart: () => {
+          if (requestId === requestRef.current) setAudio('playing');
+        },
+      });
       if (requestId !== requestRef.current) return;
       if (played.ok) setAudio('ended');
       else if (played.reason === 'blocked') setAudio('blocked');
@@ -239,11 +248,10 @@ export function useSamwadAssistant(options: Options): UseSamwadAssistant {
   );
 
   const runSummary = useCallback(
-    async (intent: 'greeting' | 'summary') => {
+    async (intent: 'greeting' | 'summary', gate?: Promise<void>) => {
       const requestId = ++requestRef.current;
       hasRequestedRef.current = true;
-      // One channel: a new request never overlaps the previous sentence.
-      playbackRef.current?.stop();
+      busyRef.current = true;
       setIsOpen(true);
       setOpenSource((current) => current ?? 'auto');
       setStatus('loading');
@@ -252,60 +260,95 @@ export function useSamwadAssistant(options: Options): UseSamwadAssistant {
       setText(null);
       releaseAudioUrl();
 
-      let facts: SummaryFacts;
       try {
-        facts = await buildFacts(pageRef.current, doctorIdRef.current, intent);
-      } catch {
+        // Wait for the in-gesture audio unlock to start before cancelling the previous
+        // sentence. Cancelling it first aborts the silent clip and, in the old code, left
+        // the element muted so the new summary played silently.
+        if (gate) await gate;
         if (requestId !== requestRef.current) return;
-        setStatus('error');
-        setErrorKind('data');
-        return;
-      }
-      if (requestId !== requestRef.current) return;
+        playbackRef.current?.stop();
 
-      factsRef.current = facts;
-      await requestSummary(facts, requestId);
+        let facts: SummaryFacts;
+        try {
+          facts = await buildFacts(pageRef.current, doctorIdRef.current, intent);
+        } catch {
+          if (requestId !== requestRef.current) return;
+          setStatus('error');
+          setErrorKind('data');
+          return;
+        }
+        if (requestId !== requestRef.current) return;
+
+        factsRef.current = facts;
+        await requestSummary(facts, requestId);
+      } finally {
+        if (requestId === requestRef.current) busyRef.current = false;
+      }
     },
     [releaseAudioUrl, requestSummary],
   );
 
+  /**
+   * The doctor's click. It always starts a fresh summary for the current page, even when
+   * the panel is already open, and it unlocks audio synchronously inside the gesture so
+   * the later `play()` is allowed.
+   */
   const open = useCallback(() => {
-    // Unlocking inside the click keeps the browser's autoplay permission for this page.
-    if (!playbackRef.current) playbackRef.current = createAudioPlayback({ safetyMs: AUDIO_SAFETY_MS });
-    void playbackRef.current.unlock();
+    // A summary is already being generated: show it instead of buying a second TTS call
+    // or starting overlapping audio.
+    if (busyRef.current) {
+      setIsOpen(true);
+      return;
+    }
+
+    const playback = getPlayback();
+    const gate = playback.unlock();
     setIsOpen(true);
     setOpenSource('user');
-    void runSummary('summary');
+    void runSummary('summary', gate);
   }, [runSummary]);
 
   const close = useCallback(() => {
     playbackRef.current?.stop();
-    setAudio((current) => (current === 'playing' || current === 'loading' ? 'stopped' : current));
+    setAudio((current) =>
+      current === 'playing' || current === 'starting' || current === 'loading' ? 'stopped' : current,
+    );
     setIsOpen(false);
     setOpenSource(null);
   }, []);
 
   const retry = useCallback(() => {
-    void runSummary('summary');
+    const gate = getPlayback().unlock();
+    void runSummary('summary', gate);
   }, [runSummary]);
 
+  /**
+   * Replay. Runs inside the button's own gesture, so the unlock always completes before
+   * playback starts and the retry never plays a silently muted element.
+   */
   const play = useCallback(() => {
     const playback = getPlayback();
-    void playback.unlock();
-    if (audioUrlRef.current) {
-      const requestId = requestRef.current;
-      setAudio('playing');
-      void playback.play(audioUrlRef.current).then((result) => {
+    const requestId = requestRef.current;
+    setAudio('loading');
+    void playback.unlock().then(async () => {
+      if (requestId !== requestRef.current) return;
+      if (audioUrlRef.current) {
+        setAudio('starting');
+        const result = await playback.play(audioUrlRef.current, {
+          onStart: () => {
+            if (requestId === requestRef.current) setAudio('playing');
+          },
+        });
         if (requestId !== requestRef.current) return;
         if (result.ok) setAudio('ended');
         else if (result.reason === 'blocked') setAudio('blocked');
         else if (result.reason === 'cancelled') setAudio('stopped');
         else setAudio('unavailable');
-      });
-      return;
-    }
-    const facts = factsRef.current;
-    if (facts) void requestSummary(facts, requestRef.current);
+        return;
+      }
+      const facts = factsRef.current;
+      if (facts) await requestSummary(facts, requestId);
+    });
   }, [requestSummary]);
 
   const stop = useCallback(() => {

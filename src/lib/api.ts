@@ -1748,6 +1748,9 @@ export async function speak(
   });
 }
 
+/** Upper bound for one speech request (Groq phrasing + Timbre synthesis). */
+const SPEECH_TIMEOUT_MS = 45_000;
+
 /** Where a doctor summary sentence came from. */
 export type SummarySource = 'qwen' | 'fallback';
 
@@ -1797,15 +1800,28 @@ async function requestSpeech(
     const token = sessionData?.session?.access_token;
     if (!token) return { audioUrl: undefined };
 
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/speak`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${token}`,
-        apikey: SUPABASE_KEY,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
+    // Groq (two attempts) plus Timbre is bounded server-side; this client timeout only
+    // stops a hung connection from leaving the panel in "preparing" forever.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), SPEECH_TIMEOUT_MS);
+    let response: Response;
+    try {
+      response = await fetch(`${SUPABASE_URL}/functions/v1/speak`, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${token}`,
+          apikey: SUPABASE_KEY,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      const aborted = typeof error === 'object' && error !== null && (error as { name?: string }).name === 'AbortError';
+      throw new ApiError(aborted ? 'Speech request timed out' : 'Speech request failed', aborted ? 'timeout' : 'network');
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const summaryText = isSummary ? decodeSummaryHeader(response.headers.get('x-summary-text')) : undefined;
     const summarySource = isSummary
@@ -1828,7 +1844,11 @@ async function requestSpeech(
     }
 
     const blob = await response.blob();
-    if (blob.size === 0) return { audioUrl: undefined, text: summaryText, source: summarySource };
+    // Only real audio becomes a playable URL; an empty body or a non-audio 200 response
+    // is reported as "no audio" so the panel never claims it can speak.
+    if (blob.size === 0 || !contentType.startsWith('audio/')) {
+      return { audioUrl: undefined, text: summaryText, source: summarySource };
+    }
     return { audioUrl: URL.createObjectURL(blob), text: summaryText, source: summarySource };
   }
 
@@ -2137,6 +2157,58 @@ export async function markReportReviewed(reportId: string): Promise<MarkReportRe
     reviewed_at: report.reviewed_at,
     reviewed_by: report.reviewed_by,
   };
+}
+
+/**
+ * Permanently deletes one report as the assigned doctor.
+ *
+ * The database function validates ownership from the verified JWT; the browser never
+ * sends a doctor id, and there is no table write path. On success the report, its
+ * report-exclusive transcript and (by FK cascade) its appointments are gone; the patient
+ * session and consent record are kept.
+ */
+export async function deleteDoctorReport(reportId: string, doctorId?: string): Promise<void> {
+  if (currentAppMode === 'supabase') {
+    // A non-uuid id cannot match a row; answer exactly like a missing report so the
+    // endpoint never confirms which ids exist.
+    if (!isUuid(reportId)) {
+      throw new ApiError('Report not found.', 'not_found', 404);
+    }
+    const client = getSupabaseClient();
+    const { data, error } = await client.rpc('delete_doctor_report', { p_report_id: reportId });
+    if (error) {
+      if (error.code === '28000') throw new ApiError('Not authenticated.', 'unauthorized', 401);
+      if (error.code === 'P0002') throw new ApiError('Report not found.', 'not_found', 404);
+      if (error.code === '42501') throw new ApiError('Not authorised to delete this report.', 'forbidden', 403);
+      if (error.code === '22023') throw new ApiError('This report cannot be deleted.', 'invalid_state', 422);
+      throw new ApiError(error.message || 'Failed to delete the report', error.code, 400);
+    }
+    const rows = (data ?? []) as { deleted_report_id?: string }[];
+    if (!rows.length || rows[0]?.deleted_report_id !== reportId) {
+      throw new ApiError('The report was not deleted.', 'internal');
+    }
+    return;
+  }
+
+  const report = mockReports.get(reportId);
+  if (!report || report.status === 'draft') {
+    throw new ApiError('Report not found.', 'not_found', 404);
+  }
+  // `doctorId` mirrors the JWT-derived identity the database function uses. The real
+  // implementation ignores it: the server derives the doctor from the verified token.
+  if (doctorId && report.doctor_id !== doctorId) {
+    throw new ApiError('Not authorised to delete this report.', 'forbidden', 403);
+  }
+
+  // Mirror the database: appointments cascade with the report; the session and consent
+  // record stay; the report-exclusive transcript is removed.
+  for (const [appointmentId, appointment] of mockAppointments) {
+    if (appointment.report_id === reportId) mockAppointments.delete(appointmentId);
+  }
+  const session = mockSessions.get(report.session_id);
+  if (session) session.messages = [];
+  mockSeededMessages.delete(reportId);
+  mockReports.delete(reportId);
 }
 
 export async function doctorLogin(email: string, password?: string): Promise<DoctorLoginResponse> {

@@ -59,6 +59,10 @@ Deno.test("schema: SECURITY DEFINER is confined to the reviewed RPCs", () => {
     // v1.3 partial reports: re-creates the two reviewed RPCs with the added non-emergency
     // `partial` status. Same definer controls, no new grant, no broadened read.
     "20261104083818_partial_reports_v13.sql",
+    // Permanent report deletion: the browser has no DELETE grant on reports, so the
+    // assigned-doctor check and the report-exclusive cleanup run inside one reviewed
+    // definer function with the same empty search_path and grant restrictions.
+    "20261106090000_delete_doctor_report.sql",
   ];
   assertEqual(definers.length, reviewed.length, "only reviewed migrations may declare SECURITY DEFINER");
   assertEqual(

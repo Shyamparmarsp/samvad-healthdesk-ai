@@ -81,6 +81,13 @@ export const SamwadAssistant: React.FC<SamwadAssistantProps> = ({
   }, [isOpen, close]);
 
   const audioControl = (() => {
+    if (audio === 'starting') {
+      return (
+        <span role="status" className="text-[11px] font-medium text-[#4a5470]">
+          आवाज़ शुरू हो रही है…
+        </span>
+      );
+    }
     if (audio === 'loading') {
       return (
         <span role="status" className="text-[11px] font-medium text-[#4a5470]">
@@ -90,13 +97,23 @@ export const SamwadAssistant: React.FC<SamwadAssistantProps> = ({
     }
     if (audio === 'playing') {
       return (
-        <button
-          type="button"
-          onClick={stop}
-          className="inline-flex h-[36px] items-center gap-1.5 rounded-full bg-[#091329] px-4 text-[11px] font-semibold text-[#f7faff] transition-colors hover:bg-[#16213c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f2a44]"
-        >
-          <span aria-hidden>■</span> रोकें
-        </button>
+        <div className="flex items-center gap-2">
+          <span role="status" className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#176a3b]">
+            <span aria-hidden className="inline-flex h-3 items-end gap-[2px]">
+              <span className="w-[2px] animate-wave-1 rounded-full bg-[#176a3b]" style={{ height: '100%' }} />
+              <span className="w-[2px] animate-wave-2 rounded-full bg-[#176a3b]" style={{ height: '100%' }} />
+              <span className="w-[2px] animate-wave-3 rounded-full bg-[#176a3b]" style={{ height: '100%' }} />
+            </span>
+            बोल रहा हूँ…
+          </span>
+          <button
+            type="button"
+            onClick={stop}
+            className="inline-flex h-[36px] items-center gap-1.5 rounded-full bg-[#091329] px-4 text-[11px] font-semibold text-[#f7faff] transition-colors hover:bg-[#16213c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f2a44]"
+          >
+            <span aria-hidden>■</span> रोकें
+          </button>
+        </div>
       );
     }
     if (audio === 'blocked') {
@@ -147,7 +164,9 @@ export const SamwadAssistant: React.FC<SamwadAssistantProps> = ({
 
   return (
     <div ref={buttonRef} className="relative shrink-0 self-end lg:self-auto">
-      <SamwadAssistantButton onClick={isOpen ? close : open} isOpen={isOpen} isBusy={isBusy} />
+      {/* The pill always starts a fresh summary + speech for the current page; the panel's
+          close button, Escape or an outside tap closes it. */}
+      <SamwadAssistantButton onClick={open} isOpen={isOpen} isBusy={isBusy} />
 
       {isOpen && (
         <div
@@ -188,7 +207,7 @@ export const SamwadAssistant: React.FC<SamwadAssistantProps> = ({
             {status === 'loading' && (
               <div role="status" aria-live="polite" className="flex items-center gap-2 py-1 text-[12px] text-[#4a5470]">
                 <span aria-hidden className="h-2 w-2 animate-ping rounded-full bg-[#284c91]" />
-                सारांश तैयार हो रहा है…
+                सारांश और आवाज़ तैयार हो रहे हैं…
               </div>
             )}
 

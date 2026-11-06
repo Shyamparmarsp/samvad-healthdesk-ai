@@ -3,6 +3,8 @@ import { DoctorReportsTab } from '../../types/doctor';
 import { ReportRow } from '../../types/report';
 import { formatIstTime } from '../../lib/booking-time';
 import { DoctorPageHeader } from './DoctorPageHeader';
+import { TrashIcon } from './TrashIcon';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 interface DoctorReportsListProps {
   reports: ReportRow[];
@@ -20,6 +22,11 @@ interface DoctorReportsListProps {
   onSearchChange?: (query: string) => void;
   /** Upper-right header slot: the shared Samwad Assistant. */
   assistant?: React.ReactNode;
+  /**
+   * Permanently deletes one report. The shell owns this call so it can refresh every
+   * affected view (dashboard counters, queues, totals) after the server confirms.
+   */
+  onDeleteReport?: (reportId: string) => Promise<void>;
 }
 
 export function filterReportsByTab(
@@ -66,9 +73,15 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
   onActiveTabChange,
   onSearchChange,
   assistant,
+  onDeleteReport,
 }) => {
   const [internalTab, setInternalTab] = useState<DoctorReportsTab>('all');
   const [internalSearch, setInternalSearch] = useState('');
+  // Deletion is a two-step, server-confirmed action: dialog first, then the RPC.
+  const [pendingDelete, setPendingDelete] = useState<ReportRow | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deletedNotice, setDeletedNotice] = useState<string | null>(null);
 
   const activeTab = controlledTab ?? internalTab;
   const searchQuery = controlledSearch ?? internalSearch;
@@ -80,6 +93,43 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
   const setSearchQuery = (query: string) => {
     if (onSearchChange) onSearchChange(query);
     else setInternalSearch(query);
+  };
+
+  const requestDelete = (report: ReportRow) => {
+    if (isDeleting) return;
+    setDeleteError(null);
+    setDeletedNotice(null);
+    setPendingDelete(report);
+  };
+
+  const cancelDelete = () => {
+    if (isDeleting) return;
+    setPendingDelete(null);
+    setDeleteError(null);
+  };
+
+  const confirmDelete = async () => {
+    const target = pendingDelete;
+    if (!target || isDeleting || !onDeleteReport) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDeleteReport(target.id);
+      // Only now, after the server confirmed, is the row allowed to disappear.
+      setPendingDelete(null);
+      setDeletedNotice('रिपोर्ट स्थायी रूप से हटा दी गई।');
+    } catch (error) {
+      const code = (error as { code?: string })?.code;
+      setDeleteError(
+        code === 'forbidden'
+          ? 'आपको यह रिपोर्ट हटाने की अनुमति नहीं है।'
+          : code === 'not_found'
+            ? 'यह रिपोर्ट पहले ही हट चुकी है।'
+            : 'रिपोर्ट हटाई नहीं जा सकी। कृपया फिर कोशिश करें।',
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const filteredReports = filterReportsByTab(reports, activeTab, bookedReportIds, searchQuery);
@@ -115,6 +165,31 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
           </div>
         }
       />
+
+      {/* Delete outcome, announced without hiding the list */}
+      {deletedNotice && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex items-center justify-between gap-3 rounded-[16px] border border-emerald-200 bg-[#dcf3e6] px-4 py-3 text-[12px] font-medium text-[#176a3b]"
+        >
+          <span>{deletedNotice}</span>
+          <button
+            type="button"
+            onClick={() => setDeletedNotice(null)}
+            aria-label="संदेश बंद करें"
+            className="text-[12px] font-semibold text-[#176a3b] underline focus:outline-none"
+          >
+            बंद करें
+          </button>
+        </div>
+      )}
+
+      {deleteError && !pendingDelete && (
+        <div role="alert" className="rounded-[16px] border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-medium text-red-900">
+          {deleteError}
+        </div>
+      )}
 
       {/* Frosted Reports Card matching Figma 82:166 */}
       <div className="rounded-[24px] bg-[rgba(255,255,255,0.55)] backdrop-blur-[9px] border border-white p-6 shadow-[0px_7px_22px_-3px_rgba(41,51,79,0.13)] space-y-6">
@@ -220,6 +295,27 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
                               {timeFormatted}
                             </span>
 
+                            {/* Permanent delete — immediately before the open arrow. */}
+                            {onDeleteReport && (
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  requestDelete(r);
+                                }}
+                                onKeyDown={(event) => {
+                                  // The row itself opens the report on Enter/Space.
+                                  if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+                                }}
+                                aria-label={`रिपोर्ट हटाएँ: ${patientName}`}
+                                title="रिपोर्ट हटाएँ"
+                                disabled={isDeleting}
+                                className="flex h-10 w-10 items-center justify-center rounded-full text-[#dc2626] transition-colors hover:bg-[#fee2e2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#dc2626] disabled:opacity-50"
+                              >
+                                <TrashIcon />
+                              </button>
+                            )}
+
                             {/* Chevron right matching Figma */}
                             <svg className="w-4 h-4 text-[#1d2433]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -235,6 +331,21 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="रिपोर्ट स्थायी रूप से हटाएँ?"
+        description={`क्या आप ${pendingDelete?.report.patient.name.value || 'इस मरीज़'} की यह रिपोर्ट और इससे जुड़े रिपोर्ट-विशिष्ट डेटा को स्थायी रूप से हटाना चाहते हैं? यह कार्रवाई वापस नहीं की जा सकती।${
+          deleteError ? ` ${deleteError}` : ''
+        }`}
+        confirmLabel="हाँ, रिपोर्ट हटाएँ"
+        cancelLabel="रद्द करें"
+        tone="danger"
+        busy={isDeleting}
+        busyLabel="हटाया जा रहा है…"
+        onConfirm={() => void confirmDelete()}
+        onCancel={cancelDelete}
+      />
     </div>
   );
 };

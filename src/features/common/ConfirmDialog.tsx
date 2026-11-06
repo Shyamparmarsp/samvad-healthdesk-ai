@@ -8,6 +8,10 @@ interface ConfirmDialogProps {
   cancelLabel: string;
   /** `danger` styles the confirm action as a leaving action. */
   tone?: 'default' | 'danger';
+  /** Blocks the confirm action (and the cancel action) while work is in progress. */
+  busy?: boolean;
+  /** Label shown on the confirm button while `busy`. */
+  busyLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -26,6 +30,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   confirmLabel,
   cancelLabel,
   tone = 'default',
+  busy = false,
+  busyLabel,
   onConfirm,
   onCancel,
 }) => {
@@ -69,7 +75,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   if (!open) return null;
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center p-5">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-5">
       <button
         type="button"
         aria-label={cancelLabel}
@@ -96,20 +102,22 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             ref={cancelRef}
             type="button"
             onClick={onCancel}
-            className="w-full h-[46px] rounded-[23px] bg-[#1f2a44] border border-[#1f2a44] text-white text-[13px] font-semibold hover:bg-[#2a3a5c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f2a44]"
+            disabled={busy}
+            className="w-full h-[46px] rounded-[23px] bg-[#1f2a44] border border-[#1f2a44] text-white text-[13px] font-semibold hover:bg-[#2a3a5c] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f2a44]"
           >
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className={`w-full h-[46px] rounded-[23px] text-[13px] font-semibold border focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f2a44] ${
+            disabled={busy}
+            className={`w-full h-[46px] rounded-[23px] text-[13px] font-semibold border focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f2a44] disabled:opacity-70 ${
               tone === 'danger'
                 ? 'bg-red-600 border-red-600 text-white hover:bg-red-700'
                 : 'bg-[rgba(255,255,255,0.74)] border-white text-[#1d2433] hover:bg-white'
             }`}
           >
-            {confirmLabel}
+            {busy ? (busyLabel ?? confirmLabel) : confirmLabel}
           </button>
         </div>
       </div>

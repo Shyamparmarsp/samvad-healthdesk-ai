@@ -50,6 +50,13 @@ html.dark {
   background-color: rgba(30, 41, 63, 0.92);
 }
 
+/* Confirmation dialogs (session exit, report delete): a near-opaque light surface in
+   light mode, so the dark palette needs its own near-opaque surface or the light text
+   tokens above become invisible on white. */
+.dark [class*="bg-[rgba(255,255,255,0.9)]"] {
+  background-color: rgba(30, 41, 63, 0.97);
+}
+
 .dark [class*="bg-white/85"],
 .dark [class*="bg-white/80"],
 .dark [class*="bg-white/70"],

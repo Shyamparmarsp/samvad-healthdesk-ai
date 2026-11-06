@@ -97,6 +97,9 @@ export function createAudioPlayback(options: AudioPlaybackOptions = {}): AudioPl
     } catch {
       // A paused or empty element is not an error.
     }
+    // Never leave the channel muted: a stopped unlock must not silence the next
+    // summary (see the unlock doc comment).
+    element.muted = false;
   };
 
   return {
@@ -107,25 +110,36 @@ export function createAudioPlayback(options: AudioPlaybackOptions = {}): AudioPl
       return unlocked;
     },
 
+    /**
+     * Plays a zero-sample clip inside the user gesture so the browser remembers that this
+     * element may play audio later. It is muted, so the doctor hears nothing.
+     *
+     * The unmute in `finally` is unconditional. A caller that supersedes the unlock (for
+     * example by cancelling the previous sentence right after a click) still gets an
+     * audible channel; leaving the element muted was the reason a generated summary could
+     * report "speaking" while playing silence.
+     */
     async unlock(): Promise<void> {
       const target = ensure();
       const previous = target.src;
       // Unlocking is asynchronous. If a real utterance starts while the silent clip is
       // still resolving, that playback owns the element: cleaning up afterwards would
-      // pause it and swallow its `ended` event.
+      // pause it and swallow its `ended` event. Only the pause/src restore is skipped,
+      // never the unmute.
       const generation = token;
       try {
         target.muted = true;
+        target.volume = 1;
         target.src = unlockSource;
         await target.play();
       } catch {
         // Some browsers reject even a muted silent clip; the next play() reports it.
       } finally {
+        target.muted = false;
         if (token === generation) {
           try {
             target.pause();
           } catch {}
-          target.muted = false;
           try {
             target.src = previous ?? '';
           } catch {}
@@ -161,6 +175,10 @@ export function createAudioPlayback(options: AudioPlaybackOptions = {}): AudioPl
 
         target.onended = () => settle({ ok: true });
         target.onerror = () => settle({ ok: false, reason: 'error' });
+        // A reusable element can be left muted by an interrupted unlock or by the page;
+        // an utterance must always be audible.
+        target.muted = false;
+        target.volume = 1;
         target.src = url;
 
         let played: Promise<void>;
