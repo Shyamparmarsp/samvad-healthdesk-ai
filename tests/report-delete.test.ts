@@ -126,8 +126,8 @@ describe('Report deletion — UI wiring', () => {
     assert.ok(timeIndex < trashIndex, 'trash button comes after the time');
     assert.ok(trashIndex < chevronIndex, 'trash button comes before the open arrow');
 
-    assert.match(source, /aria-label=\{`रिपोर्ट हटाएँ: \$\{patientName\}`\}/, 'accessible label');
-    assert.match(source, /title="रिपोर्ट हटाएँ"/, 'tooltip');
+    assert.match(source, /aria-label=\{`Delete report: \$\{patientName\}`\}/, 'accessible label');
+    assert.match(source, /title="Delete report"/, 'tooltip');
     assert.match(source, /<TrashIcon \/>/, 'the red bin icon is rendered');
     assert.match(source, /event\.stopPropagation\(\)/, 'clicking delete does not open the report');
     assert.match(source, /disabled=\{isDeleting\}/, 'duplicate clicks are blocked while deleting');
@@ -135,9 +135,10 @@ describe('Report deletion — UI wiring', () => {
 
   it('7. deletion is confirmed first and the row is only removed after the server resolves', () => {
     const source = read('src/features/doctor/DoctorReportsList.tsx');
-    assert.match(source, /title="रिपोर्ट स्थायी रूप से हटाएँ\?"/);
-    assert.match(source, /confirmLabel="हाँ, रिपोर्ट हटाएँ"/);
-    assert.match(source, /cancelLabel="रद्द करें"/);
+    assert.match(source, /title="Permanently delete report\?"/);
+    assert.match(source, /confirmLabel="Delete report"/);
+    assert.match(source, /cancelLabel="Cancel"/);
+    assert.match(source, /This action cannot be undone\./);
     assert.match(source, /tone="danger"/);
     // The optimistic path is forbidden: the row disappears only when the awaited call
     // resolves and the shell re-reads the list.

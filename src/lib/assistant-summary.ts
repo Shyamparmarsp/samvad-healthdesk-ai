@@ -32,7 +32,7 @@ import {
   type SummaryFacts,
 } from '../../supabase/functions/_shared/doctor-summary';
 
-export type { SummaryFacts } from '../../supabase/functions/_shared/doctor-summary';
+export type { SummaryFacts, SummaryLanguage } from '../../supabase/functions/_shared/doctor-summary';
 export type {
   AppointmentTab,
   ReportFilterTab,
@@ -43,6 +43,9 @@ export type {
 } from '../../supabase/functions/_shared/doctor-summary';
 export {
   renderHindiSummary,
+  renderEnglishSummary,
+  renderSummary,
+  parseSummaryLanguage,
   parseSummaryFacts,
   istTimeOfDay,
   MAX_SUMMARY_CHARACTERS,

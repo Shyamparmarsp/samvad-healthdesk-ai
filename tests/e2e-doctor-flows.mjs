@@ -210,7 +210,7 @@ async function main() {
     ];
 
     const closePanel = `(() => {
-      const c = Array.from(document.querySelectorAll('button')).find(b => b.getAttribute('aria-label') === 'सहायक बंद करें');
+      const c = Array.from(document.querySelectorAll('button')).find(b => b.getAttribute('aria-label') === 'Close assistant');
       if (c) c.click();
       return c ? 'closed' : 'none';
     })()`;
@@ -277,12 +277,12 @@ async function main() {
     await cdp.waitFor('Patient Intake Reports');
     await sleep(400);
 
-    const rowsBefore = await cdp.eval(`document.querySelectorAll('button[aria-label^="रिपोर्ट हटाएँ"]').length`);
+    const rowsBefore = await cdp.eval(`document.querySelectorAll('button[aria-label^="Delete report"]').length`);
     record('every report row has a delete button', rowsBefore > 0, `${rowsBefore} rows`);
 
     // Placement: trash immediately before the chevron.
     const placement = await cdp.eval(`(() => {
-      const trash = document.querySelector('button[aria-label^="रिपोर्ट हटाएँ"]');
+      const trash = document.querySelector('button[aria-label^="Delete report"]');
       if (!trash) return null;
       const group = trash.parentElement;
       const index = Array.from(group.children).indexOf(trash);
@@ -291,35 +291,35 @@ async function main() {
     })()`);
     record('delete button is immediately before the open arrow', Boolean(placement?.isBeforeArrow), JSON.stringify(placement));
 
-    await cdp.mouseClick('button[aria-label^="रिपोर्ट हटाएँ"]');
-    await cdp.waitFor('रिपोर्ट स्थायी रूप से हटाएँ?');
+    await cdp.mouseClick('button[aria-label^="Delete report"]');
+    await cdp.waitFor('Permanently delete report?');
     await cdp.shot('03-delete-confirm.png');
     const dialogText = await cdp.eval(`document.querySelector('[data-confirm-dialog]')?.innerText || ''`);
     record(
       'confirmation dialog explains permanence',
-      dialogText.includes('वापस नहीं की जा सकती') && dialogText.includes('रद्द करें') && dialogText.includes('हाँ, रिपोर्ट हटाएँ'),
+      dialogText.includes('cannot be undone') && dialogText.includes('Cancel') && dialogText.includes('Delete report'),
     );
 
-    await cdp.eval(clickText('रद्द करें'));
+    await cdp.eval(clickText('Cancel'));
     await sleep(400);
-    const rowsAfterCancel = await cdp.eval(`document.querySelectorAll('button[aria-label^="रिपोर्ट हटाएँ"]').length`);
+    const rowsAfterCancel = await cdp.eval(`document.querySelectorAll('button[aria-label^="Delete report"]').length`);
     record('cancel keeps the report', rowsAfterCancel === rowsBefore, `${rowsAfterCancel} rows`);
 
-    await cdp.mouseClick('button[aria-label^="रिपोर्ट हटाएँ"]');
-    await cdp.waitFor('हाँ, रिपोर्ट हटाएँ');
-    await cdp.eval(clickText('हाँ, रिपोर्ट हटाएँ'));
-    await cdp.waitFor('रिपोर्ट स्थायी रूप से हटा दी गई', 20000);
+    await cdp.mouseClick('button[aria-label^="Delete report"]');
+    await cdp.waitFor('Delete report');
+    await cdp.eval(clickText('Delete report'));
+    await cdp.waitFor('Report permanently deleted.', 20000);
     await sleep(600);
     await cdp.shot('04-delete-success.png');
 
-    const rowsAfterDelete = await cdp.eval(`document.querySelectorAll('button[aria-label^="रिपोर्ट हटाएँ"]').length`);
+    const rowsAfterDelete = await cdp.eval(`document.querySelectorAll('button[aria-label^="Delete report"]').length`);
     record('confirmed delete removes the row', rowsAfterDelete === rowsBefore - 1, `${rowsBefore} → ${rowsAfterDelete}`);
 
     await cdp.eval(clickStartsWith('Dashboard'));
     await cdp.waitFor('Welcome');
     await sleep(900);
     const dashboardText = await cdp.eval('document.body.innerText');
-    record('dashboard re-reads after deletion', !dashboardText.includes('रिपोर्ट हटाई नहीं जा सकी'));
+    record('dashboard re-reads after deletion', !dashboardText.includes('could not be deleted'));
 
     // Responsive captures of the reports page with the delete control.
     for (const [width, height] of [[1280, 820], [1024, 768], [768, 1024], [390, 844]]) {

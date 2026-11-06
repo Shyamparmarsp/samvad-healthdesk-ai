@@ -15,11 +15,12 @@ interface SamwadAssistantProps {
 }
 
 /**
- * Samwad Assistant — doctor-facing Hindi summariser.
+ * Samwad Assistant — doctor-facing summariser.
  *
  * The pill is the approved Figma component; this wrapper adds the contextual panel.
- * Every state is announced in Hindi, including the fallbacks, and the panel never
- * covers the page with a blocking overlay.
+ * Doctor-facing UI copy is English; the summary itself follows the shared Hindi/English
+ * language selector in the panel header (default Hindi). The panel never covers the page
+ * with a blocking overlay.
  */
 export const SamwadAssistant: React.FC<SamwadAssistantProps> = ({
   page,
@@ -30,7 +31,22 @@ export const SamwadAssistant: React.FC<SamwadAssistantProps> = ({
   dataFailed = false,
 }) => {
   const assistant = useSamwadAssistant({ page, doctorId, autoGreet, greetingToken, dataReady, dataFailed });
-  const { isOpen, openSource, status, text, audio, errorKind, isBusy, open, close, retry, play, stop } = assistant;
+  const {
+    isOpen,
+    openSource,
+    language,
+    setLanguage,
+    status,
+    text,
+    audio,
+    errorKind,
+    isBusy,
+    open,
+    close,
+    retry,
+    play,
+    stop,
+  } = assistant;
 
   const buttonRef = useRef<HTMLDivElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -84,14 +100,14 @@ export const SamwadAssistant: React.FC<SamwadAssistantProps> = ({
     if (audio === 'starting') {
       return (
         <span role="status" className="text-[11px] font-medium text-[#4a5470]">
-          आवाज़ शुरू हो रही है…
+          Starting audio…
         </span>
       );
     }
     if (audio === 'loading') {
       return (
         <span role="status" className="text-[11px] font-medium text-[#4a5470]">
-          आवाज़ तैयार हो रही है…
+          Generating audio…
         </span>
       );
     }
@@ -104,14 +120,14 @@ export const SamwadAssistant: React.FC<SamwadAssistantProps> = ({
               <span className="w-[2px] animate-wave-2 rounded-full bg-[#176a3b]" style={{ height: '100%' }} />
               <span className="w-[2px] animate-wave-3 rounded-full bg-[#176a3b]" style={{ height: '100%' }} />
             </span>
-            बोल रहा हूँ…
+            Speaking…
           </span>
           <button
             type="button"
             onClick={stop}
             className="inline-flex h-[36px] items-center gap-1.5 rounded-full bg-[#091329] px-4 text-[11px] font-semibold text-[#f7faff] transition-colors hover:bg-[#16213c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f2a44]"
           >
-            <span aria-hidden>■</span> रोकें
+            <span aria-hidden>■</span> Stop
           </button>
         </div>
       );
@@ -124,10 +140,10 @@ export const SamwadAssistant: React.FC<SamwadAssistantProps> = ({
             onClick={play}
             className="inline-flex h-[36px] items-center gap-1.5 rounded-full bg-[#091329] px-4 text-[11px] font-semibold text-[#f7faff] transition-colors hover:bg-[#16213c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f2a44]"
           >
-            <span aria-hidden>▶</span> सुनने के लिए दबाएँ
+            <span aria-hidden>▶</span> Listen
           </button>
           <p className="text-[10px] leading-snug text-[#4a5470]">
-            ब्राउज़र ने अपने आप चलने वाली आवाज़ रोक दी है। सारांश नीचे पढ़ा भी जा सकता है।
+            Audio playback was blocked. Select Listen to play the summary.
           </p>
         </div>
       );
@@ -136,14 +152,14 @@ export const SamwadAssistant: React.FC<SamwadAssistantProps> = ({
       return (
         <div className="space-y-1.5">
           <p className="text-[10px] leading-snug text-[#b2651a]">
-            आवाज़ अभी उपलब्ध नहीं है। सारांश पढ़ा जा सकता है।
+            Voice is currently unavailable. The summary can still be read.
           </p>
           <button
             type="button"
             onClick={play}
             className="inline-flex h-[32px] items-center gap-1.5 rounded-full border border-[#dde3ee] bg-white px-3.5 text-[11px] font-semibold text-[#1f2a44] transition-colors hover:bg-[#f3f6fc] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f2a44]"
           >
-            फिर कोशिश करें
+            Retry
           </button>
         </div>
       );
@@ -155,7 +171,7 @@ export const SamwadAssistant: React.FC<SamwadAssistantProps> = ({
           onClick={play}
           className="inline-flex h-[36px] items-center gap-1.5 rounded-full border border-[#dde3ee] bg-white px-4 text-[11px] font-semibold text-[#1f2a44] transition-colors hover:bg-[#f3f6fc] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f2a44]"
         >
-          <span aria-hidden>↻</span> फिर सुनें
+          <span aria-hidden>↻</span> Replay
         </button>
       );
     }
@@ -179,35 +195,64 @@ export const SamwadAssistant: React.FC<SamwadAssistantProps> = ({
           className="absolute right-0 top-[calc(100%+12px)] z-40 w-[min(92vw,384px)] overflow-hidden rounded-[24px] border-2 border-[rgba(77,107,173,0.92)] bg-[#091329] shadow-[0px_16px_38px_-6px_rgba(9,20,59,0.55)] focus:outline-none"
         >
           {/* Navy header, same palette as the approved pill */}
-          <div className="flex items-start gap-3 px-4 pb-3 pt-4">
+          <div className="flex items-center gap-3 px-4 pb-3 pt-4">
             <img
               src="/assistant/mascot-purple-avatar.png"
               alt=""
               aria-hidden
-              className="mt-0.5 h-[38px] w-[38px] shrink-0"
+              className="h-[38px] w-[38px] shrink-0"
             />
             <div className="min-w-0 flex-1">
-              <h2 id="samwad-assistant-title" className="text-[13px] font-semibold leading-tight text-[#f7faff]">
+              <h2 id="samwad-assistant-title" className="truncate text-[13px] font-semibold leading-tight text-[#f7faff]">
                 Samwad Assistant
               </h2>
-              <p className="mt-0.5 text-[10px] text-[#b3d4ff]">हिंदी में आपका सहायक</p>
+              <p className="mt-0.5 truncate text-[10px] text-[#b3d4ff]">Doctor workflow assistant</p>
             </div>
+
+            {/* Language selector: right of the title, before the close button (the
+                owner-annotated position). Hindi is the default. */}
+            <div
+              role="group"
+              aria-label="Summary language"
+              className="flex shrink-0 items-center gap-0.5 rounded-full border border-[rgba(179,212,255,0.35)] bg-[rgba(9,19,41,0.65)] p-0.5"
+            >
+              {(['hi', 'en'] as const).map((option) => {
+                const selected = language === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setLanguage(option)}
+                    aria-pressed={selected}
+                    aria-label={option === 'hi' ? 'Summarize in Hindi' : 'Summarize in English'}
+                    className={`h-[22px] rounded-full px-2 text-[10px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b3d4ff] ${
+                      selected
+                        ? 'bg-[#b3d4ff] text-[#091329]'
+                        : 'text-[#b3d4ff]/80 hover:text-[#f7faff]'
+                    }`}
+                  >
+                    {option === 'hi' ? 'Hindi' : 'English'}
+                  </button>
+                );
+              })}
+            </div>
+
             <button
               type="button"
               onClick={close}
-              aria-label="सहायक बंद करें"
+              aria-label="Close assistant"
               className="flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-full border border-[rgba(179,212,255,0.35)] text-[13px] leading-none text-[#b3d4ff] transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b3d4ff]"
             >
               <span aria-hidden>✕</span>
             </button>
           </div>
 
-          {/* White body: the Hindi summary and its honest audio state */}
+          {/* Body: the summary in the selected language and its honest audio state */}
           <div className="space-y-3 rounded-t-[20px] bg-white px-4 py-4">
             {status === 'loading' && (
               <div role="status" aria-live="polite" className="flex items-center gap-2 py-1 text-[12px] text-[#4a5470]">
                 <span aria-hidden className="h-2 w-2 animate-ping rounded-full bg-[#284c91]" />
-                सारांश और आवाज़ तैयार हो रहे हैं…
+                Preparing summary and audio…
               </div>
             )}
 
@@ -215,22 +260,26 @@ export const SamwadAssistant: React.FC<SamwadAssistantProps> = ({
               <div role="alert" className="space-y-2">
                 <p className="text-[12px] leading-relaxed text-[#8a1c1c]">
                   {errorKind === 'data'
-                    ? 'आपका डेटा लोड नहीं हो सका, इसलिए मैं अभी सारांश नहीं बना सकता।'
-                    : 'सारांश तैयार नहीं हो सका। कृपया फिर कोशिश करें।'}
+                    ? 'Your records could not be loaded, so a summary cannot be prepared right now.'
+                    : 'The summary could not be prepared. Please try again.'}
                 </p>
                 <button
                   type="button"
                   onClick={retry}
                   className="inline-flex h-[34px] items-center rounded-full border border-[#b3d4ff]/40 bg-[#091329] px-4 text-[11px] font-semibold text-[#f7faff] transition-colors hover:bg-[#16213c] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1f2a44]"
                 >
-                  फिर कोशिश करें
+                  Retry
                 </button>
               </div>
             )}
 
             {status === 'ready' && text && (
               <>
-                <p lang="hi" aria-live="polite" className="font-hindi text-[13px] leading-relaxed text-[#1d2433]">
+                <p
+                  lang={language}
+                  aria-live="polite"
+                  className={`text-[13px] leading-relaxed text-[#1d2433] ${language === 'hi' ? 'font-hindi' : ''}`}
+                >
                   {text}
                 </p>
                 <div className="flex flex-wrap items-center gap-2">{audioControl}</div>
@@ -238,7 +287,7 @@ export const SamwadAssistant: React.FC<SamwadAssistantProps> = ({
             )}
 
             <p className="border-t border-[#dde3ee]/70 pt-2 text-[10px] leading-snug text-[#6b7590]">
-              यह केवल आपके डैशबोर्ड की जानकारी का सारांश है, चिकित्सकीय सलाह नहीं।
+              This assistant summarizes information in your records. It does not provide medical advice.
             </p>
           </div>
         </div>

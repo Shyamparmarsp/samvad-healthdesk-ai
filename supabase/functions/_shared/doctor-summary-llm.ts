@@ -22,6 +22,7 @@ import {
   istClockParts,
   parseInstant,
   type SummaryFacts,
+  type SummaryLanguage,
 } from "./doctor-summary.ts";
 
 /** A briefing, not a page narration. Well inside the Timbre request cap. */
@@ -117,6 +118,7 @@ export type SummaryRejection =
   | "too_long"
   | "not_hindi"
   | "latin_text"
+  | "devanagari"
   | "number_words"
   | "unsupported_number"
   | "appointment_count"
@@ -143,6 +145,193 @@ function normaliseDigits(text: string): string {
     normalised = normalised.replace(new RegExp(`(^|[^\\u0900-\\u097F])${word}(?=[^\\u0900-\\u097F]|$)`, "g"), `$1${value}`);
   }
   return normalised;
+}
+
+/** English equivalents of the clinical and contact claims that must never appear. */
+const FORBIDDEN_PHRASES_EN = [
+  "diagnos",
+  "prescri",
+  "treatment",
+  "medication",
+  "medicine",
+  "dosage",
+  "dose",
+  "ambulance",
+  "112",
+  "contacted",
+  "alerted",
+  "advised",
+  "recommend",
+  "prognosis",
+  "infection",
+  "viral",
+  "bacterial",
+  "antibiotic",
+  "tablet",
+  "capsule",
+  "painkiller",
+  "paracetamol",
+  "ibuprofen",
+  "aspirin",
+  "twice daily",
+  "once daily",
+  "three times",
+] as const;
+
+/** Number words are normalised so a spelled-out count is still checked. */
+const ENGLISH_NUMBER_WORDS: Readonly<Record<string, number>> = {
+  zero: 0,
+  one: 1,
+  two: 2,
+  three: 3,
+  four: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  thirteen: 13,
+  fourteen: 14,
+  fifteen: 15,
+  sixteen: 16,
+  seventeen: 17,
+  eighteen: 18,
+  nineteen: 19,
+  twenty: 20,
+  thirty: 30,
+  forty: 40,
+  fifty: 50,
+  sixty: 60,
+  seventy: 70,
+  eighty: 80,
+  ninety: 90,
+  hundred: 100,
+};
+
+function normaliseEnglishNumbers(text: string): string {
+  let normalised = text;
+  for (const [word, value] of Object.entries(ENGLISH_NUMBER_WORDS)) {
+    normalised = normalised.replace(new RegExp(`\\b${word}\\b`, "gi"), String(value));
+  }
+  return normalised;
+}
+
+const ENGLISH_MONTHS = [
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+] as const;
+
+/**
+ * English validator: same rules as Hindi — Latin script only, every number traceable to a
+ * supplied fact, every status claim supported, no clinical or contact claims.
+ */
+function validateEnglishSummary(raw: string, facts: SummaryFacts): SummaryValidation {
+  const text = normaliseEnglishNumbers(raw.replace(/\s+/g, " ").trim());
+  if (text.length === 0) return { ok: false, reason: "empty" };
+  if (text.length < SUMMARY_MIN_CHARACTERS) return { ok: false, reason: "too_short" };
+  if (text.length > SUMMARY_MAX_CHARACTERS) return { ok: false, reason: "too_long" };
+  if (/[\u0900-\u097F]/.test(text)) return { ok: false, reason: "devanagari" };
+  if (!/[A-Za-z]/.test(text)) return { ok: false, reason: "not_hindi" };
+
+  const lowered = text.toLowerCase();
+  for (const phrase of FORBIDDEN_PHRASES_EN) {
+    if (lowered.includes(phrase)) return { ok: false, reason: "clinical_claim" };
+  }
+
+  const allowed = collectAllowed(facts);
+
+  // Counts attached to a noun must belong to that noun's category.
+  for (const match of text.matchAll(/(\d+)\s+(?:new\s+|total\s+|urgent\s+|incomplete\s+|complete\s+)?(reports?)/gi)) {
+    if (!allowed.reportCounts.has(Number(match[1]))) return { ok: false, reason: "report_count" };
+  }
+  for (const match of text.matchAll(/(\d+)\s+(?:upcoming\s+|more\s+|total\s+)?(appointments?)/gi)) {
+    if (!allowed.appointmentCounts.has(Number(match[1]))) return { ok: false, reason: "appointment_count" };
+  }
+
+  // Times and dates must be supplied by the facts.
+  const allowedTimes = new Set<string>();
+  const allowedHours = new Set<string>();
+  for (const start of timesFromFacts(facts)) {
+    const parts = istClockParts(start);
+    if (!parts) continue;
+    const hour12 = parts.hour % 12 === 0 ? 12 : parts.hour % 12;
+    const period = parts.hour < 12 ? "AM" : "PM";
+    allowedTimes.add(`${hour12}:${String(parts.minute).padStart(2, "0")} ${period}`);
+    allowedHours.add(`${hour12} ${period}`);
+  }
+  for (const match of text.matchAll(/(\d{1,2}):(\d{2})\s*(AM|PM)/gi)) {
+    const value = `${Number(match[1])}:${match[2]} ${match[3].toUpperCase()}`;
+    if (!allowedTimes.has(value)) return { ok: false, reason: "unsupported_time" };
+  }
+  // Only bare hours are checked here; "9:30 AM" must not be read as the hour 30.
+  const withoutClockTimes = text.replace(/\d{1,2}:\d{2}\s*(AM|PM)/gi, " ");
+  for (const match of withoutClockTimes.matchAll(/(\d{1,2})\s*(AM|PM)/gi)) {
+    const value = `${Number(match[1])} ${match[2].toUpperCase()}`;
+    if (!allowedHours.has(value)) return { ok: false, reason: "unsupported_time" };
+  }
+  const allowedDates = new Set<string>();
+  for (const start of timesFromFacts(facts)) {
+    const parts = istClockParts(start);
+    if (parts) allowedDates.add(`${parts.day}:${parts.month}`);
+  }
+  for (const match of text.matchAll(/(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)/gi)) {
+    const month = ENGLISH_MONTHS.indexOf(match[2].toLowerCase() as (typeof ENGLISH_MONTHS)[number]) + 1;
+    if (!allowedDates.has(`${Number(match[1])}:${month}`)) return { ok: false, reason: "unsupported_date" };
+  }
+
+  // Every remaining digit run must trace back to a supplied count.
+  for (const match of text.matchAll(/\d+/g)) {
+    if (!allowed.counts.has(Number(match[0]))) return { ok: false, reason: "unsupported_number" };
+  }
+
+  // Status claims must be backed by the supporting fact. Negated sentences are honest.
+  const sentences = text.split(/[.!?]+/).map((sentence) => sentence.trim()).filter(Boolean);
+  const isNegated = (sentence: string) => /\b(no|not|none|nothing|without)\b/i.test(sentence);
+  for (const sentence of sentences) {
+    if (isNegated(sentence)) continue;
+    if (!allowed.allowUrgent && /\burgent\b/i.test(sentence)) return { ok: false, reason: "unsupported_claim" };
+    if (!allowed.allowReviewed && /\b(reviewed|review is complete|review complete)\b/i.test(sentence)) {
+      return { ok: false, reason: "unsupported_claim" };
+    }
+    if (!allowed.allowPendingReview && /\b(awaiting review|pending review|waiting for review)\b/i.test(sentence)) {
+      return { ok: false, reason: "unsupported_claim" };
+    }
+    if (!allowed.allowPartial && /\b(incomplete|partial|not complete)\b/i.test(sentence)) {
+      return { ok: false, reason: "unsupported_claim" };
+    }
+    if (!allowed.allowNextAppointment && /\bnext appointment\b/i.test(sentence)) {
+      return { ok: false, reason: "unsupported_claim" };
+    }
+    if (!allowed.allowUpcoming && /\b(upcoming|coming days|coming up)\b/i.test(sentence)) {
+      return { ok: false, reason: "unsupported_claim" };
+    }
+  }
+
+  return { ok: true };
+}
+
+/** Every upcoming slot instant the facts contain, for time/date validation. */
+function timesFromFacts(facts: SummaryFacts): string[] {
+  switch (facts.context) {
+    case "dashboard":
+    case "appointments":
+      return facts.appointments.next_starts;
+    default:
+      return [];
+  }
 }
 
 /** Every number the supplied facts can justify, and the per-noun subsets. */
@@ -298,7 +487,12 @@ function collectAllowed(facts: SummaryFacts): AllowedFacts {
  * Rejections are reasons, never echoes of the model text, so nothing unsupported can
  * leak into a log line.
  */
-export function validateModelSummary(raw: string, facts: SummaryFacts): SummaryValidation {
+export function validateModelSummary(
+  raw: string,
+  facts: SummaryFacts,
+  language: SummaryLanguage = "hi",
+): SummaryValidation {
+  if (language === "en") return validateEnglishSummary(raw, facts);
   const text = normaliseDigits(raw.replace(/\s+/g, " ").trim());
   if (text.length === 0) return { ok: false, reason: "empty" };
   if (text.length < SUMMARY_MIN_CHARACTERS) return { ok: false, reason: "too_short" };
@@ -496,7 +690,7 @@ function formatIstFactTime(iso: string): string | null {
   return `${part} ${hour12}:${String(parts.minute).padStart(2, "0")}`;
 }
 
-const SYSTEM_PROMPT = `You write the spoken briefing for "Samwad Assistant", a Hindi helper inside a doctor's dashboard in an educational demo.
+const SYSTEM_PROMPT_HI = `You write the spoken briefing for "Samwad Assistant", a Hindi helper inside a doctor's dashboard in an educational demo.
 
 Hard rules, in order of importance:
 1. Reply in Hindi using Devanagari script only. Never use Latin letters and never use English words. Numbers must be written with digits (for example 4), never as words (never "चार").
@@ -507,6 +701,18 @@ Hard rules, in order of importance:
 6. Write 2 to 4 short sentences, at most ${SUMMARY_MAX_CHARACTERS} characters. Address the doctor once as "डॉक्टर" and keep a warm, calm, professional tone. Prefer mentioning the most important item first: urgent items, then partial intake, then pending review, then appointments.
 7. When greeting is true, open with "सुप्रभात" (morning), "नमस्कार" (afternoon or night) or "शुभ संध्या" (evening) according to time_of_day, and close with a short good wish. When greeting is false, start with "डॉक्टर," and do not repeat a greeting.
 8. Output only the JSON object {"summary": "<Hindi text>"}.`;
+
+const SYSTEM_PROMPT_EN = `You write the spoken briefing for "Samwad Assistant", a helper inside a doctor's dashboard in an educational demo.
+
+Hard rules, in order of importance:
+1. Reply in clear, natural English only. Never use Devanagari or any non-Latin script. Numbers must be written with digits (for example 4), never as words (never "four").
+2. Use only the facts in the JSON input. Never compute, add, round, estimate or invent a count, a time, a date, a status or a category. If a value is 0, you may say that nothing is scheduled or pending for it.
+3. Never mention a patient name, age, gender, phone number, reference code, symptom, medicine or diagnosis. Never say a report is reviewed unless the input says reviewed is true or a reviewed count above 0.
+4. Never claim that a doctor, ambulance, emergency service or anyone else was contacted or alerted. Never mention 112.
+5. Never give medical advice, a diagnosis, a disease probability, a prescription or a treatment suggestion.
+6. Write 2 to 4 short sentences, at most ${SUMMARY_MAX_CHARACTERS} characters. Address the doctor once as "Doctor" and keep a warm, calm, professional tone. Prefer mentioning the most important item first: urgent items, then partial intake, then pending review, then appointments.
+7. When greeting is true, open with "Good morning", "Good afternoon" or "Good evening" according to time_of_day and close with a short good wish. When greeting is false, start with "Doctor," and do not repeat a greeting.
+8. Output only the JSON object {"summary": "<English text>"}.`;
 
 export interface PhraseOptions extends GroqOptions {
   /** Injected clock for tests; the prompt never depends on it. */
@@ -521,15 +727,20 @@ export type PhraseOutcome =
  * One Groq attempt, plus one corrective retry. Returns a failure reason (a stable code,
  * never model text) so the caller can fall back deterministically.
  */
-export async function phraseDoctorSummary(facts: SummaryFacts, options: PhraseOptions): Promise<PhraseOutcome> {
+export async function phraseDoctorSummary(
+  facts: SummaryFacts,
+  language: SummaryLanguage,
+  options: PhraseOptions,
+): Promise<PhraseOutcome> {
   const input = buildModelInput(facts);
+  const basePrompt = language === "en" ? SYSTEM_PROMPT_EN : SYSTEM_PROMPT_HI;
   let lastReason = "rejected";
 
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     const system =
       attempt === 1
-        ? SYSTEM_PROMPT
-        : `${SYSTEM_PROMPT}\n\nThe previous answer was rejected (${lastReason}). Rewrite it so it follows every rule exactly.`;
+        ? basePrompt
+        : `${basePrompt}\n\nThe previous answer was rejected (${lastReason}). Rewrite it so it follows every rule exactly.`;
 
     const result = await requestStructured<{ summary: string }>(options, {
       schemaName: "doctor_assistant_briefing",
@@ -558,7 +769,7 @@ export async function phraseDoctorSummary(facts: SummaryFacts, options: PhraseOp
       continue;
     }
 
-    const validation = validateModelSummary(result.value.summary, facts);
+    const validation = validateModelSummary(result.value.summary, facts, language);
     if (validation.ok) {
       return {
         ok: true,

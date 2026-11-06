@@ -32,7 +32,7 @@ export const SamwadAssistantButton: React.FC<SamwadAssistantButtonProps> = ({
     aria-haspopup="dialog"
     aria-expanded={isOpen}
     aria-controls="samwad-assistant-panel"
-    aria-label="Samwad Assistant खोलें, पेज का हिंदी सारांश सुनने के लिए"
+    aria-label="Open Samwad Assistant to hear a summary of this page"
     data-node-id="140:2"
     data-name="Samwad Assistant / Button"
     className="group relative inline-flex shrink-0 items-center justify-center gap-[4px] rounded-full border-2 border-[rgba(77,107,173,0.92)] bg-[#091329] py-[5px] pl-[5px] pr-[8px] drop-shadow-[0px_8px_11px_rgba(9,20,59,0.48)] transition-transform hover:brightness-110 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b3d4ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#dde3ee] sm:gap-[5px] sm:py-[6px] sm:pl-[6px] sm:pr-[9px] lg:h-[72px] lg:w-[306px] lg:gap-[7px] lg:py-[8px] lg:pl-[8px] lg:pr-[13px]"
@@ -70,6 +70,6 @@ export const SamwadAssistantButton: React.FC<SamwadAssistantButtonProps> = ({
     </span>
 
     {/* Busy state is announced, never drawn over the approved artwork. */}
-    {isBusy && <span className="sr-only" role="status">सारांश तैयार हो रहा है</span>}
+    {isBusy && <span className="sr-only" role="status">Preparing summary</span>}
   </button>
 );

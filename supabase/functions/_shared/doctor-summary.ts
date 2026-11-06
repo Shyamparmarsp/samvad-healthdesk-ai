@@ -286,9 +286,26 @@ function appointmentSentences(appointments: AppointmentCounts): string[] {
 
     const first = appointments.next_starts[0] ? hindiClock(appointments.next_starts[0]) : null;
     if (first) {
-      sentences.push(`आपका अगला अपॉइंटमेंट ${first} बजे है।`);
+      // A slot that is not today needs its date, or "at 9:30" would read as today.
+      const firstDay = !appointments.next_is_today && appointments.next_starts[0]
+        ? hindiDate(appointments.next_starts[0])
+        : null;
+      sentences.push(
+        firstDay
+          ? `आपका अगला अपॉइंटमेंट ${firstDay} को ${first} बजे है।`
+          : `आपका अगला अपॉइंटमेंट ${first} बजे है।`,
+      );
       const second = appointments.next_starts[1] ? hindiClock(appointments.next_starts[1]) : null;
-      if (second) sentences.push(`उसके बाद ${second} बजे अगला अपॉइंटमेंट निर्धारित है।`);
+      if (second) {
+        const secondDay = !appointments.next_is_today && appointments.next_starts[1]
+          ? hindiDate(appointments.next_starts[1])
+          : null;
+        sentences.push(
+          secondDay
+            ? `उसके बाद ${secondDay} को ${second} बजे अगला अपॉइंटमेंट निर्धारित है।`
+            : `उसके बाद ${second} बजे अगला अपॉइंटमेंट निर्धारित है।`,
+        );
+      }
     }
   }
 
@@ -519,6 +536,374 @@ export function renderHindiSummary(facts: SummaryFacts): string {
       return limitToBudget(sentences);
     }
   }
+}
+
+// ---------------------------------------------------------------- English helpers
+
+export type SummaryLanguage = "hi" | "en";
+
+/** "9:30 AM" (Asia/Kolkata, uppercase period). */
+export function englishClock(value: string): string | null {
+  const parts = istClockParts(value);
+  if (!parts) return null;
+  const hour12 = parts.hour % 12 === 0 ? 12 : parts.hour % 12;
+  const period = parts.hour < 12 ? "AM" : "PM";
+  return parts.minute === 0 ? `${hour12} ${period}` : `${hour12}:${pad2(parts.minute)} ${period}`;
+}
+
+const ENGLISH_MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+/** "9 November" */
+export function englishDate(value: string): string | null {
+  const parts = istClockParts(value);
+  if (!parts) return null;
+  return `${parts.day} ${ENGLISH_MONTHS[parts.month - 1] ?? ""}`.trim();
+}
+
+function plural(count: number, one: string, many: string): string {
+  return count === 1 ? one : many;
+}
+
+const GREETING_OPENING_EN: Readonly<Record<TimeOfDay, string>> = {
+  morning: "Good morning, Doctor.",
+  afternoon: "Good afternoon, Doctor.",
+  evening: "Good evening, Doctor.",
+  night: "Hello, Doctor.",
+};
+
+const GREETING_CLOSING_EN = "Have a productive day.";
+
+const TAB_LABEL_EN: Readonly<Record<ReportFilterTab, string>> = {
+  all: "all",
+  urgent: "urgent",
+  booked: "booked",
+  not_booked: "not booked",
+};
+
+function appointmentSentencesEn(appointments: AppointmentCounts): string[] {
+  const sentences: string[] = [];
+
+  if (appointments.today === 0) {
+    sentences.push(
+      appointments.future > 0
+        ? `No appointments are scheduled for today, but ${appointments.future} ${plural(
+            appointments.future,
+            "appointment is",
+            "appointments are",
+          )} on the calendar for later days.`
+        : "No appointments are scheduled for today.",
+    );
+  } else {
+    let line = `You have ${appointments.today} ${plural(
+      appointments.today,
+      "appointment",
+      "appointments",
+    )} scheduled today.`;
+    if (appointments.today_upcoming > 0) {
+      line += ` ${appointments.today_upcoming} of them ${plural(
+        appointments.today_upcoming,
+        "is",
+        "are",
+      )} still upcoming.`;
+    } else if (appointments.today_completed > 0) {
+      line += " All of today's appointments are complete.";
+    }
+    sentences.push(line);
+
+    const first = appointments.next_starts[0] ? englishClock(appointments.next_starts[0]) : null;
+    if (first) {
+      const firstDay =
+        !appointments.next_is_today && appointments.next_starts[0]
+          ? englishDate(appointments.next_starts[0])
+          : null;
+      sentences.push(
+        firstDay
+          ? `Your next appointment is on ${firstDay} at ${first}.`
+          : `Your next appointment is at ${first}.`,
+      );
+      const second = appointments.next_starts[1] ? englishClock(appointments.next_starts[1]) : null;
+      if (second) {
+        const secondDay =
+          !appointments.next_is_today && appointments.next_starts[1]
+            ? englishDate(appointments.next_starts[1])
+            : null;
+        sentences.push(
+          secondDay
+            ? `The appointment after that is on ${secondDay} at ${second}.`
+            : `The appointment after that is at ${second}.`,
+        );
+      }
+    }
+  }
+
+  if (appointments.cancelled > 0) {
+    sentences.push(
+      `${appointments.cancelled} ${plural(
+        appointments.cancelled,
+        "appointment is",
+        "appointments are",
+      )} cancelled and not counted as booked.`,
+    );
+  }
+
+  return sentences;
+}
+
+function reportSentencesEn(reports: ReportCounts): string[] {
+  if (reports.total === 0) return ["No reports are available right now."];
+
+  const sentences: string[] = [];
+  if (reports.urgent > 0) {
+    sentences.push(
+      `${reports.urgent} ${plural(reports.urgent, "report is", "reports are")} in the urgent category.`,
+    );
+  }
+  if (reports.partial > 0) {
+    sentences.push(
+      `${reports.partial} ${plural(reports.partial, "report has", "reports have")} an incomplete intake.`,
+    );
+  }
+  if (reports.awaiting_review > 0) {
+    sentences.push(
+      `${reports.awaiting_review} ${plural(
+        reports.awaiting_review,
+        "report is",
+        "reports are",
+      )} awaiting review.`,
+    );
+  }
+  if (reports.complete > 0) {
+    sentences.push(
+      `${reports.complete} ${plural(reports.complete, "report has", "reports have")} a complete intake.`,
+    );
+  }
+  if (reports.reviewed > 0) {
+    sentences.push(
+      `${reports.reviewed} ${plural(reports.reviewed, "report has", "reports have")} been reviewed.`,
+    );
+  }
+  if (sentences.length === 0) sentences.push("No reports are pending review right now.");
+  return sentences;
+}
+
+function suggestionSentenceEn(reports: ReportCounts): string | null {
+  if (reports.urgent > 0) return "You may want to review the urgent report first.";
+  if (reports.partial > 0) return "You may want to review the incomplete report first.";
+  if (reports.awaiting_review > 0) return "You may want to open the first report and begin the review.";
+  return null;
+}
+
+function focusSentencesEn(focus: ReportFocus): string[] {
+  const sentences: string[] = [];
+
+  if (focus.state === "urgent") {
+    sentences.push(
+      focus.emergency_flag
+        ? "This report is in the urgent category because a safety rule matched, and its intake was stopped early."
+        : "This report is in the urgent category and its intake was stopped early.",
+    );
+  } else if (focus.state === "partial") {
+    sentences.push("This report is incomplete because the intake ended early.");
+  } else {
+    sentences.push("This report is complete.");
+  }
+
+  sentences.push(
+    focus.concern_recorded
+      ? "The patient recorded a main concern."
+      : "The patient did not record a main concern.",
+  );
+
+  if (focus.missing_fields > 0) {
+    sentences.push(
+      `The report has ${focus.answered_fields} recorded ${plural(
+        focus.answered_fields,
+        "field",
+        "fields",
+      )} and ${focus.missing_fields} ${plural(focus.missing_fields, "field", "fields")} still missing.`,
+    );
+  } else if (focus.answered_fields > 0) {
+    sentences.push(`All ${focus.answered_fields} tracked fields are recorded.`);
+  }
+
+  if (focus.possible_urgent) sentences.push("This report is flagged for additional review.");
+
+  sentences.push(
+    focus.reviewed ? "This report has been reviewed." : "This report is still awaiting review.",
+  );
+
+  if (!focus.reviewed) {
+    sentences.push("Please review the recorded answers and the missing information.");
+  }
+
+  return sentences;
+}
+
+/**
+ * Renders the English summary. Same facts, same structure as the Hindi renderer, so the
+ * deterministic fallback always matches the selected language.
+ */
+export function renderEnglishSummary(facts: SummaryFacts): string {
+  switch (facts.context) {
+    case "dashboard": {
+      const sentences: string[] = [];
+      if (facts.intent === "greeting") sentences.push(GREETING_OPENING_EN[facts.time_of_day]);
+      else sentences.push("Doctor, here is your current workload.");
+
+      sentences.push(...appointmentSentencesEn(facts.appointments));
+
+      if (facts.reports.today > 0) {
+        sentences.push(
+          `${facts.reports.today} new ${plural(
+            facts.reports.today,
+            "report was",
+            "reports were",
+          )} received today.`,
+        );
+      }
+      sentences.push(...reportSentencesEn(facts.reports));
+
+      const suggestion = suggestionSentenceEn(facts.reports);
+      if (suggestion) sentences.push(suggestion);
+      if (facts.intent === "greeting") sentences.push(GREETING_CLOSING_EN);
+      return limitToBudget(sentences);
+    }
+
+    case "reports": {
+      const sentences: string[] = [];
+      const filters: string[] = [];
+      if (facts.tab !== "all") filters.push(`the ${TAB_LABEL_EN[facts.tab]} filter`);
+      if (facts.search) filters.push("a search");
+      const opening =
+        filters.length === 0
+          ? ""
+          : filters.length === 1
+            ? `${filters[0].charAt(0).toUpperCase()}${filters[0].slice(1)} is applied, so `
+            : `${filters[0].charAt(0).toUpperCase()}${filters[0].slice(1)} and ${filters[1]} are applied, so `;
+      sentences.push(
+        `Doctor, ${opening}this list shows ${facts.reports.total} ${plural(
+          facts.reports.total,
+          "report",
+          "reports",
+        )}.`,
+      );
+
+      if (facts.reports.total === 0) {
+        sentences.push("No reports match this selection. Adjust the filter to see more.");
+        return limitToBudget(sentences);
+      }
+
+      sentences.push(...reportSentencesEn(facts.reports));
+      const suggestion = suggestionSentenceEn(facts.reports);
+      if (suggestion) sentences.push(suggestion);
+      return limitToBudget(sentences);
+    }
+
+    case "appointments": {
+      const sentences: string[] = [];
+      const appointments = facts.appointments;
+
+      if (facts.tab === "today") {
+        sentences.push(...appointmentSentencesEn(appointments));
+        if (appointments.today > 0) sentences.push("Today's remaining appointments are in the list.");
+      } else if (facts.tab === "upcoming") {
+        if (appointments.future === 0) {
+          sentences.push("Doctor, no appointments are scheduled in the coming days.");
+        } else {
+          sentences.push(
+            `Doctor, ${appointments.future} ${plural(
+              appointments.future,
+              "appointment is",
+              "appointments are",
+            )} scheduled in the coming days.`,
+          );
+          const first = appointments.next_starts[0];
+          const clock = first ? englishClock(first) : null;
+          const day = first ? englishDate(first) : null;
+          if (clock) {
+            sentences.push(
+              day && !appointments.next_is_today
+                ? `The next appointment is on ${day} at ${clock}.`
+                : `The next appointment is at ${clock}.`,
+            );
+          }
+        }
+      } else if (appointments.past === 0) {
+        sentences.push("Doctor, there are no past appointment entries.");
+      } else {
+        sentences.push(
+          `Doctor, ${appointments.past} past ${plural(
+            appointments.past,
+            "appointment is",
+            "appointments are",
+          )} available.`,
+        );
+      }
+
+      if (appointments.cancelled > 0) {
+        sentences.push(
+          `${appointments.cancelled} ${plural(
+            appointments.cancelled,
+            "appointment is",
+            "appointments are",
+          )} cancelled and not counted as booked.`,
+        );
+      }
+      return limitToBudget(sentences);
+    }
+
+    case "urgent_review": {
+      if (facts.queue_total === 0) {
+        return "Doctor, the urgent queue is empty right now. You can continue with routine reports.";
+      }
+      return limitToBudget([
+        `Doctor, the urgent queue currently has ${facts.queue_total} ${plural(
+          facts.queue_total,
+          "report",
+          "reports",
+        )}.`,
+        `${facts.queue_pending} are awaiting review and ${facts.queue_reviewed} have been reviewed.`,
+        "Routine appointments are not available for these reports.",
+      ]);
+    }
+
+    case "report_detail":
+      return limitToBudget(["Doctor,", ...focusSentencesEn(facts.focus)]);
+
+    case "urgent_detail":
+      return limitToBudget([
+        `Doctor, the urgent queue currently has ${facts.queue_total} ${plural(
+          facts.queue_total,
+          "report",
+          "reports",
+        )}.`,
+        ...focusSentencesEn({ ...facts.focus, state: "urgent" }),
+        "Routine appointments are not available for this report.",
+      ]);
+  }
+}
+
+/** Renders the deterministic fallback in the selected language. */
+export function renderSummary(facts: SummaryFacts, language: SummaryLanguage): string {
+  return language === "en" ? renderEnglishSummary(facts) : renderHindiSummary(facts);
+}
+
+/** Validates a requested summary language; anything else falls back to Hindi. */
+export function parseSummaryLanguage(value: unknown): SummaryLanguage {
+  return value === "en" ? "en" : "hi";
 }
 
 // ---------------------------------------------------------------- Strict validation

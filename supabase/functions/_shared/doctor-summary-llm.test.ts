@@ -197,6 +197,7 @@ Deno.test("qwen summary: a good first answer costs exactly one call", async () =
   const calls: Call[] = [];
   const outcome = await phraseDoctorSummary(
     dashboardFacts,
+    "hi",
     options(stubFetch([JSON.stringify({ summary: validHindi })], calls)),
   );
   assert(outcome.ok, "accepted");
@@ -216,7 +217,7 @@ Deno.test("qwen summary: one corrective retry, then success", async () => {
   const calls: Call[] = [];
   const bad = JSON.stringify({ summary: "Doctor, you have 9 appointments." });
   const good = JSON.stringify({ summary: validHindi });
-  const outcome = await phraseDoctorSummary(dashboardFacts, options(stubFetch([bad, good], calls)));
+  const outcome = await phraseDoctorSummary(dashboardFacts, "hi", options(stubFetch([bad, good], calls)));
   assert(outcome.ok, "second attempt accepted");
   if (!outcome.ok) return;
   assertEqual(outcome.attempts, 2, "retried once");
@@ -227,7 +228,7 @@ Deno.test("qwen summary: one corrective retry, then success", async () => {
 
 Deno.test("qwen summary: two bad answers leave the caller on the fallback", async () => {
   const bad = JSON.stringify({ summary: "डॉक्टर, you have 9 appointments." });
-  const outcome = await phraseDoctorSummary(dashboardFacts, options(stubFetch([bad, bad])));
+  const outcome = await phraseDoctorSummary(dashboardFacts, "hi", options(stubFetch([bad, bad])));
   assert(!outcome.ok, "not accepted");
   if (outcome.ok) return;
   assertEqual(outcome.reason, "latin_text", "stable rejection reason");
@@ -235,7 +236,7 @@ Deno.test("qwen summary: two bad answers leave the caller on the fallback", asyn
 
 Deno.test("qwen summary: a provider error is a typed failure, never text", async () => {
   const calls: Call[] = [];
-  const outcome = await phraseDoctorSummary(dashboardFacts, options(stubFetch([""], calls, 500)));
+  const outcome = await phraseDoctorSummary(dashboardFacts, "hi", options(stubFetch([""], calls, 500)));
   assert(!outcome.ok, "server error rejected");
   if (outcome.ok) return;
   assertEqual(outcome.reason, "server", "typed failure");
@@ -244,7 +245,7 @@ Deno.test("qwen summary: a provider error is a typed failure, never text", async
 
 Deno.test("qwen summary: a missing key makes no request", async () => {
   const calls: Call[] = [];
-  const outcome = await phraseDoctorSummary(dashboardFacts, {
+  const outcome = await phraseDoctorSummary(dashboardFacts, "hi", {
     apiKey: "",
     fetchImpl: stubFetch([JSON.stringify({ summary: validHindi })], calls),
   });
@@ -265,7 +266,7 @@ Deno.test("qwen summary: a timeout falls back without a second network attempt",
     });
   }) as typeof fetch;
 
-  const outcome = await phraseDoctorSummary(dashboardFacts, { apiKey: "k", fetchImpl: slow, timeoutMs: 20 });
+  const outcome = await phraseDoctorSummary(dashboardFacts, "hi", { apiKey: "k", fetchImpl: slow, timeoutMs: 20 });
   assert(!outcome.ok, "timeout rejected");
   if (outcome.ok) return;
   assertEqual(outcome.reason, "timeout", "timeout reason");

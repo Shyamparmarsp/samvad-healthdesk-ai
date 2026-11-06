@@ -135,7 +135,7 @@ const GEOMETRY = `
 `;
 
 const closePanel = `(() => {
-  const close = Array.from(document.querySelectorAll('button')).find(b => b.getAttribute('aria-label') === 'सहायक बंद करें');
+  const close = Array.from(document.querySelectorAll('button')).find(b => b.getAttribute('aria-label') === 'Close assistant');
   if (!close) return 'already-closed';
   close.click();
   return 'closed';
@@ -279,6 +279,40 @@ async function main() {
       await cdp.shot(`panel-${page}.png`);
     }
 
+    // Panel header (mascot, title, language toggle, close) at every width.
+    for (const vp of VIEWPORTS) {
+      await cdp.viewport(vp.width, vp.height, vp.width < 700);
+      await cdp.eval(clickStartsWith('Reports'));
+      await cdp.waitFor('Patient Intake Reports');
+      await sleep(350);
+      await cdp.eval(closePanel);
+      await sleep(150);
+      await cdp.eval(`document.querySelector('button[aria-haspopup="dialog"]').click(); 'opened'`);
+      await cdp.waitFor('डॉक्टर');
+      await sleep(500);
+      const header = await cdp.eval(`(() => {
+        const group = document.querySelector('[aria-label="Summary language"]');
+        const close = document.querySelector('button[aria-label="Close assistant"]');
+        const title = document.getElementById('samwad-assistant-title');
+        const panel = document.querySelector('[role="dialog"]');
+        if (!group || !close || !title || !panel) return null;
+        const g = group.getBoundingClientRect();
+        const c = close.getBoundingClientRect();
+        const p = panel.getBoundingClientRect();
+        return {
+          fits: g.left >= p.left - 0.5 && g.right <= c.left + 0.5 && c.right <= p.right + 0.5,
+          labels: Array.from(group.querySelectorAll('button')).map((b) => b.innerText.trim()),
+          toggleHeight: Math.round(g.height),
+        };
+      })()`);
+      assert.ok(header, `panel header present at ${vp.label}`);
+      assert.ok(header.fits, `language toggle and close button fit the header at ${vp.label}`);
+      assert.deepEqual(header.labels, ['Hindi', 'English'], `toggle labels at ${vp.label}`);
+      await cdp.shot(`panel-header-${vp.label}.png`);
+      await cdp.eval(closePanel);
+      await sleep(150);
+    }
+
     // Dark palette sanity capture.
     await cdp.eval(`
       (() => {
@@ -302,7 +336,7 @@ async function main() {
     await sleep(350);
     await cdp.shot('8-reports-dark.png');
     await cdp.eval(`(() => {
-      const trash = document.querySelector('button[aria-label^="रिपोर्ट हटाएँ"]');
+      const trash = document.querySelector('button[aria-label^="Delete report"]');
       if (trash) trash.click();
       return trash ? 'opened' : 'none';
     })()`);

@@ -33,8 +33,9 @@ import {
   Appointment,
   DoctorDashboardStats,
 } from '../types/doctor';
-import type { SummaryFacts } from '../../supabase/functions/_shared/doctor-summary';
-import { renderHindiSummary } from '../../supabase/functions/_shared/doctor-summary';
+import type { SummaryFacts, SummaryLanguage } from '../../supabase/functions/_shared/doctor-summary';
+import { renderSummary } from '../../supabase/functions/_shared/doctor-summary';
+import type { AssistantLanguage } from '../features/doctor/doctor-assistant-language';
 import { formatIstTime, istDateKey, parseInstant, addMinutes } from './booking-time';
 
 import { CONSENT_VERSION } from '../types/consent';
@@ -1759,6 +1760,14 @@ export interface SpokenSummary {
   /** The exact validated sentence the server spoke (and displayed). */
   text?: string;
   source?: SummarySource;
+  /** Language the server actually used. */
+  language?: SummaryLanguage;
+}
+
+export interface SpeakSummaryOptions {
+  language?: AssistantLanguage;
+  /** Aborted by the global audio controller when a newer claim takes over. */
+  signal?: AbortSignal;
 }
 
 /**
@@ -1771,8 +1780,12 @@ export interface SpokenSummary {
  * returned sentence and nothing else, so an unvalidated model answer is never shown and
  * screen text can never disagree with the audio.
  */
-export async function speakDoctorSummary(facts: SummaryFacts): Promise<SpokenSummary> {
-  return requestSpeech({ summary_facts: facts }, true);
+export async function speakDoctorSummary(
+  facts: SummaryFacts,
+  options: SpeakSummaryOptions = {},
+): Promise<SpokenSummary> {
+  const language: SummaryLanguage = options.language === 'en' ? 'en' : 'hi';
+  return requestSpeech({ summary_facts: facts, summary_language: language }, true, options.signal);
 }
 
 /** Decodes the base64url `x-summary-text` header (Hindi is not header-safe raw). */
@@ -1793,6 +1806,7 @@ function decodeSummaryHeader(value: string | null): string | undefined {
 async function requestSpeech(
   body: Record<string, unknown>,
   isSummary = false,
+  externalSignal?: AbortSignal,
 ): Promise<SpokenSummary> {
   if (currentAppMode === 'supabase') {
     const client = getSupabaseClient();
@@ -1804,6 +1818,10 @@ async function requestSpeech(
     // stops a hung connection from leaving the panel in "preparing" forever.
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), SPEECH_TIMEOUT_MS);
+    // The global controller aborts this request when another page claims the channel.
+    const forwardAbort = () => controller.abort();
+    externalSignal?.addEventListener('abort', forwardAbort, { once: true });
+    if (externalSignal?.aborted) controller.abort();
     let response: Response;
     try {
       response = await fetch(`${SUPABASE_URL}/functions/v1/speak`, {
@@ -1818,14 +1836,22 @@ async function requestSpeech(
       });
     } catch (error) {
       const aborted = typeof error === 'object' && error !== null && (error as { name?: string }).name === 'AbortError';
-      throw new ApiError(aborted ? 'Speech request timed out' : 'Speech request failed', aborted ? 'timeout' : 'network');
+      const superseded = Boolean(externalSignal?.aborted);
+      throw new ApiError(
+        superseded ? 'Speech request superseded' : aborted ? 'Speech request timed out' : 'Speech request failed',
+        superseded ? 'aborted' : aborted ? 'timeout' : 'network',
+      );
     } finally {
       clearTimeout(timeout);
+      externalSignal?.removeEventListener('abort', forwardAbort);
     }
 
     const summaryText = isSummary ? decodeSummaryHeader(response.headers.get('x-summary-text')) : undefined;
     const summarySource = isSummary
       ? (response.headers.get('x-summary-source') as SummarySource | null) ?? undefined
+      : undefined;
+    const summaryLanguage = isSummary
+      ? ((response.headers.get('x-summary-language') as SummaryLanguage | null) ?? undefined)
       : undefined;
 
     const contentType = (response.headers.get('content-type') || '').toLowerCase();
@@ -1837,9 +1863,10 @@ async function requestSpeech(
           audioUrl: undefined,
           text: typeof payload?.text === 'string' ? payload.text : summaryText,
           source: payload?.source ?? summarySource,
+          language: (payload as { language?: SummaryLanguage })?.language ?? summaryLanguage,
         };
       } catch {
-        return { audioUrl: undefined, text: summaryText, source: summarySource };
+        return { audioUrl: undefined, text: summaryText, source: summarySource, language: summaryLanguage };
       }
     }
 
@@ -1847,16 +1874,22 @@ async function requestSpeech(
     // Only real audio becomes a playable URL; an empty body or a non-audio 200 response
     // is reported as "no audio" so the panel never claims it can speak.
     if (blob.size === 0 || !contentType.startsWith('audio/')) {
-      return { audioUrl: undefined, text: summaryText, source: summarySource };
+      return { audioUrl: undefined, text: summaryText, source: summarySource, language: summaryLanguage };
     }
-    return { audioUrl: URL.createObjectURL(blob), text: summaryText, source: summarySource };
+    return {
+      audioUrl: URL.createObjectURL(blob),
+      text: summaryText,
+      source: summarySource,
+      language: summaryLanguage,
+    };
   }
 
   // Mock mode has no backend, so there is no provider call and no audio. The sentence is
   // the deterministic renderer's output, which is exactly what a fallback would produce.
   if (isSummary) {
     const facts = body.summary_facts as SummaryFacts;
-    return { text: renderHindiSummary(facts), source: 'fallback' };
+    const language: SummaryLanguage = body.summary_language === 'en' ? 'en' : 'hi';
+    return { text: renderSummary(facts, language), source: 'fallback', language };
   }
   return { audioUrl: undefined };
 }

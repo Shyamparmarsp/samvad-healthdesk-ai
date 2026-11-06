@@ -16,12 +16,12 @@ import { isUuid } from "./auth.ts";
 import { isSystemMessageId, type SystemMessageId } from "./messages.ts";
 import { isQuestionId } from "./questions.ts";
 import { getQuestion as getBankQuestion } from "./intake/question-bank.ts";
-import { parseSummaryFacts, type SummaryFacts } from "./doctor-summary.ts";
+import { parseSummaryFacts, parseSummaryLanguage, type SummaryFacts, type SummaryLanguage } from "./doctor-summary.ts";
 
 export type SpeakTarget =
   | { kind: "question"; sessionId: string; questionId: string }
   | { kind: "message"; sessionId: string; messageId: SystemMessageId }
-  | { kind: "summary"; facts: SummaryFacts };
+  | { kind: "summary"; facts: SummaryFacts; language: SummaryLanguage };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -38,7 +38,9 @@ export function resolveSpeakTarget(body: unknown): SpeakTarget | null {
 
   if (hasSummary) {
     const facts = parseSummaryFacts(body.summary_facts);
-    return facts ? { kind: "summary", facts } : null;
+    if (!facts) return null;
+    // Only the two supported languages are accepted; anything else is treated as Hindi.
+    return { kind: "summary", facts, language: parseSummaryLanguage(body.summary_language) };
   }
 
   // Both remaining targets are session-scoped: the session proves ownership and carries

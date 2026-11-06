@@ -511,7 +511,13 @@ describe('Doctor assistant — speak payload contract', () => {
     assert.equal(result.audioUrl, undefined, 'no audio without a backend');
     assert.equal(result.source, 'fallback', 'no model in mock mode');
     assert.match(result.text ?? '', /[\u0900-\u097F]/, 'Hindi text is still returned for the panel');
+    assert.equal(result.language, 'hi', 'default language is Hindi');
     assert.ok((result.text ?? '').length <= MAX_SUMMARY_CHARACTERS);
+
+    const english = await speakDoctorSummary(valid, { language: 'en' });
+    assert.equal(english.language, 'en');
+    assert.match(english.text ?? '', /Doctor,/, 'English summary is returned for the English selection');
+    assert.doesNotMatch(english.text ?? '', /[\u0900-\u097F]/, 'no Devanagari in English mode');
     setAppMode('mock');
   });
 });

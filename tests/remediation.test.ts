@@ -366,6 +366,21 @@ describe('D-02/D-10 terminal patient states block Back', () => {
 // D-03 / D-21 — appointment datetime contract and IST
 // ---------------------------------------------------------------------------
 
+/**
+ * The mock clinic books weekdays only, so a fixed "today" fixture breaks every Saturday
+ * and Sunday. Ask the mock for the next weekday instead.
+ */
+function nextWeekdayKey(from: Date = new Date()): string {
+  const key = (date: Date) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(date);
+  for (let offset = 0; offset < 10; offset += 1) {
+    const candidate = new Date(from.getTime() + offset * 86_400_000);
+    const weekday = new Date(`${key(candidate)}T12:00:00+05:30`).getUTCDay();
+    if (weekday !== 0 && weekday !== 6) return key(candidate);
+  }
+  return key(from);
+}
+
 describe('D-03/D-21 appointment datetime contract', () => {
   it('rejects a slot id where a timestamp is required', () => {
     assert.equal(parseInstant('slot-doc-2026-11-03-09:00'), null);
@@ -426,7 +441,9 @@ describe('D-03/D-21 appointment datetime contract', () => {
       if (state.is_complete) break;
     }
     const submitted = await submitReport({ action: 'submit_report', session_id: session.session_id });
-    const slot = (await getAvailableSlots(submitted.submitted_report!.id))[0];
+    const slot = (
+      await getAvailableSlots(submitted.submitted_report!.id, nextWeekdayKey())
+    )[0];
 
     const booked = await bookAppointment({
       report_id: submitted.submitted_report!.id,
@@ -465,8 +482,9 @@ describe('D-03/D-21 appointment datetime contract', () => {
     }
     const submitted = await submitReport({ action: 'submit_report', session_id: session.session_id });
     const reportId = submitted.submitted_report!.id;
-    // Only free slots: an earlier test in this file books the same doctor's first slot.
-    const slots = (await getAvailableSlots(reportId)).filter((slot) => slot.is_available);
+    // Only free slots on the next weekday: the mock clinic is closed at the weekend, and
+    // an earlier test in this file books the same doctor's first slot.
+    const slots = (await getAvailableSlots(reportId, nextWeekdayKey())).filter((slot) => slot.is_available);
 
     await assert.rejects(
       () => bookAppointment({ report_id: reportId, slot_id: slots[0].id, slot_start: slots[0].id, doctor_id: 'doc-x' }),

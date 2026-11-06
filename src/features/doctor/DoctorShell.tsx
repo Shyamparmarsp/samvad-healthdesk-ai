@@ -18,6 +18,7 @@ import { DoctorUrgentDetail } from './DoctorUrgentDetail';
 import { DoctorAppointmentsView } from './DoctorAppointmentsView';
 import { DoctorUrgentList } from './DoctorUrgentList';
 import { SamwadAssistant } from './SamwadAssistant';
+import { assistantAudio } from '../../lib/audio/assistant-audio';
 
 type DoctorView =
   | 'dashboard'
@@ -125,6 +126,14 @@ export const DoctorShell: React.FC = () => {
     await loadData(currentDoctor?.id);
   };
 
+  /**
+   * One global voice: leaving a page stops its speech immediately, before React swaps the
+   * view, so a slow unmount can never let two summaries talk over each other.
+   */
+  useEffect(() => {
+    assistantAudio.stop();
+  }, [currentView, selectedReportId]);
+
   const handleSelectReport = (reportId: string) => {
     setSelectedReportId(reportId);
     setPreviousView(currentView);
@@ -140,6 +149,8 @@ export const DoctorShell: React.FC = () => {
     setCurrentView('dashboard');
     setHasLoadedData(false);
     setDashboardEntryToken(0);
+    // Never keep a doctor's summary audio or pending speech after logout.
+    assistantAudio.reset();
   };
 
   if (!currentDoctor) {

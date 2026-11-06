@@ -117,15 +117,15 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
       await onDeleteReport(target.id);
       // Only now, after the server confirmed, is the row allowed to disappear.
       setPendingDelete(null);
-      setDeletedNotice('रिपोर्ट स्थायी रूप से हटा दी गई।');
+      setDeletedNotice('Report permanently deleted.');
     } catch (error) {
       const code = (error as { code?: string })?.code;
       setDeleteError(
         code === 'forbidden'
-          ? 'आपको यह रिपोर्ट हटाने की अनुमति नहीं है।'
+          ? 'You are not allowed to delete this report.'
           : code === 'not_found'
-            ? 'यह रिपोर्ट पहले ही हट चुकी है।'
-            : 'रिपोर्ट हटाई नहीं जा सकी। कृपया फिर कोशिश करें।',
+            ? 'This report has already been deleted.'
+            : 'The report could not be deleted. Please try again.',
       );
     } finally {
       setIsDeleting(false);
@@ -177,10 +177,10 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
           <button
             type="button"
             onClick={() => setDeletedNotice(null)}
-            aria-label="संदेश बंद करें"
+            aria-label="Dismiss message"
             className="text-[12px] font-semibold text-[#176a3b] underline focus:outline-none"
           >
-            बंद करें
+            Dismiss
           </button>
         </div>
       )}
@@ -309,8 +309,8 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
                                   // The row itself opens the report on Enter/Space.
                                   if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
                                 }}
-                                aria-label={`रिपोर्ट हटाएँ: ${patientName}`}
-                                title="रिपोर्ट हटाएँ"
+                                aria-label={`Delete report: ${patientName}`}
+                                title="Delete report"
                                 disabled={isDeleting}
                                 className="flex h-10 w-10 items-center justify-center rounded-full text-[#dc2626] transition-colors hover:bg-[#fee2e2] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#dc2626] disabled:opacity-50"
                               >
@@ -336,15 +336,15 @@ export const DoctorReportsList: React.FC<DoctorReportsListProps> = ({
 
       <ConfirmDialog
         open={pendingDelete !== null}
-        title="रिपोर्ट स्थायी रूप से हटाएँ?"
-        description={`क्या आप ${pendingDelete?.report.patient.name.value || 'इस मरीज़'} की यह रिपोर्ट और इससे जुड़े रिपोर्ट-विशिष्ट डेटा को स्थायी रूप से हटाना चाहते हैं? यह कार्रवाई वापस नहीं की जा सकती।${
+        title="Permanently delete report?"
+        description={`Do you want to permanently delete this report and its report-specific data? This action cannot be undone.${
           deleteError ? ` ${deleteError}` : ''
         }`}
-        confirmLabel="हाँ, रिपोर्ट हटाएँ"
-        cancelLabel="रद्द करें"
+        confirmLabel="Delete report"
+        cancelLabel="Cancel"
         tone="danger"
         busy={isDeleting}
-        busyLabel="हटाया जा रहा है…"
+        busyLabel="Deleting…"
         onConfirm={() => void confirmDelete()}
         onCancel={cancelDelete}
       />

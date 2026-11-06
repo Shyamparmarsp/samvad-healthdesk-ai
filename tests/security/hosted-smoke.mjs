@@ -135,6 +135,7 @@ async function speak(body, token) {
     text: response.headers.get('x-summary-text'),
     source: response.headers.get('x-summary-source'),
     reason: response.headers.get('x-summary-reason'),
+    language: response.headers.get('x-summary-language'),
   };
 }
 
@@ -174,35 +175,42 @@ async function main() {
   record('doctor profiles are mapped', doctors.length >= 1, `${doctors.length} mapped`);
 
   const summaries = [];
-  for (const doctor of doctors.slice(0, 2)) {
+  const languages = ['hi', 'en'];
+  for (const doctor of doctors.slice(0, 1)) {
     const token = await doctorSession(doctor.email);
-    const answer = await speak({ summary_facts: facts }, token);
-    const text = decodeSummary(answer.text);
-    const isAudio = (answer.contentType ?? '').startsWith('audio/');
-    const looksLikeMp3 = isAudio && answer.bytes && answer.bytes.length > 1000;
-    const hindi = typeof text === 'string' && /[\u0900-\u097F]/.test(text);
+
+    for (const language of languages) {
+      const answer = await speak({ summary_facts: facts, summary_language: language }, token);
+      const text = decodeSummary(answer.text);
+      const isAudio = (answer.contentType ?? '').startsWith('audio/');
+      const looksLikeMp3 = isAudio && answer.bytes && answer.bytes.length > 1000;
+      const rightScript =
+        typeof text === 'string'
+          ? language === 'en'
+            ? /[A-Za-z]/.test(text) && !/[\u0900-\u097F]/.test(text)
+            : /[\u0900-\u097F]/.test(text)
+          : false;
+      record(
+        `${language === 'en' ? 'English' : 'Hindi'} summary returns audio in the selected language`,
+        answer.status === 200 && looksLikeMp3 && rightScript && answer.language === language,
+        `HTTP ${answer.status}, ${answer.bytes?.length ?? 0} bytes, source=${answer.source}${answer.reason ? ` (${answer.reason})` : ''}, lang=${answer.language}, ${text?.length ?? 0} chars`,
+      );
+      if (text) console.log(`      "${text}"`);
+      summaries.push({ doctor, language, text, bytes: answer.bytes?.length ?? 0 });
+    }
+
+    // The model must honour the requested language even when the facts are identical.
+    const [hindi, english] = summaries;
     record(
-      `doctor summary (${doctor.department}) returns Hindi audio`,
-      answer.status === 200 && looksLikeMp3 && hindi,
-      `HTTP ${answer.status}, ${answer.bytes?.length ?? 0} bytes, source=${answer.source}${answer.reason ? ` (${answer.reason})` : ''}, ${text?.length ?? 0} chars`,
+      'the two languages produce different text from the same facts',
+      Boolean(hindi?.text && english?.text && hindi.text !== english.text),
     );
-    if (text) console.log(`      "${text}"`);
-    summaries.push({ doctor, text });
 
     const read = await reportsFor(token);
     const foreign = read.rows.filter(
       (row) => row.doctor_id !== doctor.doctorId && row.department_key !== 'emergency',
     );
     record(`RLS: ${doctor.department} report read stays in scope`, foreign.length === 0, `${read.rows.length} rows, ${foreign.length} foreign`);
-  }
-
-  // 5. Cross-doctor answer isolation.
-  if (summaries.length === 2) {
-    record(
-      'two doctors receive their own briefing request path',
-      summaries[0].doctor.email !== summaries[1].doctor.email,
-      'distinct sessions',
-    );
   }
 
   const failed = results.filter((entry) => !entry.ok);

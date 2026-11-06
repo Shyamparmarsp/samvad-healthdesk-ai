@@ -5,7 +5,8 @@ import {
   getDoctorReports,
   speakDoctorSummary,
 } from '../../lib/api';
-import { createAudioPlayback, type AudioPlayback } from '../../lib/audio/playback';
+import { assistantAudio, type AudioLease } from '../../lib/audio/assistant-audio';
+import { useAssistantLanguage, type AssistantLanguage } from './doctor-assistant-language';
 import { filterReportsByTab } from './DoctorReportsList';
 import {
   buildAppointmentsFacts,
@@ -14,7 +15,7 @@ import {
   buildReportsFacts,
   buildUrgentDetailFacts,
   buildUrgentReviewFacts,
-  renderHindiSummary,
+  renderSummary,
   type AppointmentTab,
   type ReportFilterTab,
   type SummaryFacts,
@@ -57,6 +58,9 @@ export type AssistantOpenSource = 'user' | 'auto' | null;
 export interface UseSamwadAssistant {
   isOpen: boolean;
   openSource: AssistantOpenSource;
+  /** Shared, persisted assistant language for this doctor. */
+  language: AssistantLanguage;
+  setLanguage: (language: AssistantLanguage) => void;
   status: AssistantStatus;
   text: string | null;
   audio: AssistantAudioState;
@@ -83,7 +87,9 @@ interface Options {
 }
 
 const GREETING_DELAY_MS = 1000;
-const AUDIO_SAFETY_MS = 60_000;
+
+/** Stable id per mounted assistant, used to release the audio channel on unmount. */
+let assistantInstanceCounter = 0;
 
 /** Builds the fact set from RLS-scoped, freshly read rows. Never from UI placeholders. */
 async function buildFacts(
@@ -147,6 +153,7 @@ async function buildFacts(
  */
 export function useSamwadAssistant(options: Options): UseSamwadAssistant {
   const { page, doctorId, autoGreet, greetingToken, dataReady, dataFailed } = options;
+  const [language, setLanguage] = useAssistantLanguage(doctorId);
 
   const [isOpen, setIsOpen] = useState(false);
   const [openSource, setOpenSource] = useState<AssistantOpenSource>(null);
@@ -165,46 +172,43 @@ export function useSamwadAssistant(options: Options): UseSamwadAssistant {
   const requestRef = useRef(0);
   const factsRef = useRef<SummaryFacts | null>(null);
   const audioUrlRef = useRef<string | null>(null);
-  const playbackRef = useRef<AudioPlayback | null>(null);
   const greetedTokenRef = useRef(0);
   const hasRequestedRef = useRef(false);
+  const lastIntentRef = useRef<'greeting' | 'summary'>('summary');
+  const [ownerId] = useState(() => `assistant-${++assistantInstanceCounter}`);
 
-  const getPlayback = (): AudioPlayback => {
-    if (!playbackRef.current) {
-      playbackRef.current = createAudioPlayback({ safetyMs: AUDIO_SAFETY_MS });
-    }
-    return playbackRef.current;
-  };
-
-  const releaseAudioUrl = useCallback(() => {
-    if (audioUrlRef.current) {
-      URL.revokeObjectURL(audioUrlRef.current);
-      audioUrlRef.current = null;
-    }
+  /**
+   * The global audio controller revokes the previous object URL when a new claim is
+   * made, so the hook drops its own reference at the same time.
+   */
+  const clearAudioUrl = useCallback(() => {
+    audioUrlRef.current = null;
   }, []);
 
   /**
-   * Requests the server-generated summary and plays it.
+   * Requests the server-generated summary for the current page and plays it through the
+   * single global channel.
    *
-   * The Edge Function phrases the facts with Groq Qwen, validates the answer, and returns
-   * the accepted Hindi sentence alongside the audio. The panel shows exactly that
-   * sentence, so an unvalidated model answer is never displayed and the spoken and visible
-   * text are identical. `requestId` makes a stale response a no-op.
+   * `lease` is the audio claim taken by `runSummary`: it carries the generation id (a
+   * stale response can never play or update the UI) and the abort signal used to cancel
+   * the in-flight speech request when another page takes over.
    */
   const requestSummary = useCallback(
-    async (facts: SummaryFacts, requestId: number) => {
+    async (facts: SummaryFacts, requestId: number, lease: AudioLease) => {
       setAudio('loading');
       let result: { audioUrl?: string; text?: string };
       try {
-        result = await speakDoctorSummary(facts);
-      } catch {
-        if (requestId !== requestRef.current) return;
+        result = await speakDoctorSummary(facts, { language, signal: lease.signal });
+      } catch (error) {
+        if (requestId !== requestRef.current || !assistantAudio.isCurrent(lease)) return;
+        // Superseded requests are silent: a newer page owns the channel now.
+        if ((error as { code?: string } | null)?.code === 'aborted') return;
         setStatus('error');
         setErrorKind('summary');
         setAudio('idle');
         return;
       }
-      if (requestId !== requestRef.current) {
+      if (requestId !== requestRef.current || !assistantAudio.isCurrent(lease)) {
         if (result.audioUrl) URL.revokeObjectURL(result.audioUrl);
         return;
       }
@@ -218,39 +222,37 @@ export function useSamwadAssistant(options: Options): UseSamwadAssistant {
       }
 
       // A server that returned audio without its accepted sentence would make the screen
-      // and the voice disagree, so the deterministic sentence is shown only as a last
-      // resort (never for a validated Qwen answer, which always arrives in `text`).
-      setText(summary ?? renderHindiSummary(facts));
+      // and the voice disagree, so the deterministic sentence in the selected language is
+      // shown only as a last resort.
+      setText(summary ?? renderSummary(facts, language));
       setStatus('ready');
 
       if (!result.audioUrl) {
-        // Hindi text stays on screen; the provider simply has no audio for this summary.
+        // The summary stays readable; the provider simply has no audio for it.
         setAudio('unavailable');
         return;
       }
 
-      releaseAudioUrl();
       audioUrlRef.current = result.audioUrl;
       // "Speaking" is only claimed once play() resolves (audio really started).
       setAudio('starting');
-      const played = await getPlayback().play(result.audioUrl, {
-        onStart: () => {
-          if (requestId === requestRef.current) setAudio('playing');
-        },
+      const played = await assistantAudio.play(lease, result.audioUrl, () => {
+        if (requestId === requestRef.current) setAudio('playing');
       });
-      if (requestId !== requestRef.current) return;
+      if (requestId !== requestRef.current || !assistantAudio.isCurrent(lease)) return;
       if (played.ok) setAudio('ended');
       else if (played.reason === 'blocked') setAudio('blocked');
-      else if (played.reason === 'cancelled') setAudio('stopped');
+      else if (played.reason === 'cancelled' || played.reason === 'stale') setAudio('stopped');
       else setAudio('unavailable');
     },
-    [releaseAudioUrl],
+    [language],
   );
 
   const runSummary = useCallback(
     async (intent: 'greeting' | 'summary', gate?: Promise<void>) => {
       const requestId = ++requestRef.current;
       hasRequestedRef.current = true;
+      lastIntentRef.current = intent;
       busyRef.current = true;
       setIsOpen(true);
       setOpenSource((current) => current ?? 'auto');
@@ -258,34 +260,37 @@ export function useSamwadAssistant(options: Options): UseSamwadAssistant {
       setErrorKind(null);
       setAudio('idle');
       setText(null);
-      releaseAudioUrl();
 
       try {
-        // Wait for the in-gesture audio unlock to start before cancelling the previous
-        // sentence. Cancelling it first aborts the silent clip and, in the old code, left
-        // the element muted so the new summary played silently.
+        // Wait for the in-gesture audio unlock to start before taking the channel over.
+        // Cancelling it first aborts the silent clip and, historically, left the element
+        // muted so the new summary played silently.
         if (gate) await gate;
         if (requestId !== requestRef.current) return;
-        playbackRef.current?.stop();
+
+        // One global channel: this immediately stops the previous page's speech and
+        // aborts its pending request.
+        const lease = assistantAudio.claim(ownerId);
+        clearAudioUrl();
 
         let facts: SummaryFacts;
         try {
           facts = await buildFacts(pageRef.current, doctorIdRef.current, intent);
         } catch {
-          if (requestId !== requestRef.current) return;
+          if (requestId !== requestRef.current || !assistantAudio.isCurrent(lease)) return;
           setStatus('error');
           setErrorKind('data');
           return;
         }
-        if (requestId !== requestRef.current) return;
+        if (requestId !== requestRef.current || !assistantAudio.isCurrent(lease)) return;
 
         factsRef.current = facts;
-        await requestSummary(facts, requestId);
+        await requestSummary(facts, requestId, lease);
       } finally {
         if (requestId === requestRef.current) busyRef.current = false;
       }
     },
-    [releaseAudioUrl, requestSummary],
+    [clearAudioUrl, ownerId, requestSummary],
   );
 
   /**
@@ -301,15 +306,14 @@ export function useSamwadAssistant(options: Options): UseSamwadAssistant {
       return;
     }
 
-    const playback = getPlayback();
-    const gate = playback.unlock();
+    const gate = assistantAudio.unlock();
     setIsOpen(true);
     setOpenSource('user');
     void runSummary('summary', gate);
   }, [runSummary]);
 
   const close = useCallback(() => {
-    playbackRef.current?.stop();
+    assistantAudio.stop();
     setAudio((current) =>
       current === 'playing' || current === 'starting' || current === 'loading' ? 'stopped' : current,
     );
@@ -318,7 +322,7 @@ export function useSamwadAssistant(options: Options): UseSamwadAssistant {
   }, []);
 
   const retry = useCallback(() => {
-    const gate = getPlayback().unlock();
+    const gate = assistantAudio.unlock();
     void runSummary('summary', gate);
   }, [runSummary]);
 
@@ -327,17 +331,15 @@ export function useSamwadAssistant(options: Options): UseSamwadAssistant {
    * playback starts and the retry never plays a silently muted element.
    */
   const play = useCallback(() => {
-    const playback = getPlayback();
     const requestId = requestRef.current;
     setAudio('loading');
-    void playback.unlock().then(async () => {
+    void assistantAudio.unlock().then(async () => {
       if (requestId !== requestRef.current) return;
-      if (audioUrlRef.current) {
+      const url = audioUrlRef.current;
+      if (url) {
         setAudio('starting');
-        const result = await playback.play(audioUrlRef.current, {
-          onStart: () => {
-            if (requestId === requestRef.current) setAudio('playing');
-          },
+        const result = await assistantAudio.playStored(url, () => {
+          if (requestId === requestRef.current) setAudio('playing');
         });
         if (requestId !== requestRef.current) return;
         if (result.ok) setAudio('ended');
@@ -346,13 +348,13 @@ export function useSamwadAssistant(options: Options): UseSamwadAssistant {
         else setAudio('unavailable');
         return;
       }
-      const facts = factsRef.current;
-      if (facts) await requestSummary(facts, requestId);
+      // The audio was released: regenerate and speak the current page again.
+      await runSummary(lastIntentRef.current);
     });
-  }, [requestSummary]);
+  }, [runSummary]);
 
   const stop = useCallback(() => {
-    playbackRef.current?.stop();
+    assistantAudio.stop();
     setAudio('stopped');
   }, []);
 
@@ -373,16 +375,32 @@ export function useSamwadAssistant(options: Options): UseSamwadAssistant {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoGreet, greetingToken, dataReady, dataFailed, runSummary]);
 
+  /**
+   * Language switch: stop the current voice immediately, then regenerate the same page
+   * summary in the new language. The preference itself is global (stored per doctor).
+   */
+  const languageRef = useRef(language);
+  useEffect(() => {
+    if (languageRef.current === language) return;
+    languageRef.current = language;
+    if (!hasRequestedRef.current) return;
+    assistantAudio.stop();
+    void runSummary(lastIntentRef.current);
+  }, [language, runSummary]);
+
+  // Leaving the page releases the channel: the global controller stops the audio even if
+  // the navigation happens faster than React's unmount.
   useEffect(() => {
     return () => {
-      playbackRef.current?.stop();
-      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+      assistantAudio.release(ownerId);
     };
-  }, []);
+  }, [ownerId]);
 
   return {
     isOpen,
     openSource,
+    language,
+    setLanguage,
     status,
     text,
     audio,

@@ -22,7 +22,7 @@ import { withSupabase } from "@supabase/server";
 import { preflight, withCors } from "../_shared/cors.ts";
 import { AppError, toErrorCode } from "../_shared/errors.ts";
 import { consoleLogger } from "../_shared/logging.ts";
-import { synthesize } from "../_shared/timbre.ts";
+import { DEFAULT_VOICE, synthesize, type SpeechLanguage } from "../_shared/timbre.ts";
 import { QUESTIONS } from "../_shared/questions.ts";
 import { getQuestion as getBankQuestion } from "../_shared/intake/question-bank.ts";
 import { reserveUsage } from "../_shared/usage.ts";
@@ -30,7 +30,7 @@ import type { RpcClient } from "../_shared/usage.ts";
 import { MAX_ANSWER_TURNS } from "../_shared/conversation.ts";
 import { requireOwnedRow } from "../_shared/auth.ts";
 import { isSystemMessageId, systemMessageText, type SystemMessageId } from "../_shared/messages.ts";
-import { MAX_SUMMARY_CHARACTERS, renderHindiSummary } from "../_shared/doctor-summary.ts";
+import { MAX_SUMMARY_CHARACTERS, renderSummary } from "../_shared/doctor-summary.ts";
 import { phraseDoctorSummary } from "../_shared/doctor-summary-llm.ts";
 import { resolveSpeakTarget } from "../_shared/speak-target.ts";
 
@@ -68,8 +68,12 @@ function summaryFallback(
   source: "qwen" | "fallback",
   status = 200,
   reason?: string,
+  language: "hi" | "en" = "hi",
 ): Response {
-  return Response.json({ text, source, ...(reason ? { reason } : {}) }, { status });
+  return Response.json(
+    { text, source, language, ...(reason ? { reason } : {}) },
+    { status },
+  );
 }
 
 /** Header-safe encoding of the Hindi sentence (HTTP headers are not UTF-8 safe). */
@@ -109,6 +113,7 @@ export default {
 
       if (target.kind === "summary") {
         const facts = target.facts;
+        const summaryLanguage = target.language;
 
         // Doctor-only: an account without a `doctor_profiles` mapping gets no audio.
         //
@@ -127,7 +132,7 @@ export default {
 
         // Stage B: the model only phrases Stage A facts. Anything unsupported is rejected
         // and the deterministic renderer below becomes the authoritative sentence.
-        let summaryText = renderHindiSummary(facts);
+        let summaryText = renderSummary(facts, summaryLanguage);
         let summarySource: "qwen" | "fallback" = "fallback";
         let modelAttempts = 0;
         // Stable rejection/provider code (never model text). Returned only as a diagnostic.
@@ -139,7 +144,7 @@ export default {
           if (!reservation.allowed) {
             consoleLogger.info("usage_capped", { counter: "groq", provider: "groq" });
           } else {
-            const phrasing = await phraseDoctorSummary(facts, {
+            const phrasing = await phraseDoctorSummary(facts, summaryLanguage, {
               apiKey: groqKey,
               baseUrl: Deno.env.get("GROQ_BASE_URL") ?? undefined,
               timeoutMs: 8_000,
@@ -160,19 +165,21 @@ export default {
         consoleLogger.info("action_completed", {
           action: "doctor_summary",
           context: facts.context,
+          language: summaryLanguage,
           source: summarySource,
           attempts: modelAttempts,
           ...(facts.context === "dashboard" ? { intent: facts.intent } : {}),
         });
 
         if (!summaryText || summaryText.length > MAX_SUMMARY_CHARACTERS) {
-          return summaryFallback(summaryText, summarySource, 200, modelReason);
+          return summaryFallback(summaryText, summarySource, 200, modelReason, summaryLanguage);
         }
         // The assistant is Hindi-only, so the language is fixed here, never client-supplied.
-        return await synthesizeOrFallback(admin, "doctor-summary", summaryText, "hi", {
+        return await synthesizeOrFallback(admin, "doctor-summary", summaryText, summaryLanguage, {
           text: summaryText,
           source: summarySource,
           reason: modelReason,
+          language: summaryLanguage,
         });
       }
 
@@ -269,7 +276,7 @@ async function synthesizeOrFallback(
   text: string,
   language: "en" | "hi",
   /** Doctor summary only: the exact validated sentence and where it came from. */
-  summary?: { text: string; source: "qwen" | "fallback"; reason?: string },
+  summary?: { text: string; source: "qwen" | "fallback"; reason?: string; language: "hi" | "en" },
 ): Promise<Response> {
   const reservation = await reserveUsage(admin, "timbre");
   if (!reservation.allowed) {
@@ -283,9 +290,13 @@ async function synthesizeOrFallback(
     return summary ? summaryFallback(summary.text, summary.source, 200) : textFallback(text, 200);
   }
 
+  // The voice is pinned per language instead of relying on any SDK default, and the
+  // resolved value is reported back so a caller can verify which voice produced the audio.
+  const speechLanguage: SpeechLanguage = language === "hi" ? "hi-IN" : "en-IN";
+  const voice = DEFAULT_VOICE[speechLanguage];
   const result = await synthesize(
     { apiKey, endpoint: Deno.env.get("TIMBRE_ENDPOINT") ?? undefined },
-    { text, language: language === "hi" ? "hi-IN" : "en-IN" },
+    { text, language: speechLanguage, voice },
   );
 
   consoleLogger.info("provider_attempt", { provider: "timbre", ok: result.ok });
@@ -306,6 +317,8 @@ async function synthesizeOrFallback(
     // The browser displays exactly this sentence, so audio and screen cannot disagree.
     headers["x-summary-text"] = encodeSummaryHeader(summary.text);
     headers["x-summary-source"] = summary.source;
+    headers["x-summary-language"] = summary.language;
+    headers["x-summary-voice"] = DEFAULT_VOICE[summary.language === "hi" ? "hi-IN" : "en-IN"];
     if (summary.reason) headers["x-summary-reason"] = summary.reason;
   }
   return new Response(audioBuffer, { status: 200, headers });
