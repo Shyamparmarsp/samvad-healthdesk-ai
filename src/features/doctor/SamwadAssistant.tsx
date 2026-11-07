@@ -7,9 +7,10 @@ interface SamwadAssistantProps {
   page: AssistantPage;
   /** Signed-in doctor, so the mock backend reads the same rows as the page. */
   doctorId?: string;
-  /** Dashboard only: brief automatically on entry. */
+  /** Dashboard only: brief automatically once per login session. */
   autoGreet?: boolean;
-  greetingToken?: number;
+  /** Stable id of the current login; the one-time guard is keyed on it. */
+  loginSessionId?: string | null;
   dataReady?: boolean;
   dataFailed?: boolean;
 }
@@ -26,11 +27,11 @@ export const SamwadAssistant: React.FC<SamwadAssistantProps> = ({
   page,
   doctorId,
   autoGreet = false,
-  greetingToken = 0,
+  loginSessionId = null,
   dataReady = true,
   dataFailed = false,
 }) => {
-  const assistant = useSamwadAssistant({ page, doctorId, autoGreet, greetingToken, dataReady, dataFailed });
+  const assistant = useSamwadAssistant({ page, doctorId, autoGreet, loginSessionId, dataReady, dataFailed });
   const {
     isOpen,
     openSource,

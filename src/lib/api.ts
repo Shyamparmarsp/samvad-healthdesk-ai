@@ -46,6 +46,12 @@ import {
   SUPABASE_URL,
 } from './supabase';
 import {
+  adoptRestoredDoctorSession,
+  clearDoctorLoginSession,
+  getDoctorLoginSession,
+  startDoctorLoginSession,
+} from './doctor-login-session';
+import {
   getMockAdaptiveQuestion,
   getMockCandidates,
 } from './mock-adaptive-bank';
@@ -263,6 +269,43 @@ function initialsOf(displayName: string): string {
   if (words.length === 0) return 'DR';
   if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
   return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+}
+
+/**
+ * Builds the doctor profile for an already authenticated Supabase user.
+ *
+ * A signed-in Auth user who is not mapped to a doctor must never be treated as one.
+ * Returns null instead of inventing a profile; callers decide whether to sign out.
+ */
+async function profileForAuthenticatedUser(
+  user: { id: string; email?: string | null },
+  fallbackEmail?: string,
+): Promise<DoctorProfile | null> {
+  const client = getSupabaseClient();
+  const { data: profileData, error: profileErr } = await client
+    .from('doctor_profiles')
+    .select('doctor_id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (profileErr || !profileData) return null;
+
+  const doctorRow = await lookupDoctor(profileData.doctor_id);
+  if (!doctorRow) return null;
+
+  const department = await lookupDepartment(doctorRow.department_key);
+  const seedDoc = FICTIONAL_DOCTORS[doctorRow.department_key];
+
+  return {
+    id: doctorRow.id,
+    name: doctorRow.display_name,
+    department_key: doctorRow.department_key,
+    department_name: department?.name || departmentNameFor(doctorRow.department_key),
+    title: seedDoc?.title || 'Consultant',
+    initials: initialsOf(doctorRow.display_name),
+    email: user.email || fallbackEmail || '',
+    routine_slots_enabled: department ? department.booking_enabled && !department.is_emergency : false,
+  };
 }
 
 // -------------------------------------------------------------
@@ -2255,39 +2298,19 @@ export async function doctorLogin(email: string, password?: string): Promise<Doc
       throw new ApiError(authErr?.message || 'Invalid credentials', 'invalid_credentials', 401);
     }
 
-    const { data: profileData, error: profileErr } = await client
-      .from('doctor_profiles')
-      .select('doctor_id')
-      .eq('user_id', authData.user.id)
-      .maybeSingle();
+    const doctor = await profileForAuthenticatedUser(authData.user, email);
 
     // A signed-in Auth user who is not mapped to a doctor must never be treated as one.
     // Previously a seeded-email fallback handed out a doctor profile here, which meant
     // any account that happened to use a demo address could read that doctor's reports.
-    if (profileErr || !profileData) {
+    if (!doctor) {
       await client.auth.signOut();
       throw new ApiError('not_a_doctor', 'not_a_doctor', 403);
     }
 
-    const doctorRow = await lookupDoctor(profileData.doctor_id);
-    if (!doctorRow) {
-      await client.auth.signOut();
-      throw new ApiError('not_a_doctor', 'not_a_doctor', 403);
-    }
-
-    const department = await lookupDepartment(doctorRow.department_key);
-    const seedDoc = FICTIONAL_DOCTORS[doctorRow.department_key];
-
-    const doctor: DoctorProfile = {
-      id: doctorRow.id,
-      name: doctorRow.display_name,
-      department_key: doctorRow.department_key,
-      department_name: department?.name || departmentNameFor(doctorRow.department_key),
-      title: seedDoc?.title || 'Consultant',
-      initials: initialsOf(doctorRow.display_name),
-      email: authData.user.email || email,
-      routine_slots_enabled: department ? department.booking_enabled && !department.is_emergency : false,
-    };
+    // The actual sign-in succeeded: this is the only place a new login session (and
+    // therefore a new automatic dashboard briefing) may be created.
+    startDoctorLoginSession(doctor.id);
 
     return {
       doctor,
@@ -2299,16 +2322,54 @@ export async function doctorLogin(email: string, password?: string): Promise<Doc
   if (!doctor) {
     throw new ApiError('Invalid credentials', 'invalid_credentials', 401);
   }
+  startDoctorLoginSession(doctor.id);
   return {
     doctor,
     token: `mock-jwt-${doctor.id}`,
   };
 }
 
-export async function doctorLogout(): Promise<void> {
+/**
+ * Re-attach to an authenticated doctor after a browser refresh or when the portal is
+ * mounted again. This is NOT a login: it never mints a new login session and therefore
+ * can never re-trigger the automatic dashboard briefing.
+ *
+ * Supabase mode uses the persisted Auth session. Mock mode uses the stored login record
+ * so the demo behaves the same way without a backend.
+ */
+export async function restoreDoctorSession(): Promise<DoctorProfile | null> {
   if (currentAppMode === 'supabase') {
     const client = getSupabaseClient();
-    await client.auth.signOut();
+    const { data } = await client.auth.getSession();
+    const session = data?.session;
+    if (!session?.user) {
+      clearDoctorLoginSession();
+      return null;
+    }
+
+    const doctor = await profileForAuthenticatedUser(session.user, session.user.email || undefined);
+    if (!doctor) return null;
+
+    adoptRestoredDoctorSession(doctor.id);
+    return doctor;
+  }
+
+  const loginSession = getDoctorLoginSession();
+  if (!loginSession) return null;
+  return Object.values(FICTIONAL_DOCTORS).find((d) => d.id === loginSession.doctorId) ?? null;
+}
+
+export async function doctorLogout(): Promise<void> {
+  try {
+    if (currentAppMode === 'supabase') {
+      const client = getSupabaseClient();
+      await client.auth.signOut();
+    }
+  } catch {
+    // A failed network sign-out must not keep the doctor's local login identity alive.
+  } finally {
+    // The next successful login is then unambiguously a new session.
+    clearDoctorLoginSession();
   }
 }
 

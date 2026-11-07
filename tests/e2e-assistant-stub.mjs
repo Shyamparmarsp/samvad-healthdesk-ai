@@ -108,9 +108,16 @@ const STUB_SOURCE = `
       }),
     ])},
     deleted: [],
-    speakCalls: 0,
+    // The count survives a reload so a refresh cannot hide an extra TTS/Groq request.
+    speakCalls: Number(sessionStorage.getItem('__stub_speakCalls') || 0),
     speakLanguages: [],
     speakDelayMs: 0,
+    /** One-shot provider failure used by the failed-briefing retry check. */
+    failSpeakOnce: false,
+  };
+  const bumpSpeakCalls = () => {
+    window.__stub.speakCalls += 1;
+    try { sessionStorage.setItem('__stub_speakCalls', String(window.__stub.speakCalls)); } catch {}
   };
 
   const json = (body, status = 200) =>
@@ -147,7 +154,14 @@ const STUB_SOURCE = `
       return json([{ deleted_report_id: id }]);
     }
     if (url.includes('/functions/v1/speak')) {
-      window.__stub.speakCalls += 1;
+      bumpSpeakCalls();
+      if (window.__stub.failSpeakOnce) {
+        window.__stub.failSpeakOnce = false;
+        return new Response(JSON.stringify({ error: 'provider_unavailable' }), {
+          status: 500,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
       const body = JSON.parse(init.body || '{}');
       const language = body.summary_language === 'en' ? 'en' : 'hi';
       window.__stub.speakLanguages.push(language);
@@ -355,9 +369,39 @@ async function main() {
     await login();
     record('doctor login reaches the dashboard', true);
 
-    // --- 1. dashboard click speaks (existing fixed behaviour) -------------------
+    // --- 0. the automatic briefing fires exactly once per login -----------------
     await cdp.waitForPanel();
+    const autoCalls = await cdp.eval('window.__stub.speakCalls');
+    record(
+      'login produces exactly one automatic dashboard briefing',
+      autoCalls === 1,
+      `${autoCalls} Groq/TTS request(s)`,
+    );
+    const autoPanel = await cdp.eval(`document.querySelector('[role="dialog"]')?.innerText || ''`);
+    record('the automatic briefing is displayed', autoPanel.length > 80);
     await cdp.eval(closePanel);
+    await sleep(300);
+
+    // Every other page and every dashboard revisit must stay silent.
+    for (const nav of ['Reports', 'Appointments', 'Urgent']) {
+      await cdp.eval(clickStartsWith(nav));
+      await sleep(450);
+      await cdp.eval(clickStartsWith('Dashboard'));
+      await sleep(450);
+      await cdp.eval(closePanel);
+    }
+    const afterNavigationCalls = await cdp.eval('window.__stub.speakCalls');
+    record(
+      'navigating to Reports/Appointments/Urgent and back to Dashboard does not brief again',
+      afterNavigationCalls === 1,
+      `${afterNavigationCalls} total request(s)`,
+    );
+    record(
+      'the one-time guard survives many renders and route changes',
+      (await cdp.eval(`sessionStorage.getItem('samvad.doctor.loginSession.v1') || ''`)).includes('"greetingAttempted":true'),
+    );
+
+    // --- 1. dashboard click speaks (existing fixed behaviour) -------------------
     await sleep(400);
     let before = await cdp.eval('window.__audioLog.length');
     await cdp.mouseClick('button[aria-haspopup="dialog"]');
@@ -449,17 +493,29 @@ async function main() {
     // The panel is per page, so open it to read the shared preference.
     await cdp.mouseClick('button[aria-haspopup="dialog"]');
     await cdp.waitForPanel();
+    // Wait for the actual summary, not the loading copy, so no request is still in
+    // flight when the refresh check starts.
+    await cdp.waitFor(/Doctor, you have 1 appointment/);
     const apptLang = await cdp.eval(`(() => {
       const group = document.querySelector('[aria-label="Summary language"]');
       return group ? Array.from(group.querySelectorAll('button')).map(b => b.getAttribute('aria-pressed')) : null;
     })()`);
     record('English stays selected on appointments', JSON.stringify(apptLang) === '["false","true"]', JSON.stringify(apptLang));
-
-    // Persists across a reload (same doctor).
-    await cdp.send('Page.reload');
-    await sleep(1200);
-    await login();
+    await cdp.eval(closePanel);
     await sleep(400);
+
+    // Persists across a reload (same doctor), and a refresh must not brief again.
+    const callsBeforeReload = await cdp.eval('window.__stub.speakCalls');
+    await cdp.send('Page.reload');
+    // A persisted Auth session is restored; the login form is not shown again.
+    await cdp.waitFor('Welcome');
+    await sleep(1800);
+    const callsAfterReload = await cdp.eval('window.__stub.speakCalls');
+    record(
+      'a browser refresh restores the session without a second automatic briefing',
+      callsAfterReload === callsBeforeReload,
+      `${callsBeforeReload} → ${callsAfterReload} request(s)`,
+    );
     await cdp.eval(`document.querySelector('button[aria-haspopup="dialog"]')?.click()`);
     await cdp.waitForPanel();
     await sleep(1500);
@@ -484,7 +540,7 @@ async function main() {
     record('switching back to Hindi requests a Hindi summary', hindiLang === 'hi', String(hindiLang));
 
     // Different doctor sees the default (fresh browser profile / storage cleared).
-    await cdp.eval(`window.localStorage.clear()`);
+    await cdp.eval(`window.localStorage.clear(); sessionStorage.removeItem('__stub_speakCalls'); sessionStorage.removeItem('samvad.doctor.loginSession.v1');`);
     await cdp.send('Page.reload');
     await sleep(1200);
     await login();
@@ -572,6 +628,93 @@ async function main() {
       `${await cdp.eval('window.__stub.reports.length')} rows`,
     );
     await cdp.shot('24-delete-success-english.png');
+
+    // --- 7. manual assistant works on the sixth page (urgent detail) -----------
+    await cdp.eval(closePanel);
+    await cdp.eval(clickStartsWith('Urgent'));
+    await sleep(400);
+    const urgentRow = await cdp.eval(`(() => {
+      const row = Array.from(document.querySelectorAll('[role="button"]')).find(el => (el.getAttribute('aria-label') || '').startsWith('Open urgent triage report'));
+      if (!row) return 'none';
+      row.click();
+      return 'opened';
+    })()`);
+    await cdp.waitFor('Urgent Triage Case');
+    await sleep(400);
+    const beforeUrgentDetail = await cdp.eval('window.__stub.speakCalls');
+    await cdp.mouseClick('button[aria-haspopup="dialog"]');
+    await cdp.waitForPanel();
+    await sleep(900);
+    record(
+      'manual assistant still works on urgent detail',
+      urgentRow === 'opened' && (await cdp.eval('window.__stub.speakCalls')) === beforeUrgentDetail + 1,
+      `${beforeUrgentDetail} → ${await cdp.eval('window.__stub.speakCalls')} request(s)`,
+    );
+    await cdp.eval(closePanel);
+
+    // --- 8. logout then a genuine login briefs exactly once again --------------
+    await cdp.eval(clickStartsWith('Dashboard'));
+    await sleep(400);
+    const oldLoginId = await cdp.eval(`JSON.parse(sessionStorage.getItem('samvad.doctor.loginSession.v1') || 'null')?.id`);
+    const callsBeforeLogout = await cdp.eval('window.__stub.speakCalls');
+    await cdp.eval(clickText('Log out'));
+    await cdp.waitFor('Log in');
+    await sleep(300);
+    const clearedLogin = await cdp.eval(`sessionStorage.getItem('samvad.doctor.loginSession.v1')`);
+    record('logout clears the login-session identity', clearedLogin === null, String(clearedLogin));
+
+    await login();
+    await cdp.waitForPanel();
+    const callsAfterLogin = await cdp.eval('window.__stub.speakCalls');
+    const newLoginId = await cdp.eval(`JSON.parse(sessionStorage.getItem('samvad.doctor.loginSession.v1') || 'null')?.id`);
+    record(
+      'logout and a genuine login produce exactly one new automatic briefing',
+      callsAfterLogin === callsBeforeLogout + 1,
+      `${callsBeforeLogout} → ${callsAfterLogin} request(s)`,
+    );
+    record(
+      'the new login uses a different session nonce',
+      Boolean(newLoginId) && newLoginId !== oldLoginId,
+      `${oldLoginId} → ${newLoginId}`,
+    );
+
+    // --- 9. a failed automatic briefing is never retried automatically ---------
+    await cdp.eval(closePanel);
+    await cdp.eval(clickText('Log out'));
+    await cdp.waitFor('Log in');
+    await sleep(300);
+    await cdp.eval('window.__stub.failSpeakOnce = true');
+    const callsBeforeFailure = await cdp.eval('window.__stub.speakCalls');
+    await login();
+    await cdp.waitFor('The summary could not be prepared');
+    const callsAfterFailure = await cdp.eval('window.__stub.speakCalls');
+    record(
+      'the failed automatic briefing was attempted exactly once',
+      callsAfterFailure === callsBeforeFailure + 1,
+      `${callsBeforeFailure} → ${callsAfterFailure} request(s)`,
+    );
+
+    await cdp.eval(closePanel);
+    await cdp.eval(clickStartsWith('Reports'));
+    await sleep(400);
+    await cdp.eval(clickStartsWith('Dashboard'));
+    await sleep(1600);
+    const callsAfterRevisit = await cdp.eval('window.__stub.speakCalls');
+    record(
+      'returning to the dashboard does not retry a failed briefing',
+      callsAfterRevisit === callsAfterFailure,
+      `${callsAfterFailure} → ${callsAfterRevisit} request(s)`,
+    );
+
+    await cdp.mouseClick('button[aria-haspopup="dialog"]');
+    await cdp.waitForPanel();
+    await cdp.waitFor(/डॉक्टर|Doctor,/);
+    const callsAfterManualRetry = await cdp.eval('window.__stub.speakCalls');
+    record(
+      'a manual assistant click successfully retries after a failure',
+      callsAfterManualRetry === callsAfterRevisit + 1,
+      `${callsAfterRevisit} → ${callsAfterManualRetry} request(s)`,
+    );
 
     const failed = results.filter((entry) => !entry.ok);
     console.log(`\n${results.length - failed.length}/${results.length} stub-network browser checks passed.`);

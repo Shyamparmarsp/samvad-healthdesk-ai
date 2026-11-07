@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DoctorProfile, DoctorDashboardStats, Appointment, DoctorReportsTab, DoctorAppointmentsTab } from '../../types/doctor';
 import { ReportRow } from '../../types/report';
 import {
   getDoctorReports,
   getDoctorAppointments,
   getDoctorDashboardStats,
+  getAppMode,
   doctorLogout,
   deleteDoctorReport,
+  restoreDoctorSession,
 } from '../../lib/api';
+import { getDoctorLoginSession } from '../../lib/doctor-login-session';
 
 import { ThemeToggle } from '../common/ThemeToggle';
 import { DoctorLogin } from './DoctorLogin';
@@ -36,6 +39,16 @@ export const DoctorShell: React.FC = () => {
   const [currentView, setCurrentView] = useState<DoctorView>('dashboard');
   const [previousView, setPreviousView] = useState<DoctorView>('dashboard');
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  /** Stable id of the current login. Mirrors the central login-session store. */
+  const [loginSessionId, setLoginSessionId] = useState<string | null>(null);
+  /** Restoring a persisted Auth session is not a login and must not brief again. */
+  const [isRestoringSession, setIsRestoringSession] = useState(() => {
+    // In mock mode a stored login record is the only restore candidate, so a fresh
+    // visitor sees the login form immediately. In Supabase mode the session lives in
+    // the Auth client storage and is checked asynchronously.
+    if (getAppMode() === 'supabase') return true;
+    return Boolean(getDoctorLoginSession());
+  });
 
   const [reports, setReports] = useState<ReportRow[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -59,25 +72,36 @@ export const DoctorShell: React.FC = () => {
   const [appointmentsTab, setAppointmentsTab] = useState<DoctorAppointmentsTab>('upcoming');
 
   /**
-   * One dashboard entry = one Hindi briefing. The token increments when the doctor logs in
-   * and every time they navigate back to the dashboard, and never on a re-render.
+   * Re-attach to an existing authenticated session after a refresh. This is deliberately
+   * separate from login: the central login-session store keeps the same nonce (and its
+   * "already briefed" flag), so restoration can never re-trigger the greeting.
    */
-  const [dashboardEntryToken, setDashboardEntryToken] = useState(0);
-  const wasOnDashboard = useRef(false);
-
   useEffect(() => {
-    if (!currentDoctor) {
-      wasOnDashboard.current = false;
-      return;
-    }
-    if (currentView !== 'dashboard') {
-      wasOnDashboard.current = false;
-      return;
-    }
-    if (wasOnDashboard.current) return;
-    wasOnDashboard.current = true;
-    setDashboardEntryToken((token) => token + 1);
-  }, [currentView, currentDoctor]);
+    let active = true;
+    void restoreDoctorSession()
+      .then((doctor) => {
+        if (!active) return;
+        if (doctor) {
+          setCurrentDoctor(doctor);
+          setLoginSessionId(getDoctorLoginSession(doctor.id)?.id ?? null);
+        }
+      })
+      .catch(() => {
+        // A failed restore leaves the login form in charge; it never greets.
+      })
+      .finally(() => {
+        if (active) setIsRestoringSession(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  /** A successful login: adopt the nonce minted by the sign-in action itself. */
+  const handleLoginSuccess = (doctor: DoctorProfile) => {
+    setLoginSessionId(getDoctorLoginSession(doctor.id)?.id ?? null);
+    setCurrentDoctor(doctor);
+  };
 
   const loadData = async (docId?: string) => {
     setIsLoadingData(true);
@@ -143,18 +167,27 @@ export const DoctorShell: React.FC = () => {
   const handleLogout = async () => {
     await doctorLogout();
     setCurrentDoctor(null);
+    setLoginSessionId(null);
     setReports([]);
     setAppointments([]);
     setSelectedReportId(null);
     setCurrentView('dashboard');
     setHasLoadedData(false);
-    setDashboardEntryToken(0);
     // Never keep a doctor's summary audio or pending speech after logout.
     assistantAudio.reset();
   };
 
+  if (isRestoringSession) {
+    return (
+      <div role="status" className="flex items-center justify-center py-20 text-xs text-slate-500 gap-2">
+        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" aria-hidden />
+        Restoring doctor session…
+      </div>
+    );
+  }
+
   if (!currentDoctor) {
-    return <DoctorLogin onLoginSuccess={(doc) => setCurrentDoctor(doc)} />;
+    return <DoctorLogin onLoginSuccess={handleLoginSuccess} />;
   }
 
   const allReports = reports;
@@ -426,7 +459,7 @@ export const DoctorShell: React.FC = () => {
                   doctorId={currentDoctor.id}
                   page={{ kind: 'dashboard' }}
                   autoGreet
-                  greetingToken={dashboardEntryToken}
+                  loginSessionId={loginSessionId}
                   dataReady={hasLoadedData && !isLoadingData}
                   dataFailed={Boolean(loadError)}
                 />

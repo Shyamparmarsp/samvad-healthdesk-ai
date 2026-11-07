@@ -553,7 +553,13 @@ describe('Doctor assistant — page wiring', () => {
       assert.match(shell, new RegExp(`kind: '${kind}'`), `shell covers ${kind}`);
     }
     assert.match(shell, /autoGreet/);
-    assert.match(shell, /greetingToken=\{dashboardEntryToken\}/);
+    assert.match(shell, /loginSessionId=\{loginSessionId\}/);
+    assert.doesNotMatch(shell, /dashboardEntryToken|greetingToken/, 'navigation no longer arms a greeting');
+    assert.match(shell, /restoreDoctorSession\(\)/, 'a restored session is handled separately from login');
+
+    const hook = read('src/features/doctor/useSamwadAssistant.ts');
+    assert.match(hook, /claimAutomaticGreeting/, 'the one-time guard is central, not per mount');
+    assert.doesNotMatch(hook, /greetingToken/, 'no route-entry token drives the briefing');
 
     const patientShell = read('src/features/patient/PatientShell.tsx');
     const login = read('src/features/doctor/DoctorLogin.tsx');

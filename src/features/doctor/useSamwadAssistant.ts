@@ -6,6 +6,7 @@ import {
   speakDoctorSummary,
 } from '../../lib/api';
 import { assistantAudio, type AudioLease } from '../../lib/audio/assistant-audio';
+import { claimAutomaticGreeting } from '../../lib/doctor-login-session';
 import { useAssistantLanguage, type AssistantLanguage } from './doctor-assistant-language';
 import { filterReportsByTab } from './DoctorReportsList';
 import {
@@ -78,8 +79,11 @@ interface Options {
   doctorId?: string;
   /** True on the dashboard only. */
   autoGreet: boolean;
-  /** Incremented by the shell on every dashboard entry (login, or return to the tab). */
-  greetingToken: number;
+  /**
+   * Stable nonce for the current successful login. The automatic briefing is claimed
+   * exactly once per nonce; navigation, re-renders and token refreshes cannot reset it.
+   */
+  loginSessionId?: string | null;
   /** Shell data finished loading successfully. */
   dataReady: boolean;
   /** Shell data failed to load: the greeting must stay silent. */
@@ -147,12 +151,13 @@ async function buildFacts(
  *
  * Guarantees:
  *   - a stale response can never overwrite a newer summary (single in-flight request id);
- *   - the greeting fires once per dashboard entry, 1s after the data is ready;
+ *   - the automatic dashboard briefing is claimed once per login session, 1s after the
+ *     dashboard data is ready; navigation never re-arms it;
  *   - one audio channel per mounted page, so two summaries can never overlap;
- *   - if the data request fails, no greeting is spoken.
+ *   - if the data request fails, no greeting is spoken and no automatic retry is queued.
  */
 export function useSamwadAssistant(options: Options): UseSamwadAssistant {
-  const { page, doctorId, autoGreet, greetingToken, dataReady, dataFailed } = options;
+  const { page, doctorId, autoGreet, loginSessionId, dataReady, dataFailed } = options;
   const [language, setLanguage] = useAssistantLanguage(doctorId);
 
   const [isOpen, setIsOpen] = useState(false);
@@ -172,7 +177,8 @@ export function useSamwadAssistant(options: Options): UseSamwadAssistant {
   const requestRef = useRef(0);
   const factsRef = useRef<SummaryFacts | null>(null);
   const audioUrlRef = useRef<string | null>(null);
-  const greetedTokenRef = useRef(0);
+  /** Login session whose one automatic briefing this mounted assistant has claimed. */
+  const greetingClaimRef = useRef<string | null>(null);
   const hasRequestedRef = useRef(false);
   const lastIntentRef = useRef<'greeting' | 'summary'>('summary');
   const [ownerId] = useState(() => `assistant-${++assistantInstanceCounter}`);
@@ -358,22 +364,41 @@ export function useSamwadAssistant(options: Options): UseSamwadAssistant {
     setAudio('stopped');
   }, []);
 
-  /** Automatic dashboard briefing: once per entry, 1s after the dashboard data is ready. */
+  /**
+   * Claim the one automatic dashboard briefing for this login session before any async
+   * work. The claim is synchronous and idempotent, so extra renders, effects or auth
+   * callbacks cannot create a second greeting. It is deliberately independent of route
+   * entry: leaving and re-entering the dashboard cannot re-arm it.
+   */
   useEffect(() => {
-    if (!autoGreet || greetingToken <= 0) return;
+    if (!autoGreet || !loginSessionId) return;
+    if (greetingClaimRef.current === loginSessionId) return;
+    if (claimAutomaticGreeting(loginSessionId)) {
+      greetingClaimRef.current = loginSessionId;
+    }
+  }, [autoGreet, loginSessionId]);
+
+  /**
+   * Automatic dashboard briefing: 1s after the authorized dashboard data is ready.
+   *
+   * The claim above is already marked, so a data/provider failure stays silent and is not
+   * retried when the doctor revisits the dashboard. A manual click remains the retry path.
+   */
+  useEffect(() => {
+    if (!autoGreet || !loginSessionId) return;
+    if (greetingClaimRef.current !== loginSessionId) return;
     if (!dataReady || dataFailed) return;
-    if (greetedTokenRef.current === greetingToken) return;
-    if (hasRequestedRef.current && status !== 'idle') return;
 
     const timer = setTimeout(() => {
-      greetedTokenRef.current = greetingToken;
+      // The doctor clicked first: their summary wins and must not be overlapped.
+      if (hasRequestedRef.current) return;
       void runSummary('greeting');
     }, GREETING_DELAY_MS);
     return () => clearTimeout(timer);
     // `status` is deliberately not a dependency: incidental state updates must not
-    // reschedule the briefing. The guard above only reads it at entry time.
+    // reschedule the briefing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoGreet, greetingToken, dataReady, dataFailed, runSummary]);
+  }, [autoGreet, loginSessionId, dataReady, dataFailed, runSummary]);
 
   /**
    * Language switch: stop the current voice immediately, then regenerate the same page
