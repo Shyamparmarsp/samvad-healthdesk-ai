@@ -320,11 +320,12 @@ describe('M4 frontend integration — safety, consent and adaptive (local Supaba
 
     const bankQuestions = questions.filter(isBankQuestion);
     assert.ok(bankQuestions.length > 0, `expected an adaptive bank question, got ${questions.join(',')}`);
-    assert.ok(bankQuestions.length <= 3, 'adaptive budget is 3 per session');
+    assert.ok(bankQuestions.length <= 5, 'adaptive budget is 5 per session');
 
     assert.equal(response.is_complete, false);
     assert.equal(response.can_submit, false);
-    assert.equal(response.is_cap_reached, false);
+    assert.equal(response.turn_count, 15);
+    assert.equal(response.is_cap_reached, true);
   });
 
   it('a pending adaptive question survives resume_session', async () => {

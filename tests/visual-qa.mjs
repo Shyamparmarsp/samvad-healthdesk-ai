@@ -19,7 +19,9 @@ import assert from 'node:assert/strict';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const SCREENSHOTS_DIR = resolve(__dirname, '../docs/screenshots');
+const SCREENSHOTS_DIR = process.env.SCREENSHOT_OUT_DIR
+  ? resolve(process.env.SCREENSHOT_OUT_DIR)
+  : resolve(__dirname, '../docs/screenshots');
 
 if (!existsSync(SCREENSHOTS_DIR)) {
   mkdirSync(SCREENSHOTS_DIR, { recursive: true });

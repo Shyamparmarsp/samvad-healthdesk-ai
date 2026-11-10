@@ -22,7 +22,9 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUT_DIR = resolve(__dirname, '../docs/screenshots/assistant/e2e');
+const OUT_DIR = process.env.SCREENSHOT_OUT_DIR
+  ? resolve(process.env.SCREENSHOT_OUT_DIR)
+  : resolve(__dirname, '../docs/screenshots/assistant/e2e');
 const PORT = 4181;
 const BASE = `http://127.0.0.1:${PORT}`;
 const HOSTED = process.argv.includes('--hosted');

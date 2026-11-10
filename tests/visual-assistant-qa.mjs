@@ -21,7 +21,9 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUT_DIR = resolve(__dirname, '../docs/screenshots/assistant');
+const OUT_DIR = process.env.SCREENSHOT_OUT_DIR
+  ? resolve(process.env.SCREENSHOT_OUT_DIR)
+  : resolve(__dirname, '../docs/screenshots/assistant');
 const PORT = 4176;
 const BASE = `http://127.0.0.1:${PORT}`;
 

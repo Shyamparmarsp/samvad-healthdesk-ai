@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-03T18:58:50.020Z",
+  "generatedAt": "2026-11-10T05:38:38.895Z",
   "provider": {
     "adapter": "supabase/functions/_shared/timbre.ts",
     "model": "timbre-v2.5",
@@ -20,14 +20,7 @@
       "hash": "0fbc533619f9ae05",
       "bytes": 159744,
       "valid": "valid audio",
-      "legacy": {
-        "path": "public/audio/greeting_en.wav",
-        "hash": "56d4af65701c26df",
-        "bytes": 16044,
-        "durationSeconds": 1.00275,
-        "meanVolumeDb": null,
-        "valid": "INVALID — not a decodable MP3 (the production container is mp3)"
-      }
+      "legacy": null
     },
     {
       "promptId": "ask-name",
@@ -41,14 +34,7 @@
       "hash": "75747251826f422a",
       "bytes": 16128,
       "valid": "valid audio",
-      "legacy": {
-        "path": "public/audio/ask-name_en.wav",
-        "hash": "56d4af65701c26df",
-        "bytes": 16044,
-        "durationSeconds": 1.00275,
-        "meanVolumeDb": null,
-        "valid": "INVALID — not a decodable MP3 (the production container is mp3)"
-      }
+      "legacy": null
     },
     {
       "promptId": "ask-age",
@@ -62,14 +48,7 @@
       "hash": "1c283cca66dd04d9",
       "bytes": 26496,
       "valid": "valid audio",
-      "legacy": {
-        "path": "public/audio/ask-age_en.wav",
-        "hash": "56d4af65701c26df",
-        "bytes": 16044,
-        "durationSeconds": 1.00275,
-        "meanVolumeDb": null,
-        "valid": "INVALID — not a decodable MP3 (the production container is mp3)"
-      }
+      "legacy": null
     },
     {
       "promptId": "ask-gender",
@@ -83,14 +62,7 @@
       "hash": "8750ac7877c67d98",
       "bytes": 18816,
       "valid": "valid audio",
-      "legacy": {
-        "path": "public/audio/ask-gender_en.wav",
-        "hash": "56d4af65701c26df",
-        "bytes": 16044,
-        "durationSeconds": 1.00275,
-        "meanVolumeDb": null,
-        "valid": "INVALID — not a decodable MP3 (the production container is mp3)"
-      }
+      "legacy": null
     },
     {
       "promptId": "ask-primary-concern",
@@ -104,14 +76,7 @@
       "hash": "84d5b0bae0171663",
       "bytes": 26496,
       "valid": "valid audio",
-      "legacy": {
-        "path": "public/audio/ask-primary-concern_en.wav",
-        "hash": "56d4af65701c26df",
-        "bytes": 16044,
-        "durationSeconds": 1.00275,
-        "meanVolumeDb": null,
-        "valid": "INVALID — not a decodable MP3 (the production container is mp3)"
-      }
+      "legacy": null
     },
     {
       "promptId": "greeting",
@@ -125,14 +90,7 @@
       "hash": "1a7b1aef5d1b2e89",
       "bytes": 208128,
       "valid": "valid audio",
-      "legacy": {
-        "path": "public/audio/greeting_hi.wav",
-        "hash": "56d4af65701c26df",
-        "bytes": 16044,
-        "durationSeconds": 1.00275,
-        "meanVolumeDb": null,
-        "valid": "INVALID — not a decodable MP3 (the production container is mp3)"
-      }
+      "legacy": null
     },
     {
       "promptId": "ask-name",
@@ -146,14 +104,7 @@
       "hash": "d39d83c609b5c8a0",
       "bytes": 21504,
       "valid": "valid audio",
-      "legacy": {
-        "path": "public/audio/ask-name_hi.wav",
-        "hash": "56d4af65701c26df",
-        "bytes": 16044,
-        "durationSeconds": 1.00275,
-        "meanVolumeDb": null,
-        "valid": "INVALID — not a decodable MP3 (the production container is mp3)"
-      }
+      "legacy": null
     },
     {
       "promptId": "ask-age",
@@ -167,14 +118,7 @@
       "hash": "8fc7b43bead6f862",
       "bytes": 26496,
       "valid": "valid audio",
-      "legacy": {
-        "path": "public/audio/ask-age_hi.wav",
-        "hash": "56d4af65701c26df",
-        "bytes": 16044,
-        "durationSeconds": 1.00275,
-        "meanVolumeDb": null,
-        "valid": "INVALID — not a decodable MP3 (the production container is mp3)"
-      }
+      "legacy": null
     },
     {
       "promptId": "ask-gender",
@@ -188,14 +132,7 @@
       "hash": "6dada40b4080b9e7",
       "bytes": 23808,
       "valid": "valid audio",
-      "legacy": {
-        "path": "public/audio/ask-gender_hi.wav",
-        "hash": "56d4af65701c26df",
-        "bytes": 16044,
-        "durationSeconds": 1.00275,
-        "meanVolumeDb": null,
-        "valid": "INVALID — not a decodable MP3 (the production container is mp3)"
-      }
+      "legacy": null
     },
     {
       "promptId": "ask-primary-concern",
@@ -209,14 +146,7 @@
       "hash": "2912d4f5fa391a5e",
       "bytes": 31488,
       "valid": "valid audio",
-      "legacy": {
-        "path": "public/audio/ask-primary-concern_hi.wav",
-        "hash": "56d4af65701c26df",
-        "bytes": 16044,
-        "durationSeconds": 1.00275,
-        "meanVolumeDb": null,
-        "valid": "INVALID — not a decodable MP3 (the production container is mp3)"
-      }
+      "legacy": null
     }
   ]
 }

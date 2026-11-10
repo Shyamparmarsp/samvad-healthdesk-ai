@@ -65,7 +65,16 @@ export const PatientShell: React.FC = () => {
   // D-04: the global daily cap is a distinct state, not a silent no-op consent screen.
   const [demoBusy, setDemoBusy] = useState<boolean>(false);
   /** Voice vs text is a shell-level mode: text mode must stop the microphone. */
-  const [inputMode, setInputMode] = useState<'voice' | 'text'>('voice');
+  const [inputMode, setInputMode] = useState<'voice' | 'text'>(() => {
+    try {
+      return sessionStorage.getItem('samvad_session_id') &&
+        sessionStorage.getItem('samvad_input_mode') === 'text'
+        ? 'text'
+        : 'voice';
+    } catch {
+      return 'voice';
+    }
+  });
   const [pendingVoiceTranscript, setPendingVoiceTranscript] = useState('');
   const [exitDialogOpen, setExitDialogOpen] = useState(false);
   /** v1.3: true while the screen shows a partial-report preview (not yet sent). */
@@ -152,6 +161,12 @@ export const PatientShell: React.FC = () => {
           const res = await resumeSession(savedSessionId);
           if (cancelled) return;
           exitedRef.current = false;
+          let savedMode: 'voice' | 'text' = 'voice';
+          try {
+            savedMode = sessionStorage.getItem('samvad_input_mode') === 'text' ? 'text' : 'voice';
+          } catch {}
+          setInputMode(savedMode);
+          voice.setSuspended(savedMode === 'text');
           setSessionId(res.session_id);
           setChatState(res);
 
@@ -169,6 +184,7 @@ export const PatientShell: React.FC = () => {
             setCurrentScreen('conversation');
           } else if (res.session_status === 'ended') {
             sessionStorage.removeItem('samvad_session_id');
+            sessionStorage.removeItem('samvad_input_mode');
             setCurrentScreen('welcome');
           }
         } catch {
@@ -177,6 +193,7 @@ export const PatientShell: React.FC = () => {
           if (cancelled) return;
           try {
             sessionStorage.removeItem('samvad_session_id');
+            sessionStorage.removeItem('samvad_input_mode');
           } catch {}
           setErrorMessage(t.chat.restoreFailed);
           setCurrentScreen('welcome');
@@ -198,9 +215,16 @@ export const PatientShell: React.FC = () => {
     } catch {}
   };
 
+  const rememberInputMode = (mode: 'voice' | 'text') => {
+    try {
+      sessionStorage.setItem('samvad_input_mode', mode);
+    } catch {}
+  };
+
   const forgetSession = () => {
     try {
       sessionStorage.removeItem('samvad_session_id');
+      sessionStorage.removeItem('samvad_input_mode');
     } catch {}
   };
 
@@ -209,6 +233,7 @@ export const PatientShell: React.FC = () => {
   const handleStartIntake = async (mode: 'voice' | 'text' = 'voice') => {
     if (isProcessing) return; // never create two sessions from a double click
     setInputMode(mode);
+    rememberInputMode(mode);
     // Inside the click gesture: unlock playback and ask for the microphone now, so the
     // assistant can speak and record without further taps.
     exitedRef.current = false;
@@ -369,6 +394,7 @@ export const PatientShell: React.FC = () => {
   /** Voice ↔ text. Text mode keeps the spoken questions but closes the microphone. */
   const handleChangeInputMode = (mode: 'voice' | 'text') => {
     setInputMode(mode);
+    rememberInputMode(mode);
     voice.setSuspended(mode === 'text');
   };
 

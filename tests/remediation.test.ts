@@ -750,34 +750,39 @@ describe('D-12/D-14/D-15 report truthfulness', () => {
 // ---------------------------------------------------------------------------
 
 describe('D-18 appointment table headers match their cells', () => {
-  it('labels the department and reference columns correctly', () => {
-    const html = renderToStaticMarkup(
-      React.createElement(DoctorAppointmentsView, {
-        appointments: [
-          {
-            id: 'apt-synthetic',
-            report_id: 'rep-synthetic',
-            doctor_id: 'doc-synthetic',
-            doctor_name: 'Dr. Synthetic',
-            department_name: 'General Medicine',
-            slot_id: '2026-11-10T15:30:00+05:30',
-            slot_start: '2026-11-10T15:30:00+05:30',
-            slot_end: '2026-11-10T16:00:00+05:30',
-            reference_code: 'APT-SYNTHETIC',
-            patient_name: 'Synthetic Patient A',
-            created_at: '2026-11-02T09:00:00Z',
-            status: 'confirmed',
-          },
-        ],
-        onBack: noop,
-      }),
-    );
-    assert.ok(html.includes('Department'));
-    assert.ok(html.includes('Reference'));
-    assert.ok(!html.includes('Age / Gender'));
-    assert.ok(html.includes('General Medicine'));
-    assert.ok(html.includes('APT-SYNTHETIC'));
-    // Default tab is Upcoming (D-42).
-    assert.ok(html.includes('aria-selected="true"') || html.includes('Upcoming'));
+  it('labels the department and reference columns correctly', (t) => {
+    t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-11-02T10:00:00+05:30') });
+    try {
+      const html = renderToStaticMarkup(
+        React.createElement(DoctorAppointmentsView, {
+          appointments: [
+            {
+              id: 'apt-synthetic',
+              report_id: 'rep-synthetic',
+              doctor_id: 'doc-synthetic',
+              doctor_name: 'Dr. Synthetic',
+              department_name: 'General Medicine',
+              slot_id: '2026-11-10T15:30:00+05:30',
+              slot_start: '2026-11-10T15:30:00+05:30',
+              slot_end: '2026-11-10T16:00:00+05:30',
+              reference_code: 'APT-SYNTHETIC',
+              patient_name: 'Synthetic Patient A',
+              created_at: '2026-11-02T09:00:00Z',
+              status: 'confirmed',
+            },
+          ],
+          onBack: noop,
+        }),
+      );
+      assert.ok(html.includes('Department'));
+      assert.ok(html.includes('Reference'));
+      assert.ok(!html.includes('Age / Gender'));
+      assert.ok(html.includes('General Medicine'));
+      assert.ok(html.includes('APT-SYNTHETIC'));
+      // Default tab is Upcoming (D-42).
+      assert.ok(html.includes('aria-selected="true"') || html.includes('Upcoming'));
+    } finally {
+      t.mock.timers.reset();
+    }
   });
 });

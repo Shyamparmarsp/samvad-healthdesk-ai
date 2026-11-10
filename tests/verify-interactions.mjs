@@ -1,7 +1,12 @@
 import { spawn } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
+
+const OUT_DIR = process.env.SCREENSHOT_OUT_DIR
+  ? resolve(process.env.SCREENSHOT_OUT_DIR)
+  : resolve('docs/screenshots');
+mkdirSync(OUT_DIR, { recursive: true });
 
 const CHROME_PATH = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PORT = 4173;
@@ -55,7 +60,7 @@ class CdpClient {
 
   async captureScreenshot(name) {
     const { data } = await this.send('Page.captureScreenshot', { format: 'png' });
-    writeFileSync(resolve('docs/screenshots', name), Buffer.from(data, 'base64'));
+    writeFileSync(resolve(OUT_DIR, name), Buffer.from(data, 'base64'));
     console.log(`  ✓ Captured ${name}`);
   }
 
@@ -400,8 +405,21 @@ async function runVerification() {
     assert.ok(patientDims.width <= 390, `Patient width must be <= 390, got ${patientDims.width}`);
     assert.equal(patientDims.height, 844, `Patient height must be 844, got ${patientDims.height}`);
 
-    // Doctor layout container check (submit login and verify 1280x820 desktop container)
+    // Doctor layout container check (verify persisted session, Log out -> Evaluator access, re-login -> 1280px container)
     await cdp.navigate(`http://127.0.0.1:${PORT}/doctor`);
+    const persistedDocText = await cdp.waitForText(/Dr\. Aditi Rao|Evaluator access/i);
+    assert.ok(
+      /Dr\. Aditi Rao/i.test(persistedDocText),
+      'Doctor session must remain authenticated across navigation until Log out',
+    );
+    await cdp.eval(`
+      (() => {
+        const logoutBtn = Array.from(document.querySelectorAll('button')).find(
+          (b) => (b.innerText || '').trim() === 'Log out',
+        );
+        if (logoutBtn) logoutBtn.click();
+      })()
+    `);
     await cdp.waitForText(/Evaluator access/i);
     await cdp.eval(`
       (() => {
@@ -412,6 +430,7 @@ async function runVerification() {
         }
       })()
     `);
+    await cdp.waitForText(/Dr\. Aditi Rao/i);
     await cdp.waitForText(/Samvad HealthDesk AI/i);
 
     const doctorDims = await cdp.eval(`

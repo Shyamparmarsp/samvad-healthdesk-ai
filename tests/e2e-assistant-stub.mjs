@@ -25,7 +25,9 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
-const OUT_DIR = resolve(ROOT, 'docs/screenshots/assistant/e2e');
+const OUT_DIR = process.env.SCREENSHOT_OUT_DIR
+  ? resolve(process.env.SCREENSHOT_OUT_DIR)
+  : resolve(ROOT, 'docs/screenshots/assistant/e2e');
 const PORT = 4182;
 const BASE = `http://127.0.0.1:${PORT}`;
 

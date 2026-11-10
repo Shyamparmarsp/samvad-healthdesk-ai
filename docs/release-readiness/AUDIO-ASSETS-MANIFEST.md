@@ -1,21 +1,21 @@
 # Prompt-audio asset manifest
 
-Generated: 2026-11-03T18:58:50.030Z
+Generated: 2026-11-10T05:38:38.904Z
 
 Model `timbre-v2.5`, container `mp3`, 24 kHz. Voices: `Kaveri` (en-IN), `Nalini` (hi-IN).
 
 | # | Prompt | Lang | Voice | Target path | Approved source | Current state | Legacy placeholder |
 |---|---|---|---|---|---|---|---|
-| 1 | `greeting` | en | Kaveri | `public/audio/en/greeting.mp3` | src/i18n/en.ts → consent.greetingAudio | valid audio | `public/audio/greeting_en.wav` — 1.00s, ? dB, INVALID — not a decodable MP3 (the production container is mp3) |
-| 2 | `ask-name` | en | Kaveri | `public/audio/en/ask-name.mp3` | supabase/functions/_shared/questions.ts → QUESTIONS.name.en | valid audio | `public/audio/ask-name_en.wav` — 1.00s, ? dB, INVALID — not a decodable MP3 (the production container is mp3) |
-| 3 | `ask-age` | en | Kaveri | `public/audio/en/ask-age.mp3` | supabase/functions/_shared/questions.ts → QUESTIONS.age.en | valid audio | `public/audio/ask-age_en.wav` — 1.00s, ? dB, INVALID — not a decodable MP3 (the production container is mp3) |
-| 4 | `ask-gender` | en | Kaveri | `public/audio/en/ask-gender.mp3` | supabase/functions/_shared/questions.ts → QUESTIONS.gender.en | valid audio | `public/audio/ask-gender_en.wav` — 1.00s, ? dB, INVALID — not a decodable MP3 (the production container is mp3) |
-| 5 | `ask-primary-concern` | en | Kaveri | `public/audio/en/ask-primary-concern.mp3` | supabase/functions/_shared/questions.ts → QUESTIONS.primary_concern.en | valid audio | `public/audio/ask-primary-concern_en.wav` — 1.00s, ? dB, INVALID — not a decodable MP3 (the production container is mp3) |
-| 6 | `greeting` | hi | Nalini | `public/audio/hi/greeting.mp3` | src/i18n/hi.ts → consent.greetingAudio | valid audio | `public/audio/greeting_hi.wav` — 1.00s, ? dB, INVALID — not a decodable MP3 (the production container is mp3) |
-| 7 | `ask-name` | hi | Nalini | `public/audio/hi/ask-name.mp3` | supabase/functions/_shared/questions.ts → QUESTIONS.name.hi | valid audio | `public/audio/ask-name_hi.wav` — 1.00s, ? dB, INVALID — not a decodable MP3 (the production container is mp3) |
-| 8 | `ask-age` | hi | Nalini | `public/audio/hi/ask-age.mp3` | supabase/functions/_shared/questions.ts → QUESTIONS.age.hi | valid audio | `public/audio/ask-age_hi.wav` — 1.00s, ? dB, INVALID — not a decodable MP3 (the production container is mp3) |
-| 9 | `ask-gender` | hi | Nalini | `public/audio/hi/ask-gender.mp3` | supabase/functions/_shared/questions.ts → QUESTIONS.gender.hi | valid audio | `public/audio/ask-gender_hi.wav` — 1.00s, ? dB, INVALID — not a decodable MP3 (the production container is mp3) |
-| 10 | `ask-primary-concern` | hi | Nalini | `public/audio/hi/ask-primary-concern.mp3` | supabase/functions/_shared/questions.ts → QUESTIONS.primary_concern.hi | valid audio | `public/audio/ask-primary-concern_hi.wav` — 1.00s, ? dB, INVALID — not a decodable MP3 (the production container is mp3) |
+| 1 | `greeting` | en | Kaveri | `public/audio/en/greeting.mp3` | src/i18n/en.ts → consent.greetingAudio | valid audio | none |
+| 2 | `ask-name` | en | Kaveri | `public/audio/en/ask-name.mp3` | supabase/functions/_shared/questions.ts → QUESTIONS.name.en | valid audio | none |
+| 3 | `ask-age` | en | Kaveri | `public/audio/en/ask-age.mp3` | supabase/functions/_shared/questions.ts → QUESTIONS.age.en | valid audio | none |
+| 4 | `ask-gender` | en | Kaveri | `public/audio/en/ask-gender.mp3` | supabase/functions/_shared/questions.ts → QUESTIONS.gender.en | valid audio | none |
+| 5 | `ask-primary-concern` | en | Kaveri | `public/audio/en/ask-primary-concern.mp3` | supabase/functions/_shared/questions.ts → QUESTIONS.primary_concern.en | valid audio | none |
+| 6 | `greeting` | hi | Nalini | `public/audio/hi/greeting.mp3` | src/i18n/hi.ts → consent.greetingAudio | valid audio | none |
+| 7 | `ask-name` | hi | Nalini | `public/audio/hi/ask-name.mp3` | supabase/functions/_shared/questions.ts → QUESTIONS.name.hi | valid audio | none |
+| 8 | `ask-age` | hi | Nalini | `public/audio/hi/ask-age.mp3` | supabase/functions/_shared/questions.ts → QUESTIONS.age.hi | valid audio | none |
+| 9 | `ask-gender` | hi | Nalini | `public/audio/hi/ask-gender.mp3` | supabase/functions/_shared/questions.ts → QUESTIONS.gender.hi | valid audio | none |
+| 10 | `ask-primary-concern` | hi | Nalini | `public/audio/hi/ask-primary-concern.mp3` | supabase/functions/_shared/questions.ts → QUESTIONS.primary_concern.hi | valid audio | none |
 
 ## Speech source (owner-reviewed; never rewritten by the generator)
 
